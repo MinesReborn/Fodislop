@@ -63,7 +63,7 @@ public sealed class SurfaceSceneRenderer : IDisposable
         {
             // Preserve the gameplay surface and its transition; only the old
             // full-screen sky is replaced by the atmospheric background.
-            renderer.enabled = renderer.gameObject.name != "SurfaceHorizon";
+            renderer.enabled = renderer.gameObject.name != SurfaceRenderer.HorizonObjectName;
         }
     }
 

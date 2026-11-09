@@ -18,7 +18,6 @@ public sealed class FrameBreakdownWindow : ToolWindow
     private const float RefreshInterval = 0.25f;
     private const string ReportCategory = "FrameBreakdown";
     private const string ReportKind = "Разбор кадра";
-    private const int FrameTabLoopRows = 8;
 
     private enum Tab
     {
@@ -289,7 +288,6 @@ public sealed class FrameBreakdownWindow : ToolWindow
         _timings.Clear();
         _playerLoop.EnsureStarted();
         _loop.Begin();
-        Kern.Diagnostics.Memory.AllocationLedger.Enabled = true;
         foreach (List<FrameProbe> list in AllCatalogLists())
         {
             foreach (FrameProbe probe in list)
@@ -312,7 +310,6 @@ public sealed class FrameBreakdownWindow : ToolWindow
         _spikes.Cancel();
         _layout.Stop();
         _layoutActive = false;
-        Kern.Diagnostics.Memory.AllocationLedger.Enabled = false;
         foreach (List<FrameProbe> list in AllCatalogLists())
         {
             foreach (FrameProbe probe in list)
@@ -348,7 +345,7 @@ public sealed class FrameBreakdownWindow : ToolWindow
         List<FrameBreakdownRow> rows = _rows[_tab];
         switch (_tab)
         {
-            case Tab.Frame: FrameBreakdownRowBuilder.BuildFrameRows(rows, _timings, _playerLoop, _loop, _search, _memory, ToolAllocatedBytes()); break;
+            case Tab.Frame: FrameBreakdownRowBuilder.BuildFrameRows(rows, _timings, _playerLoop, _loop, _search, _memory); break;
             case Tab.Loop: FrameBreakdownRowBuilder.BuildLoopRows(rows, _loop, _playerLoop, _search); break;
             case Tab.Hot: FrameBreakdownRowBuilder.BuildHotRows(rows, _sweep); break;
             case Tab.Spikes: FrameBreakdownRowBuilder.BuildSpikeRows(rows, _spikes); break;
@@ -364,7 +361,7 @@ public sealed class FrameBreakdownWindow : ToolWindow
 
     private void RebuildAllRows()
     {
-        FrameBreakdownRowBuilder.BuildFrameRows(_rows[Tab.Frame], _timings, _playerLoop, _loop, _search, _memory, ToolAllocatedBytes());
+        FrameBreakdownRowBuilder.BuildFrameRows(_rows[Tab.Frame], _timings, _playerLoop, _loop, _search, _memory);
         FrameBreakdownRowBuilder.BuildLoopRows(_rows[Tab.Loop], _loop, _playerLoop, _search);
         FrameBreakdownRowBuilder.BuildHotRows(_rows[Tab.Hot], _sweep);
         FrameBreakdownRowBuilder.BuildSpikeRows(_rows[Tab.Spikes], _spikes);
@@ -374,17 +371,6 @@ public sealed class FrameBreakdownWindow : ToolWindow
         FrameBreakdownRowBuilder.BuildMemoryRows(_rows[Tab.Memory], _memory, _render);
         FrameBreakdownRowBuilder.BuildSearchRows(_rows[Tab.Search], _search);
         FrameBreakdownRowBuilder.BuildSceneRows(_rows[Tab.Scene], _census);
-    }
-
-    private static long ToolAllocatedBytes()
-    {
-        long total = 0;
-        foreach (ToolWindow window in ToolWindows.All)
-        {
-            total += window.TickAllocatedBytes + window.DrawAllocatedBytes;
-        }
-
-        return total;
     }
 
     private string BuildReport()

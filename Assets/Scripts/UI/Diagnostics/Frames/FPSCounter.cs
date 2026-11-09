@@ -24,6 +24,8 @@ namespace Kern.UI.Diagnostics
         private VisualElement? _documentRoot;
         private Label? _fpsLabel;
         private Label? _versionLabel;
+        private Label? _onlinePlayersLabel;
+        private Label? _onlineProgramsLabel;
 
         [Inject]
         private UIDocument _document = null!;
@@ -96,6 +98,8 @@ namespace Kern.UI.Diagnostics
             _documentRoot = null;
             _fpsLabel = null;
             _versionLabel = null;
+            _onlinePlayersLabel = null;
+            _onlineProgramsLabel = null;
         }
 
         protected void Update()
@@ -131,24 +135,11 @@ namespace Kern.UI.Diagnostics
                 return;
             }
 
+            // Строка состояния макета (visual/kern-ui .status-bar): «v0.8.14 · 60 FPS»; онлайн — своими подписями.
+            // Подробности (время кадра, пинг) — в отладочном окне по F1 (InGameDebugOverlay)
             _displayBuilder.Clear();
-            // Короткая строка — по форме ввода, а не платформе: на сенсорном
-            // экране места меньше, а подсказки [F1] у пальца нет.
-            if (UIScreen.Current.IsTouch)
-            {
-                _displayBuilder.Append("FPS ").Append((int)CurrentFPS)
-                    .Append(" · ").Append((averageDelta * 1000f).ToString("F0"))
-                    .Append(" ms · Ping ").Append(_networkStatus.PingMs).Append(" ms");
-            }
-            else
-            {
-                _displayBuilder.Append("FPS: ").Append((int)CurrentFPS)
-                    .Append(" (").Append((averageDelta * 1000f).ToString("F1"))
-                    .Append("ms)  Ping: ").Append(_networkStatus.PingMs)
-                    .Append("ms  Robots: ").Append(_networkStatus.OnlinePlayers)
-                    .Append("  Programmator: ").Append(_networkStatus.OnlineProgrammator)
-                    .Append("  [F1]");
-            }
+            _displayBuilder.Append((int)CurrentFPS).Append(" FPS");
+            RefreshOnline();
 
             string text = _displayBuilder.ToString();
             if (_fpsLabel.text != text)
@@ -196,10 +187,28 @@ namespace Kern.UI.Diagnostics
             _documentRoot = root;
             _fpsLabel = root?.Q<Label>("FPSCounterLabel");
             _versionLabel = root?.Q<Label>("BuildVersionLabel");
+            _onlinePlayersLabel = root?.Q<Label>("OnlinePlayersLabel");
+            _onlineProgramsLabel = root?.Q<Label>("OnlineProgramsLabel");
             _widestLabel = 0f;
             if (_versionLabel != null)
             {
-                _versionLabel.text = $"v{Application.version}";
+                _versionLabel.text = $"v{Application.version}".ToUpperInvariant();
+            }
+        }
+
+        // Онлайн: игроков в сети и (в скобках) запущено программ — OnlinePacket
+        private void RefreshOnline()
+        {
+            string players = _networkStatus.OnlinePlayers.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            string programs = "(" + _networkStatus.OnlineProgrammator.ToString(System.Globalization.CultureInfo.InvariantCulture) + ")";
+            if (_onlinePlayersLabel != null && _onlinePlayersLabel.text != players)
+            {
+                _onlinePlayersLabel.text = players;
+            }
+
+            if (_onlineProgramsLabel != null && _onlineProgramsLabel.text != programs)
+            {
+                _onlineProgramsLabel.text = programs;
             }
         }
 

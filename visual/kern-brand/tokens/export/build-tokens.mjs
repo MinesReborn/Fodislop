@@ -121,7 +121,7 @@ const transfer = d => {
   if (k === 'zIndex') return { to: 'hierarchy', how: 'в UI Toolkit слой задаёт порядок элементов в дереве и sortingOrder панели' };
   if (k === 'fontFamily') return { to: 'asset', how: 'FontAsset (SDF) с выровненной коробкой строки 1.2 em; запасной CJK — fallback-цепочка ассета' };
   if (k === 'cubicBezier') return { to: 'uss', how: 'transition-timing-function: ease-out' };
-  if (k === 'letterSpacing') return { to: 'uss', how: 'letter-spacing в USS — в px или %, em переводится по кеглю элемента' };
+  if (k === 'letterSpacing') return { to: 'site', how: 'разрядка в em: letter-spacing в USS — только px или %, переводится в px по кеглю элемента на месте' };
   if (k === 'shadow') return { to: 'border', how: 'box-shadow в USS нет: inset-линия — border-top, отбивка — отдельный элемент-подложка со смещением' };
   if (k === 'composite') return { to: 'texture', how: d.name.includes('clip') ? 'срез угла — VectorImage/9-slice рамки' : 'фоновый узор — 9-slice или повторяемая текстура' };
   return { to: 'uss', how: '1:1' };
@@ -163,7 +163,7 @@ for (const d of decls) {
   ussLines.push(`    ${d.name}: ${ussValue(d)};${d.note ? ` /* ${d.note} */` : ''}`);
 }
 const ussText = `/* ФАЙЛ МАШИННЫЙ — производная от visual/kern-ui/css/tokens.css (build-tokens.mjs).
-   Это предпросмотр темы для переноса, в игру его подключает генератор tools/Kern.DesignSystem после перенацеливания на kern-ui.
+   В игру его переносит генератор tools/generators/Kern.DesignSystem emit-uss-tokens (Assets/Resources/UI/Theme/Tokens/Styles/KernTokens.uss).
 
    Не переносится переменной USS:
 ${[...skipped].map(([how, names]) => `   · ${how}:\n       ${names.join(' ')}`).join('\n')}

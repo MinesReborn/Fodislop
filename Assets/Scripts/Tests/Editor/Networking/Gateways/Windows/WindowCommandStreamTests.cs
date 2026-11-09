@@ -1,7 +1,9 @@
 #nullable enable
 
+using System;
 using Kern.Networking;
 using MinesServer.Networking.Server.Packets.GUI;
+using MinesServer.Networking.Server.Packets.GUI.Components.Visual;
 using NUnit.Framework;
 
 using Kern.Networking.Gateways;
@@ -18,7 +20,7 @@ public class WindowCommandStreamTests
         OpenWindowPacket? received = null;
         stream.OpenRequested += packet => received = packet;
 
-        var packet = new OpenWindowPacket("shop", 300, 200, null!);
+        var packet = new OpenWindowPacket("shop", 300, 200, new TextPacket());
         stream.PublishOpenWindow(packet);
 
         Assert.AreEqual(packet, received);
@@ -50,7 +52,7 @@ public class WindowCommandStreamTests
     }
 
     [Test]
-    public void Unsubscribe_PreventsDisposedPresenterListenerFromReceivingCommands()
+    public void Unsubscribe_RejectsCommandsWithoutPresenter()
     {
         var stream = new WindowCommandStream();
         int calls = 0;
@@ -58,9 +60,24 @@ public class WindowCommandStreamTests
         stream.CloseRequested += Handler;
         stream.CloseRequested -= Handler;
 
-        stream.PublishCloseWindow(new CloseWindowPacket());
+        Assert.Throws<InvalidOperationException>(() => stream.PublishCloseWindow(new CloseWindowPacket()));
 
         Assert.AreEqual(0, calls);
+    }
+
+    [Test]
+    public void PublishModal_WithoutPresenterReportsMissingHandler()
+    {
+        var stream = new WindowCommandStream();
+        Assert.Throws<InvalidOperationException>(() =>
+            stream.PublishModalWindow(new ModalWindowPacket("title", "body", "OK", "")));
+    }
+
+    [Test]
+    public void PublishLink_WithoutPresenterReportsMissingHandler()
+    {
+        var stream = new WindowCommandStream();
+        Assert.Throws<InvalidOperationException>(() => stream.PublishOpenLink("https://example.com"));
     }
 
     [Test]

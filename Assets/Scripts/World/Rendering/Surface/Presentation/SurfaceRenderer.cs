@@ -27,9 +27,9 @@ namespace Kern.World
         private static readonly AllocationLedger.Entry s_allocationEntry =
             AllocationLedger.Register("Поверхность — LateUpdate");
 
-        private const string TransitObjectName = "SurfaceTransit";
-        private const string PerspectiveObjectName = "SurfacePerspective";
-        private const string HorizonObjectName = "SurfaceHorizon";
+        internal const string TransitObjectName = "SurfaceTransit";
+        internal const string PerspectiveObjectName = "SurfacePerspective";
+        internal const string HorizonObjectName = "SurfaceHorizon";
 
         [Header("Local Assets")]
         [SerializeField]

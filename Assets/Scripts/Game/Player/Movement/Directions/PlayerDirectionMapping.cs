@@ -8,21 +8,6 @@ namespace Kern.Game.Player.Movement;
 
 public static class PlayerDirectionMapping
 {
-    public static Vector2Int InputToDirection(Vector2 moveInput)
-    {
-        if (moveInput == Vector2.zero)
-        {
-            return Vector2Int.zero;
-        }
-
-        if (Mathf.Abs(moveInput.x) > Mathf.Abs(moveInput.y))
-        {
-            return new Vector2Int(moveInput.x > 0 ? 1 : -1, 0);
-        }
-
-        return new Vector2Int(0, moveInput.y > 0 ? 1 : -1);
-    }
-
     // Восемь секторов по 45°: прямые стороны дают одну ось, диагональные —
     // две. Клавиатурное W+A (135°) попадает ровно в центр диагонального
     // сектора, стик и тач — по углу отклонения.

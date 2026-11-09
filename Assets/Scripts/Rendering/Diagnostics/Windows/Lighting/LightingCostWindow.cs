@@ -32,8 +32,12 @@ public sealed class LightingCostWindow : ToolWindow
     private long _totalRaySteps;
     private long _totalMergeTaps;
     private long _heaviestRaySteps;
+    private int _lastStaticSolveCount;
+    private int _lastDynamicSolveCount;
+    private double _lastSolveSampleTime;
+    private bool _hasSolveSample;
     private string _summary = "нет данных";
-    private string _solveMix = "решений: --";
+    private string _solveMix = "решений/с: --";
 
     // Строки пределов собираются по таймеру, а не на каждое событие IMGUI:
     // окно открыто, пока смотрят на цену кадра, и мусор здесь искажает то,
@@ -91,6 +95,7 @@ public sealed class LightingCostWindow : ToolWindow
         }
 
         _lighting.CollectCascadeCosts(_samples);
+        UpdateSolveMix(Time.unscaledTimeAsDouble);
         Recalculate();
     }
 
@@ -104,7 +109,11 @@ public sealed class LightingCostWindow : ToolWindow
         _totalMergeTaps = 0;
         _heaviestRaySteps = 0;
         _summary = "нет данных";
-        _solveMix = "решений: --";
+        _solveMix = "решений/с: --";
+        _lastStaticSolveCount = 0;
+        _lastDynamicSolveCount = 0;
+        _lastSolveSampleTime = 0d;
+        _hasSolveSample = false;
         _fieldDetail = NoDetail;
         _cascadeDetail = NoDetail;
         _atlasDetail = NoDetail;
@@ -155,12 +164,21 @@ public sealed class LightingCostWindow : ToolWindow
         string execution = _lighting?.ActiveGraphicsPreset == Kern.Rendering.GraphicsPreset.Classic
             ? "не выполняется: пресет «Классика» отключает динамический свет"
             : applied;
-        _dynamicDetail = $"Режим: {transport}, {batching} ({execution}). " +
-            $"Последний кадр: {_telemetry.LightingDynamicReceiverDispatchCount} dispatch-приёмников, " +
-            $"{_telemetry.LightingDynamicPolarDispatchCount} dispatch-вейеров, " +
-            $"дескрипторы {_telemetry.LightingDynamicBatchDescriptorBytes:N0} Б; " +
-            $"{_telemetry.LightingDynamicDispatchPixels:N0} пикселей и " +
-            $"{_telemetry.LightingPolarRayWorkUnits:N0} отсчётов веера. GPU-время отдельных этапов здесь недоступно.";
+        IFrameTelemetryProducerStamp? producerStamp = _telemetry as IFrameTelemetryProducerStamp;
+        int producerFrameAge = producerStamp is { ProducerLifecycleValid: true }
+            ? Time.frameCount - producerStamp.ProducerFrameId
+            : int.MaxValue;
+        bool hasCurrentFrameSnapshot = producerStamp is { ProducerLifecycleValid: true } &&
+            producerStamp.ProducerFrameId >= 0 && producerFrameAge is >= 0 and <= 1;
+        string frameMetrics = hasCurrentFrameSnapshot
+            ? $"Снимок кадра {producerStamp!.ProducerFrameId}: {_telemetry.LightingDynamicReceiverDispatchCount} dispatch-приёмников, " +
+              $"{_telemetry.LightingDynamicPolarDispatchCount} dispatch-вейеров, " +
+              $"дескрипторы {_telemetry.LightingDynamicBatchDescriptorBytes:N0} Б; " +
+              $"{_telemetry.LightingDynamicDispatchPixels:N0} пикселей и " +
+              $"{_telemetry.LightingPolarRayWorkUnits:N0} отсчётов веера."
+            : "Покадровые показатели: нет актуального снимка.";
+        _dynamicDetail = $"Режим: {transport}, {batching} ({execution}). {frameMetrics} " +
+            "GPU-время отдельных этапов здесь недоступно.";
     }
 
     private void Recalculate()
@@ -177,15 +195,35 @@ public sealed class LightingCostWindow : ToolWindow
             _heaviestRaySteps = System.Math.Max(_heaviestRaySteps, sample.RayStepCount);
             _rows.Add(
                 $"К{sample.Index}  {sample.DirectionCount} напр  {sample.ProbeWidth}×{sample.ProbeHeight}  " +
-                $"шагов {sample.StepCount}  ·  {Millions(sample.RayStepCount)} шагов луча");
+                $"оценка {sample.StepCount} шагов на луч  ·  {Millions(sample.RayStepCount)} шагов луча");
         }
 
         _summary =
-            $"{Millions(_totalRaySteps)} шагов луча  +  {Millions(_totalMergeTaps)} выборок атласа " +
-            $"за одно полное решение";
-        _solveMix =
-            $"за секунду: статических {_telemetry.LightingStaticSolveCount}, " +
-            $"динамических {_telemetry.LightingDynamicSolveCount}";
+            $"верхняя оценка на полное решение: {Millions(_totalRaySteps)} шагов луча  +  " +
+            $"{Millions(_totalMergeTaps)} выборок атласа; это не GPU-замер";
+    }
+
+    private void UpdateSolveMix(double nowSeconds)
+    {
+        int staticSolveCount = _telemetry.LightingStaticSolveCount;
+        int dynamicSolveCount = _telemetry.LightingDynamicSolveCount;
+        if (_hasSolveSample && nowSeconds > _lastSolveSampleTime &&
+            staticSolveCount >= _lastStaticSolveCount && dynamicSolveCount >= _lastDynamicSolveCount)
+        {
+            double elapsedSeconds = nowSeconds - _lastSolveSampleTime;
+            double staticPerSecond = (staticSolveCount - _lastStaticSolveCount) / elapsedSeconds;
+            double dynamicPerSecond = (dynamicSolveCount - _lastDynamicSolveCount) / elapsedSeconds;
+            _solveMix = $"решений/с за {elapsedSeconds:F1} с: статических {staticPerSecond:F1}, динамических {dynamicPerSecond:F1}";
+        }
+        else
+        {
+            _solveMix = "решений/с: нет интервала для расчёта";
+        }
+
+        _lastStaticSolveCount = staticSolveCount;
+        _lastDynamicSolveCount = dynamicSolveCount;
+        _lastSolveSampleTime = nowSeconds;
+        _hasSolveSample = true;
     }
 
     private static string Millions(long value) =>

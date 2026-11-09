@@ -237,7 +237,7 @@ public class WorldInitProcessorTests
         public event Action? OnPlayerTeleported { add { } remove { } }
         public event Action<bool>? OnAutoDigChanged { add { } remove { } }
 
-        public void UpdateServerPosition(Vector2Int position, bool teleport = false)
+        public void UpdateServerPosition(Vector2Int position, bool teleport = false, Direction? rotation = null)
         {
             Position = position;
             HasServerPosition = true;

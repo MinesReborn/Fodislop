@@ -1,12 +1,18 @@
 <!doctype html>
 <html lang="ru">
 <meta charset="utf-8">
-<title>WorldRenderGrid — evidence первого этапа</title>
+<title>WorldRenderGrid — архив evidence</title>
 <style>
 body{font:16px/1.6 system-ui,sans-serif;margin:40px auto;max-width:1080px;padding:0 24px;color:#20252b;background:#fafafa}table{border-collapse:collapse;width:100%;margin:20px 0}th,td{border:1px solid #ccd2d8;padding:9px;text-align:left;vertical-align:top}code{background:#e9edf0;padding:2px 5px}pre{white-space:pre-wrap;background:#e9edf0;padding:16px}.pending{color:#8b4300}
 </style>
-<h1>WorldRenderGrid — текущее состояние реализации</h1>
-<h2>2026-10-09 — восстановление растеризации через штатный URP</h2>
+<h1>WorldRenderGrid — архив evidence</h1>
+<p>Это хронология проверок и production captures, а не описание текущей
+реализации. Снимок от 9 октября ниже фиксирует промежуточный вариант с
+<code>PixelPerfectCamera</code>; он заменён renderer-owned raster passes без
+изменения Camera. Текущие владельцы и проходы описаны в
+<a href="WORLD_RASTER_GRID.html">WORLD_RASTER_GRID.html</a>. Старые результаты
+подтверждают только перечисленные в записи условия на дату прогона.</p>
+<h2>Исторический снимок 2026-10-09 — растеризация через штатный URP</h2>
 <p>После удаления собственного URP hook сетка сохранилась в расчётах, но мировой color target стал экранным.
 WorldRenderGridBinding теперь задаёт PixelPerfectCamera reference target до растеризации Renderer2D:
 32 пикселя на клетку. Финальный штатный point blit только увеличивает уже готовый мировой буфер.

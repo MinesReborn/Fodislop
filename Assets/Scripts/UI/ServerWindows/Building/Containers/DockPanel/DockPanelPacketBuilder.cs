@@ -33,16 +33,11 @@ public class DockPanelPacketBuilder : PacketUIBuilderBase<DockPanelPacket>
         IReadOnlyList<IGUIComponentPacket> children,
         PacketUIBuilder builder)
     {
-        // Полностью пристыкованная влево панель — плоский центрированный ряд:
-        // так сервер присылает вкладки, кнопки и строки кристаллов/форм.
-        // Вложенные обёртки прижимали бы ряд к левому краю под центрированным
-        // заголовком.
+        // Одинаковая стыковка сохраняет порядок детей без дополнительных обёрток.
         if (AllDockedLeft(children))
         {
             var strip = new VisualElement();
             strip.AddToClassList("row");
-            strip.AddToClassList("ai-center");
-            strip.AddToClassList("jc-center");
             foreach (IGUIComponentPacket child in children)
             {
                 VisualElement built = builder.Build(child);

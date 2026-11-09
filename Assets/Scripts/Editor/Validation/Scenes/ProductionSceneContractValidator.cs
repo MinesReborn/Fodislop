@@ -141,11 +141,6 @@ public sealed class ProductionSceneContractValidator : IPreprocessBuildWithRepor
                 errors.Add($"{sceneName}: Bootstrap must contain exactly one root LifetimeScope.");
             }
 
-            if (scene.GetRootGameObjects().Any(root => root.name == "MenuScenery"))
-            {
-                errors.Add($"{sceneName}: Bootstrap must not own menu scenery (MainMenu owns it).");
-            }
-
             BootstrapLifetimeScope? bootstrap = scopes.OfType<BootstrapLifetimeScope>().SingleOrDefault();
             if (bootstrap != null)
             {

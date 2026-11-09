@@ -304,10 +304,7 @@ namespace Kern.World.Terrain
                 Telemetry: _telemetry);
             TerrainFramePlan framePlan = _planner.Plan(planningInput);
             float planMs = TerrainStallReport.ElapsedMs(planStart);
-            if (_meshRenderer != null)
-            {
-                _meshRenderer.enabled = !BypassTerrainDraw && _window.CellsCommitted;
-            }
+            SetTerrainDrawVisible(!BypassTerrainDraw && _window.CellsCommitted);
 
             if (!framePlan.ShouldProcess)
             {
@@ -360,10 +357,7 @@ namespace Kern.World.Terrain
 
             float processMs = publishMs + TerrainStallReport.ElapsedMs(processStart);
 
-            if (_meshRenderer != null)
-            {
-                _meshRenderer.enabled = !BypassTerrainDraw && _window.CellsCommitted;
-            }
+            SetTerrainDrawVisible(!BypassTerrainDraw && _window.CellsCommitted);
 
             _publishedChangedRegions.Clear();
             _window.TakePublishedChangedRegions(_publishedChangedRegions);
@@ -406,7 +400,10 @@ namespace Kern.World.Terrain
                     _window.Width,
                     _window.Height,
                     _cellSize,
-                    _meshFilter, _window.VolumeTopology);
+                    _meshFilter,
+                    _meshRenderer,
+                    _sceneObjects,
+                    _window.VolumeTopology);
             }
 
             _lightingViewport = framePlan.LightingViewport;
@@ -447,7 +444,7 @@ namespace Kern.World.Terrain
                 return;
             }
 
-            _meshRenderer.enabled = true;
+            SetTerrainDrawVisible(true);
             _meshRenderer.sortingLayerName = _sortingLayerName;
             _meshRenderer.sortingOrder = _sortingOrder;
         }
@@ -460,10 +457,20 @@ namespace Kern.World.Terrain
         private void OnWorldDataLoaded()
         {
             WorldChanges.HandleWorldDataLoaded(EnsureSubscriptions);
+            SetTerrainDrawVisible(false);
+        }
+
+        // Фон и блоки — два отдельных рендерера (см. TerrainPresentationWindow).
+        // Видимость обязана меняться вместе, иначе при скрытом террейне на
+        // экране остаётся один слой блоков.
+        private void SetTerrainDrawVisible(bool visible)
+        {
             if (_meshRenderer != null)
             {
-                _meshRenderer.enabled = false;
+                _meshRenderer.enabled = visible;
             }
+
+            _presentation.SetBlockVisible(visible);
         }
         private bool TryResolveCamera()
         {

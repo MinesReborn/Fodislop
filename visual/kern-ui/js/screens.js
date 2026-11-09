@@ -148,48 +148,6 @@
     $('updFill').style.width = '0'; tick();
   };
 
-  // Проверка доступности файлов, на которые ссылается клиентский интерфейс.
-  const healthDialog = $('healthDialog');
-  healthDialog.querySelectorAll('[data-close]').forEach(button => {
-    button.onclick = () => { healthDialog.hidden = true; };
-  });
-  $('healthCheck').onclick = async () => {
-    const urls = [...new Set([...document.images]
-      .map(image => image.currentSrc || image.src)
-      .filter(url => url && new URL(url, document.baseURI).origin === location.origin))];
-    const total = urls.length;
-    let checked = 0, missing = 0;
-    $('healthCheck').disabled = true;
-    $('healthProgress').hidden = false;
-    $('healthStatus').textContent = 'Проверка файлов…';
-    $('healthStatus').className = '';
-    $('healthCount').textContent = `0 / ${total}`;
-    $('healthFill').style.width = '0%';
-
-    for (let index = 0; index < urls.length; index += 8) {
-      const batch = urls.slice(index, index + 8);
-      const results = await Promise.all(batch.map(async url => {
-        try {
-          const response = await fetch(url, { method: 'HEAD', cache: 'no-store' });
-          return response.ok;
-        } catch {
-          return false;
-        }
-      }));
-      checked += results.length;
-      missing += results.filter(ok => !ok).length;
-      $('healthCount').textContent = `${checked} / ${total}`;
-      $('healthFill').style.width = `${total === 0 ? 0 : checked / total * 100}%`;
-    }
-
-    const healthy = total > 0 && missing === 0;
-    $('healthStatus').textContent = healthy
-      ? 'Все ресурсы доступны'
-      : total === 0 ? 'Ресурсы для проверки не найдены' : `Не найдены ресурсы: ${missing}`;
-    $('healthStatus').classList.add(healthy ? 'is-healthy' : 'has-errors');
-    $('healthCheck').disabled = false;
-    $('healthCheck').textContent = 'Проверить ещё раз';
-  };
   $('descendBtn').onclick = () => show('descent');
 
   // ── Спуск: фазы экрана, как в клиенте (WorldLoadPhase), затем игра ──
@@ -432,7 +390,7 @@
   window.openSkills = (slot = -1) => { selected = slot; renderSkills(); $('skillsDialog').hidden = false; };
   $('openSkills').onclick = () => { show('game'); window.openSkills(-1); };
   $('skillsDialog').querySelector('[data-close]').onclick = () => { $('skillsDialog').hidden = true; };
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') { $('skillsDialog').hidden = true; $('updateDialog').hidden = true; healthDialog.hidden = true; } });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') { $('skillsDialog').hidden = true; $('updateDialog').hidden = true; } });
 
   // Адрес: ?screen=menu&update=1&updwin=1&skills=2&onbstep=1
   renderStep();
@@ -451,10 +409,6 @@
     if (q.get('autherr')) ($('regForm').classList.contains('is-off') ? $('authForm') : $('regForm')).requestSubmit(); // ?autherr=1 — снимок ошибок полей
     show(q.get('screen') || 'game');
     if (q.get('updwin')) openUpdate();
-    if (q.get('health')) {
-      healthDialog.hidden = false;
-      if (q.get('health') === 'run') $('healthCheck').click();
-    }
   });
   window.kernScene.on(1, q => { if (q.get('skills')) window.openSkills(Number(q.get('skills'))); });
 })();

@@ -10,25 +10,17 @@ using UnityEngine;
 namespace Kern.Tests.UI;
 
 /// <summary>
-/// Контракт облака локального чата.
+/// Контракт облака локального чата — макет visual/kern-ui (css/events.css .wl-chat, systems.css):
+/// рамка стилями (1 px seam-strong, плотный графит, поля 2/6), строка 12 px высотой 16,
+/// под рамкой хвост — отдельный элемент 1×6 в 5 px от левого края. Облако вешается
+/// за нижний конец хвоста и масштабируется целиком от левого верхнего угла.
 ///
-/// Рамка рисуется спрайтом LocalChatBubble с 9-slice, а не стилями: спрайт
-/// назначается кодом вместе с ScaleMode.ScaleToFit, иначе он ужимается в бокс
-/// целиком, хвост превращается в полосу, а текст оказывается под ней. Поэтому
-/// в USS у облака нет ни подложки-цвета, ни border-*: любая из них перекрыла бы
-/// спрайт и рамка разошлась бы с текстом.
-///
-/// Границы 9-slice лежат в ассете (spriteBorder в импортере) и не дублируются
-/// ни в USS, ни в C#. Это проверяется здесь и в PlayMode-тесте, который
-/// сверяет resolvedStyle с sprite.border.
-///
-/// Числа раскладки проверяет WorldLabelChatLayoutPlayModeTests: в EditMode
-/// resolvedStyle нельзя читать до прохода стилей, поэтому здесь только
-/// контракт исходников — то, что не должно тихо поехать при правках.
+/// Числа раскладки проверяют PlayMode-тесты: в EditMode resolvedStyle нельзя читать
+/// до прохода стилей, поэтому здесь только контракт исходников.
 ///
 /// Отдельно охраняется порядок импортов в KernTheme: при равной специфичности
 /// выигрывает объявленное позже, и .unity-label из базовой темы перебивал
-/// white-space у .world-label-chat. Облако не переносило текст и не росло.
+/// правила подписей мира.
 /// </summary>
 [TestFixture]
 public sealed class WorldLabelChatStyleTests
@@ -36,74 +28,51 @@ public sealed class WorldLabelChatStyleTests
     private const string BubbleRulesPath = "Assets/Resources/UI/WorldLabels/Styles/WorldLabels.uss";
     private const string BubbleClass = ".world-label-chat";
     private const string BubbleTextClass = ".world-label-chat-text";
+    private const string BubbleTailClass = ".world-label-chat__tail";
     private const string ThemePath = "Assets/UI/Toolkit/Themes/Kern/KernTheme.tss";
     private const string BaseThemeImport = "unity-theme://default";
     private const string WorldLabelsImport = "UI/WorldLabels/Styles/WorldLabels.uss";
     private const string WorldLabelsSource = "Assets/Scripts/UI/WorldLabels/Presentation/WorldLabels.cs";
 
     [Test]
-    public void BubbleStyle_HasNoCssFrameUnderTheBubbleSprite()
+    public void BubbleFrame_IsDrawnByStylesAsInTheMockup()
     {
-        // Рамку рисует спрайт. Подложка-цвет или контур из темы встали бы
-        // поверх него, и облако снова стало бы боксом темы, а не спрайтом.
-        //
-        // Проверяется тело правил рамки, а не весь файл: свойства текста
-        // (background-image-tint-color) не должны ловиться подстрокой.
+        // Рамка — стилями: спрайта больше нет, слайсы и тон не нужны.
         string frame = ReadClass(BubbleClass);
-        Assert.That(frame, Does.Not.Contain("background-color"));
-        Assert.That(frame, Does.Not.Contain("background-image:"));
-        Assert.That(frame, Does.Not.Contain("border-color"));
-        Assert.That(frame, Does.Not.Contain("border-width"));
-        Assert.That(frame, Does.Not.Contain("border-radius"));
+        Assert.That(frame, Does.Match(@"border-width:\s*1px"));
+        Assert.That(frame, Does.Contain("border-color: var(--seam-strong)"));
+        Assert.That(frame, Does.Contain("background-color:"));
+        Assert.That(frame, Does.Match(@"padding:\s*2px 6px"));
+        Assert.That(frame, Does.Match(@"transform-origin:\s*0% 0%"));
+
+        string worldLabels = StripComments(ReadSource(WorldLabelsSource));
+        Assert.That(worldLabels, Does.Not.Contain("Resources.Load<Sprite>"));
+        Assert.That(worldLabels, Does.Not.Contain("unitySlice"));
+        Assert.That(worldLabels, Does.Not.Contain("unityBackgroundImageTintColor"));
     }
 
     [Test]
-    public void BubbleStyle_DoesNotHardcodeSliceBorders()
+    public void BubbleText_IsOneLightLineOnTheGraphite()
     {
-        // Границы 9-slice принадлежат ассету. Повторённые в USS числа
-        // разъедутся с ним при первом же перерисовывании хвоста — молча,
-        // потому что спрайт продолжит рисоваться, но уже неправильно.
-        string rules = StripComments(ReadBubbleRules());
-        Assert.That(rules, Does.Not.Contain("-unity-slice-"));
-        Assert.That(rules, Does.Not.Contain("-unity-background-scale-mode"));
-
-        // В коде границы обязаны быть, но читаться из sprite.border: без них
-        // ScaleToFit вписывает весь спрайт в бокс с сохранением пропорций, и
-        // облако растягивается по вертикали, оставаясь узким по горизонтали.
-        string worldLabels = ReadSource(WorldLabelsSource);
-        Assert.That(worldLabels, Does.Contain("frame.style.unitySliceLeft = (int)border.x"));
-        Assert.That(worldLabels, Does.Contain("frame.style.unitySliceBottom = (int)border.y"));
-        Assert.That(worldLabels, Does.Contain("frame.style.unitySliceRight = (int)border.z"));
-        Assert.That(worldLabels, Does.Contain("frame.style.unitySliceTop = (int)border.w"));
-        Assert.That(worldLabels, Does.Contain("Vector4 border = sprite.border;"));
-
-        // Слайсы и размер фона ставятся на рамку, а не на текст: у элемента
-        // с текстом рамка растягивалась бы по переносу, а высота облака постоянна.
-        //
-        // Размер фона обязателен и задаётся 100% 100%: без него спрайт вписывается
-        // в бокс целиком, и 9-slice не растягивает ни одну ось. Устаревший
-        // unityBackgroundScaleMode в Unity 6 игнорируется, поэтому ScaleToFit
-        // больше не годится.
-        Assert.That(
-            worldLabels,
-            Does.Contain("frame.style.backgroundSize = new BackgroundSize("));
-        Assert.That(worldLabels, Does.Contain("Length.Percent(100f)"));
-        // Упоминание устаревшего свойства остаётся только в комментарии, где объяснена
-        // причина. В коде его быть не должно: Unity 6 его игнорирует.
-        Assert.That(StripComments(worldLabels), Does.Not.Contain("unityBackgroundScaleMode"));
-        Assert.That(worldLabels, Does.Contain("private static void ApplyBubbleFrame(VisualElement frame)"));
-    }
-
-    [Test]
-    public void BubbleStyle_UsesDarkTextOnTheWhiteSprite()
-    {
-        // Заливка спрайта белая (RGB 255,255,255), поэтому светлый
-        // --text-primary на ней не читался. Текст задан отдельному правилу, а не
-        // рамке: иначе он уехал бы вложенному Label.
         string text = ReadClass(BubbleTextClass);
-        Assert.That(text, Does.Contain("color: var(--text-on-gold)"));
-        Assert.That(text, Does.Not.Contain("color: var(--text-primary)"));
-        Assert.That(text, Does.Not.Contain("color: black"));
+        Assert.That(text, Does.Match(@"height:\s*16px"));
+        Assert.That(text, Does.Contain("font-size: var(--t-4)"));
+        Assert.That(text, Does.Contain("color: var(--bone)"));
+        Assert.That(text, Does.Match(@"margin:\s*0"));
+    }
+
+    [Test]
+    public void BubbleTail_IsAThinLineUnderTheFrame()
+    {
+        string tail = ReadClass(BubbleTailClass);
+        Assert.That(tail, Does.Contain("position: absolute"));
+        Assert.That(tail, Does.Match(@"top:\s*100%"));
+        Assert.That(tail, Does.Match(@"width:\s*1px"));
+        Assert.That(tail, Does.Match(@"height:\s*6px"));
+
+        string worldLabels = ReadSource(WorldLabelsSource);
+        Assert.That(worldLabels, Does.Contain("tail.AddToClassList(BubbleTailClass)"));
+        Assert.That(worldLabels, Does.Contain("frame.Add(tail)"));
     }
 
     [Test]
@@ -120,47 +89,6 @@ public sealed class WorldLabelChatStyleTests
     }
 
     [Test]
-    public void BubbleFrame_HasFixedSpriteHeightAndNoPadding()
-    {
-        // Высота рамки равна высоте спрайта (32 px). При ней вертикальный
-        // 9-slice не растягивается: 7 px сверху и 22 px снизу берутся из ассета,
-        // а полоса между ними совпадает с исходными 3 px, и хвост держит форму.
-        // Любая другая высота либо растянет хвост, либо срежет его.
-        //
-        // Поля на рамке отсутствуют намеренно: отступ создаёт сама рамка, а в
-        // USS-полях на элементе с текстом рассинхрон с хвостом проявлялся как
-        // лишние 6 px снизу (в play mode 21 px вместо 15 при коэффициенте панели
-        // 0.711462).
-        string frame = ReadClass(BubbleClass);
-        Assert.That(frame, Does.Match(@"height:\s*32px"));
-        Assert.That(frame, Does.Not.Contain("padding"));
-    }
-
-    [Test]
-    public void BubbleFrame_TintIsSetInCodeNotInUss()
-    {
-        // LocalChat.prefab: m_Color = {1,1,1, a=0.6156863} — белый тон с альфой
-        // 157/255. Тон задаётся стилем, а не альфой в ассете, чтобы PNG оставался
-        // белым и переиспользуемым.
-        //
-        // Именно в коде, а не в USS: background-image назначается кодом, и
-        // правило unity-background-image-tint-color без фона в USS не
-        // разрешалось — замерено в play mode, рамка оставалась RGBA(1,1,1,1).
-        string worldLabels = ReadSource(WorldLabelsSource);
-        Assert.That(
-            worldLabels,
-            Does.Contain("new(1f, 1f, 1f, 0.6156863f)"),
-            "The frame tint must keep the original client's alpha of 157/255.");
-        Assert.That(
-            worldLabels,
-            Does.Contain("frame.style.unityBackgroundImageTintColor = FrameTint"));
-        Assert.That(
-            StripComments(ReadClass(BubbleClass)),
-            Does.Not.Contain("unity-background-image-tint-color"),
-            "A tint in USS does not resolve while background-image comes from code.");
-    }
-
-    [Test]
     public void BubbleText_IsClippedInsideTheFrameInsteadOfWrapping()
     {
         // Текст лежит вложенным элементом и обрезается: перенос растил бы число
@@ -172,24 +100,6 @@ public sealed class WorldLabelChatStyleTests
         Assert.That(text, Does.Contain("text-overflow: ellipsis"));
         Assert.That(text, Does.Match(@"max-width:\s*\d+px"));
         Assert.That(text, Does.Not.Match(@"white-space:\s*normal"));
-    }
-
-    [Test]
-    public void BubbleText_SitsAboveTheTail()
-    {
-        // Тело спрайта занимает верхние 18 px из 32, хвост — оставшиеся 14 px
-        // снизу. Текст ограничен телом, иначе он наезжал бы на хвост.
-        string text = ReadClass(BubbleTextClass);
-        Assert.That(text, Does.Match(@"height:\s*18px"));
-
-        // Базовая тема unity-theme://default задаёт Label поля margin-top и
-        // margin-bottom. Без их обнуления текст центрировался по боксу целиком
-        // вместо тела и уезжал под хвост (замерено: marginTop 4.27 px в боксе
-        // 32 px при теле спрайта 18 px).
-        Assert.That(
-            text,
-            Does.Match(@"margin:\s*0"),
-            "The base theme's Label margins must be reset or the text slides under the tail.");
     }
 
     [Test]
@@ -212,28 +122,10 @@ public sealed class WorldLabelChatStyleTests
     }
 
     [Test]
-    public void BubbleSprite_ComesFromTheAssetWithItsOwnSlices()
-    {
-        // Спрайт грузится как Sprite, а не как Texture2D: только у спрайта есть
-        // border, и именно из него UI Toolkit берёт границы 9-slice. Загрузка
-        // текстуры дала бы спрайт без рамки — это и был прежний дефект.
-        //
-        // Путь лежит в ResourcePaths рядом с остальными ресурсами UI, а сами
-        // границы в коде не повторяются: единственный источник — ассет.
-        string worldLabels = ReadSource(WorldLabelsSource);
-        Assert.That(worldLabels, Does.Contain("Resources.Load<Sprite>"));
-        Assert.That(worldLabels, Does.Contain("ResourcePaths.LocalChatBubbleSprite"));
-        Assert.That(
-            ReadSource("Assets/Scripts/Core/Resources/Contracts/Paths/ResourcePaths.cs"),
-            Does.Contain("LocalChatBubbleSprite = \"UI/Chat/Floating/Sprites/LocalChatBubble\""));
-    }
-
-    [Test]
     public void BubbleAnchor_HangsTheTailOverTheRobotsCellTop()
     {
-        // Облако вешается за точку хвоста, а не за центр бокса: хвост заморожен
-        // в нерастяжимом левом тайле 9-slice и всегда стоит в 7..9 px от левого
-        // края, поэтому нижний центр увёл бы хвост в сторону от робота.
+        // Облако вешается за нижний конец хвоста, а не за центр бокса: хвост стоит
+        // в 5 px от левого края, поэтому нижний центр увёл бы его в сторону от робота.
         string bubble = ReadSource("Assets/Scripts/UI/Chat/Floating/Presentation/FloatingChatBubble.cs");
         Assert.That(bubble, Does.Contain("CellTopOffset"));
         Assert.That(bubble, Does.Contain("_target.position.y + CellTopOffset"));
@@ -245,8 +137,7 @@ public sealed class WorldLabelChatStyleTests
     public void WorldLabels_ScalesTheWholeBubbleAndAnchorsItByTheTail()
     {
         // Облако масштабируется одним множителем через style.scale, а не кеглем
-        // и полями по отдельности: тайлы 9-slice не масштабируются, и поля,
-        // посчитанные отдельно от рамки, на отдалении стали бы короче хвоста.
+        // и полями по отдельности: иначе на отдалении рамка и хвост разошлись бы с текстом.
         //
         // Якорь по хвосту: translate ведёт нижнюю грань визуального бокса в
         // верхнюю грань клетки, а по горизонтали облако сдвинуто так, чтобы
@@ -254,17 +145,17 @@ public sealed class WorldLabelChatStyleTests
         string worldLabels = ReadSource(WorldLabelsSource);
         Assert.That(worldLabels, Does.Contain("WorldLabelKind.ChatBubble"));
 
-        // Масштаб и якорь ставятся на рамку: у неё спрайт и постоянная высота.
+        // Масштаб и якорь ставятся на рамку: текст и хвост — её дети.
         Assert.That(worldLabels, Does.Contain("Frame.style.scale = new Scale(new Vector3(scale, scale, 1f))"));
         Assert.That(worldLabels, Does.Contain("Frame.style.translate = new Translate(offset.x, offset.y)"));
         Assert.That(worldLabels, Does.Contain("Frame.style.opacity = Mathf.Clamp01(opacity)"));
 
-        // Рамка и текст — разные элементы, иначе высота не может быть постоянной.
+        // Рамка, текст и хвост — разные элементы.
         Assert.That(worldLabels, Does.Contain("label.AddToClassList(BubbleTextClass)"));
         Assert.That(worldLabels, Does.Contain("frame.Add(label)"));
 
-        Assert.That(worldLabels, Does.Contain("position.x - (TailAnchorSourceX * _lastScale)"));
-        Assert.That(worldLabels, Does.Contain("position.y - (size.y * _lastScale)"));
+        Assert.That(worldLabels, Does.Contain("position.x - (TailAnchorX * _lastScale)"));
+        Assert.That(worldLabels, Does.Contain("position.y - ((size.y + TailHeight) * _lastScale)"));
         Assert.That(
             worldLabels,
             Does.Contain("Vector3 offset = _kind == WorldLabelKind.ChatBubble"));
@@ -281,7 +172,7 @@ public sealed class WorldLabelChatStyleTests
         // хватало флага, но флаг не различал якорь, из-за чего облако уезжало.
         Assert.That(
             Enum.GetNames(typeof(WorldLabelKind)),
-            Is.EquivalentTo(new[] { "Nickname", "Collection", "ChatBubble" }));
+            Is.EquivalentTo(new[] { "Nickname", "ChatBubble" }));
         Assert.That(
             ReadSource("Assets/Scripts/UI/WorldLabels/Contracts/IWorldLabels.cs"),
             Does.Contain("IWorldLabel Create(WorldLabelKind kind)"));

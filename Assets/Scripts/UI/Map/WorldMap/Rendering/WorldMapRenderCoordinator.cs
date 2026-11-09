@@ -2,7 +2,6 @@
 
 using System;
 using Kern.Core.Interfaces;
-using Kern.Core.Localization;
 using Kern.World;
 
 namespace Kern.UI.Map;
@@ -17,7 +16,6 @@ internal sealed class WorldMapRenderCoordinator
     private readonly WorldMapBounds _bounds;
     private readonly MapCellSampler _cellSampler;
     private readonly WorldMapPathOverlay _pathOverlay;
-    private readonly ILocalizationService _localization;
     private readonly Action<IWorldDataStorage> _resetWorldView;
 
     public WorldMapRenderCoordinator(
@@ -29,7 +27,6 @@ internal sealed class WorldMapRenderCoordinator
         WorldMapBounds bounds,
         MapCellSampler cellSampler,
         WorldMapPathOverlay pathOverlay,
-        ILocalizationService localization,
         Action<IWorldDataStorage> resetWorldView)
     {
         _panel = panel;
@@ -40,32 +37,8 @@ internal sealed class WorldMapRenderCoordinator
         _bounds = bounds;
         _cellSampler = cellSampler;
         _pathOverlay = pathOverlay;
-        _localization = localization;
         _resetWorldView = resetWorldView;
     }
-
-    public void UpdateStatus(
-        MapManager manager,
-        float cellsPerPixel,
-        float viewCenterX,
-        float viewCenterY)
-    {
-        bool requiresMip = WorldMapViewportReset.RequiresMip(
-            manager,
-            _textureController,
-            cellsPerPixel,
-            viewCenterX,
-            viewCenterY);
-        UpdateMipStatus(requiresMip);
-    }
-
-    private void UpdateMipStatus(bool requiresMip) => _panel.UpdatePreparationStatus(
-        _mipSource.IsReady,
-        requiresMip,
-        _mipSource.Failed,
-        _mipSource.Progress,
-        _mipSource.Total,
-        _localization);
 
     public void Render(
         IWorldDataStorage storage,
@@ -106,7 +79,6 @@ internal sealed class WorldMapRenderCoordinator
             _mipSource.Begin();
         }
 
-        UpdateMipStatus(requiresMip);
         _viewportRenderer.Render(
             _textureController.MapTexture,
             manager.WorldWidth,

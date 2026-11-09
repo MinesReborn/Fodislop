@@ -15,8 +15,10 @@ internal sealed class PlayerHUDProgramControls : IDisposable
 {
     private ProgrammatorProcessor? _protocol;
     private ProgrammatorGrid? _grid;
-    private ILocalizationService? _localization;
     private Button? _programButton;
+    private Label? _programLabel;
+    private Label? _programName;
+    private VisualElement? _runIcon;
     private Button? _runButton;
     private bool _isRunning;
 
@@ -29,13 +31,17 @@ internal sealed class PlayerHUDProgramControls : IDisposable
     {
         _grid = grid;
         _protocol = protocol;
-        _localization = localization;
         _programButton = tree.Q<Button>("ProgrammatorButton") ??
             throw new InvalidOperationException("[PlayerHUD] ProgrammatorButton is missing from PlayerHUD.uxml.");
         _programButton.clicked += protocol.RequestProgramList;
+        _programLabel = tree.Q<Label>("ProgramLabel") ??
+            throw new InvalidOperationException("[PlayerHUD] ProgramLabel is missing from PlayerHUD.uxml.");
+        _programName = tree.Q<Label>("ProgramNameLabel") ??
+            throw new InvalidOperationException("[PlayerHUD] ProgramNameLabel is missing from PlayerHUD.uxml.");
         _runButton = tree.Q<Button>("ProgramRunButton") ??
             throw new InvalidOperationException("[PlayerHUD] ProgramRunButton is missing from PlayerHUD.uxml.");
         _runButton.clicked += HandleRunClicked;
+        _runIcon = _runButton.Q<VisualElement>(className: "ico");
         Tooltip.AttachTo(_runButton, () => localization.Get(
             _isRunning ? "hud.tooltip.program_stop" : "hud.tooltip.program_start"), tooltip);
         protocol.StateChanged += HandleStateChanged;
@@ -62,17 +68,20 @@ internal sealed class PlayerHUDProgramControls : IDisposable
         }
     }
 
+    // Запущенная программа подписывает кнопку своим именем вместо «Программатор» — одна строка, высота не меняется
+    // (макет: js/hud.js setProg)
     private void UpdateProgramLabel()
     {
-        if (_programButton == null || _localization == null)
+        if (_programName == null || _programLabel == null)
         {
             return;
         }
 
         string? activeName = _grid?.Programs?.ActiveProgramName;
-        _programButton.text = string.IsNullOrWhiteSpace(activeName)
-            ? _localization.Get("hud.programmator")
-            : activeName;
+        bool named = _isRunning && !string.IsNullOrWhiteSpace(activeName);
+        _programName.text = named ? activeName : string.Empty;
+        _programName.EnableInClassList("is-hidden", !named);
+        _programLabel.EnableInClassList("is-hidden", named);
     }
 
     private void HandleRunClicked()
@@ -95,8 +104,11 @@ internal sealed class PlayerHUDProgramControls : IDisposable
         _isRunning = isRunning;
         if (_runButton != null)
         {
-            _runButton.text = isRunning ? "■" : "▶";
-            _runButton.EnableInClassList("hud-program-run-btn--running", isRunning);
+            _runButton.EnableInClassList("is-running", isRunning);
+            _runIcon?.EnableInClassList("ico--play", !isRunning);
+            _runIcon?.EnableInClassList("ico--stop", isRunning);
         }
+
+        UpdateProgramLabel();
     }
 }

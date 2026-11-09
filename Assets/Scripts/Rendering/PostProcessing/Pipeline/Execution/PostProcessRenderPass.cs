@@ -27,6 +27,7 @@ namespace Kern.Rendering.PostProcessing
         private VolumeStack? _cachedVolumeStack;
         private VignetteComponent? _vignette;
         private EigengrauComponent? _eigengrau;
+        private ChromaticAberrationComponent? _chromaticAberration;
 
         private void RefreshVolumeComponents(VolumeStack stack)
         {
@@ -38,6 +39,7 @@ namespace Kern.Rendering.PostProcessing
             _cachedVolumeStack = stack;
             _vignette = stack.GetComponent<VignetteComponent>();
             _eigengrau = stack.GetComponent<EigengrauComponent>();
+            _chromaticAberration = stack.GetComponent<ChromaticAberrationComponent>();
         }
 
         private static T RequireComponent<T>(T? component, string componentName)
@@ -91,6 +93,11 @@ namespace Kern.Rendering.PostProcessing
 
             bool vignetteActive = !bypass && vignette.active && vignette.IsActive();
             bool eigengrauActive = !bypass && eigengrau.active && eigengrau.IsActive();
+            // Компонент необязательный: тестовые профили собираются без него,
+            // и тогда кадр идёт без аберрации, а не падает на RequireComponent.
+            ChromaticAberrationComponent? chromaticAberration = _chromaticAberration;
+            bool chromaticAberrationActive = !bypass && chromaticAberration != null &&
+                chromaticAberration.active && chromaticAberration.IsActive();
 
             UniversalResourceData resourceData = frameData.Get<UniversalResourceData>();
             var activeColor = resourceData.activeColorTexture;
@@ -126,9 +133,14 @@ namespace Kern.Rendering.PostProcessing
             bool lutActive = !bypass && PostProcessRuntimeState.LUT != null;
             bool diagnosticsActive = PostProcessRuntimeState.DebugView != PostProcessDebugView.None ||
                 PostProcessRuntimeState.CompareMode != CompareMode.Off;
-            float fisheyeStrength = PostProcessLook.Fisheye.Strength * PostProcessRuntimeState.FisheyeScale;
-            bool fisheyeActive = !bypass && fisheyeStrength != 0f;
-            bool passNeeded = diagnosticsActive || vignetteActive || eigengrauActive || lutActive || fisheyeActive ||
+            int colorVisionMode = bypass ? 0 : PostProcessRuntimeState.ColorVisionMode;
+            // Калибровка дисплея: узор и ползунки уровня чёрного и яркости SDR (яркость в HDR не действует)
+            float blackLift = DisplayAdjustment.BlackLift(PostProcessRuntimeState.DisplayBlackLevel);
+            float gamma = HDROutput ? 1f : DisplayAdjustment.Gamma(PostProcessRuntimeState.DisplayBrightness);
+            bool calibrationActive = PostProcessRuntimeState.CalibrationMode != CalibrationPattern.Off ||
+                blackLift != 0f || gamma != 1f;
+            bool passNeeded = diagnosticsActive || vignetteActive || eigengrauActive ||
+                chromaticAberrationActive || lutActive || colorVisionMode != 0 || calibrationActive ||
                 PostProcessRuntimeState.DiagnosticWorldImage != null;
             if (!passNeeded)
             {
@@ -163,13 +175,6 @@ namespace Kern.Rendering.PostProcessing
                     (float)grid.WorldWidth,
                     (float)grid.WorldHeight);
                 passData.DisplayViewportAspect = cameraData.camera.aspect;
-                // A fixed world-space lens has less visible curvature when the
-                // camera shows a smaller part of it. Radius is quadratic.
-                float lensScale = cameraData.camera.orthographicSize / PostProcessLook.Fisheye.ReferenceHalfHeightCells;
-                passData.FisheyeStrength = fisheyeActive
-                    ? fisheyeStrength * lensScale * lensScale
-                    : 0f;
-
                 passData.DisplayLinearFilter = false;
                 passData.PostProcessCS = _postProcessCS;
                 passData.KernelComposite = _kernelComposite;
@@ -179,13 +184,18 @@ namespace Kern.Rendering.PostProcessing
                 passData.Height = height;
 
                 passData.DiagnosticsActive = diagnosticsActive;
+                passData.ColorVisionMode = colorVisionMode;
+                passData.DisplayBlackLift = blackLift;
+                passData.DisplayGamma = gamma;
 
                 PostProcessPassDataAssembler.FillPassComponents(
                     passData,
                     vignette,
                     eigengrau,
+                    chromaticAberration,
                     vignetteActive,
                     eigengrauActive,
+                    chromaticAberrationActive,
                     HDROutput,
                     HDRGamut,
                     paperWhite,
@@ -199,6 +209,9 @@ namespace Kern.Rendering.PostProcessing
                 passData.FrameIndex = Time.frameCount;
                 passData.CalibrationPattern = (int)PostProcessRuntimeState.CalibrationMode;
                 passData.CalibrationValue = PostProcessRuntimeState.CalibrationValue;
+                passData.CalibrationRect0 = PostProcessRuntimeState.CalibrationRect0;
+                passData.CalibrationRect1 = PostProcessRuntimeState.CalibrationRect1;
+                passData.CalibrationRect2 = PostProcessRuntimeState.CalibrationRect2;
                 passData.VignetteInFinalBlit = false;
 
                 // Готовый кадр лежит в промежуточной текстуре. Если цель камеры —

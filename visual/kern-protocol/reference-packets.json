@@ -1,0 +1,4936 @@
+{
+  "market": {
+    "Packet": {
+      "WindowTag": "market",
+      "Width": 640,
+      "Height": 560,
+      "Content": {
+        "Type": "DockPanelPacket",
+        "Style": null,
+        "OnClickContext": "",
+        "AttachedProperties": [],
+        "Children": [
+          {
+            "Type": "DockPanelPacket",
+            "Style": null,
+            "OnClickContext": "",
+            "AttachedProperties": [
+              {
+                "Key": "DockPanel.Dock",
+                "Value": "Top"
+              }
+            ],
+            "Children": [
+              {
+                "Type": "TextPacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [
+                  {
+                    "Key": "DockPanel.Dock",
+                    "Value": "Left"
+                  }
+                ],
+                "Text": "Здание"
+              },
+              {
+                "Type": "TextPacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [
+                  {
+                    "Key": "DockPanel.Dock",
+                    "Value": "Right"
+                  }
+                ],
+                "Text": "1154:903"
+              },
+              {
+                "Type": "LinePacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [
+                  {
+                    "Key": "DockPanel.Dock",
+                    "Value": "Left"
+                  }
+                ],
+                "Direction": "Horizontal"
+              }
+            ]
+          },
+          {
+            "Type": "DockPanelPacket",
+            "Style": null,
+            "OnClickContext": "",
+            "AttachedProperties": [
+              {
+                "Key": "DockPanel.Dock",
+                "Value": "Top"
+              }
+            ],
+            "Children": [
+              {
+                "Type": "ImagePacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [
+                  {
+                    "Key": "DockPanel.Dock",
+                    "Value": "Left"
+                  }
+                ],
+                "URI": "../kern-ui/img/items/market.png",
+                "Width": 32,
+                "Height": 32
+              },
+              {
+                "Type": "TextPacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [
+                  {
+                    "Key": "DockPanel.Dock",
+                    "Value": "Top"
+                  }
+                ],
+                "Text": "<b>Рынок</b>"
+              }
+            ]
+          },
+          {
+            "Type": "DockPanelPacket",
+            "Style": null,
+            "OnClickContext": "",
+            "AttachedProperties": [
+              {
+                "Key": "DockPanel.Dock",
+                "Value": "Top"
+              }
+            ],
+            "Children": [
+              {
+                "Type": "TextPacket",
+                "Style": null,
+                "OnClickContext": "/",
+                "AttachedProperties": [
+                  {
+                    "Key": "DockPanel.Dock",
+                    "Value": "Left"
+                  }
+                ],
+                "Text": "Продать"
+              },
+              {
+                "Type": "TextPacket",
+                "Style": null,
+                "OnClickContext": "/",
+                "AttachedProperties": [
+                  {
+                    "Key": "DockPanel.Dock",
+                    "Value": "Left"
+                  }
+                ],
+                "Text": "Купить"
+              },
+              {
+                "Type": "TextPacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [
+                  {
+                    "Key": "DockPanel.Dock",
+                    "Value": "Left"
+                  }
+                ],
+                "Text": ""
+              }
+            ]
+          },
+          {
+            "Type": "DockPanelPacket",
+            "Style": null,
+            "OnClickContext": "",
+            "AttachedProperties": [
+              {
+                "Key": "DockPanel.Dock",
+                "Value": "Bottom"
+              }
+            ],
+            "Children": [
+              {
+                "Type": "DockPanelPacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [
+                  {
+                    "Key": "DockPanel.Dock",
+                    "Value": "Left"
+                  }
+                ],
+                "Children": [
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [],
+                    "Text": "Итого к получению"
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [],
+                    "Text": "$54 792"
+                  }
+                ]
+              },
+              {
+                "Type": "DockPanelPacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [
+                  {
+                    "Key": "DockPanel.Dock",
+                    "Value": "Left"
+                  }
+                ],
+                "Children": [
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [],
+                    "Text": "3 629 шт // 6 видов"
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [],
+                    "Text": "Груз после продажи — 3%"
+                  }
+                ]
+              },
+              {
+                "Type": "TextPacket",
+                "Style": null,
+                "OnClickContext": "/",
+                "AttachedProperties": [
+                  {
+                    "Key": "DockPanel.Dock",
+                    "Value": "Right"
+                  }
+                ],
+                "Text": "Продать"
+              },
+              {
+                "Type": "TextPacket",
+                "Style": null,
+                "OnClickContext": "/",
+                "AttachedProperties": [
+                  {
+                    "Key": "DockPanel.Dock",
+                    "Value": "Right"
+                  }
+                ],
+                "Text": "Продать всё"
+              },
+              {
+                "Type": "TextPacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [
+                  {
+                    "Key": "DockPanel.Dock",
+                    "Value": "Left"
+                  }
+                ],
+                "Text": ""
+              }
+            ]
+          },
+          {
+            "Type": "ScrollViewerPacket",
+            "Style": null,
+            "OnClickContext": "",
+            "AttachedProperties": [
+              {
+                "Key": "DockPanel.Dock",
+                "Value": "Left"
+              }
+            ],
+            "Children": [
+              {
+                "Type": "GridPacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [],
+                "Children": [
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "0"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "0"
+                      }
+                    ],
+                    "Text": ""
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "0"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "1"
+                      }
+                    ],
+                    "Text": "Кристалл"
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "0"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "2"
+                      }
+                    ],
+                    "Text": "В грузе"
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "0"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "3"
+                      }
+                    ],
+                    "Text": "Цена / шт"
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "0"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "4"
+                      }
+                    ],
+                    "Text": "Продать"
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "0"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "5"
+                      }
+                    ],
+                    "Text": ""
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "0"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "6"
+                      }
+                    ],
+                    "Text": "Сумма"
+                  },
+                  {
+                    "Type": "ImagePacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "1"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "0"
+                      }
+                    ],
+                    "URI": "../kern-ui/img/crystals/green.png",
+                    "Width": 20,
+                    "Height": 20
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "1"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "1"
+                      }
+                    ],
+                    "Text": "Зелёные"
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "1"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "2"
+                      }
+                    ],
+                    "Text": "2 340"
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "1"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "3"
+                      }
+                    ],
+                    "Text": "$12"
+                  },
+                  {
+                    "Type": "SliderPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "1"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "4"
+                      }
+                    ],
+                    "Name": "input_0",
+                    "IsEnabled": true,
+                    "MinValue": 0,
+                    "MaxValue": 2340,
+                    "Step": 1,
+                    "DefaultValue": 2340,
+                    "Knob": {
+                      "Type": "ImagePacket",
+                      "Style": null,
+                      "OnClickContext": "",
+                      "AttachedProperties": [],
+                      "URI": "../../Assets/Textures/UI/Controls/Slider/knob.png",
+                      "Width": 16,
+                      "Height": 16
+                    }
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "1"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "5"
+                      }
+                    ],
+                    "Text": "2 340"
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "1"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "6"
+                      }
+                    ],
+                    "Text": "$28 080"
+                  },
+                  {
+                    "Type": "ImagePacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "2"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "0"
+                      }
+                    ],
+                    "URI": "../kern-ui/img/crystals/blue.png",
+                    "Width": 20,
+                    "Height": 20
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "2"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "1"
+                      }
+                    ],
+                    "Text": "Синие"
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "2"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "2"
+                      }
+                    ],
+                    "Text": "1 204"
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "2"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "3"
+                      }
+                    ],
+                    "Text": "$18"
+                  },
+                  {
+                    "Type": "SliderPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "2"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "4"
+                      }
+                    ],
+                    "Name": "input_1",
+                    "IsEnabled": true,
+                    "MinValue": 0,
+                    "MaxValue": 1204,
+                    "Step": 1,
+                    "DefaultValue": 1204,
+                    "Knob": {
+                      "Type": "ImagePacket",
+                      "Style": null,
+                      "OnClickContext": "",
+                      "AttachedProperties": [],
+                      "URI": "../../Assets/Textures/UI/Controls/Slider/knob.png",
+                      "Width": 16,
+                      "Height": 16
+                    }
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "2"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "5"
+                      }
+                    ],
+                    "Text": "1 204"
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "2"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "6"
+                      }
+                    ],
+                    "Text": "$21 672"
+                  },
+                  {
+                    "Type": "ImagePacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "3"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "0"
+                      }
+                    ],
+                    "URI": "../kern-ui/img/crystals/red.png",
+                    "Width": 20,
+                    "Height": 20
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "3"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "1"
+                      }
+                    ],
+                    "Text": "Красные"
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "3"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "2"
+                      }
+                    ],
+                    "Text": "96"
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "3"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "3"
+                      }
+                    ],
+                    "Text": "$40"
+                  },
+                  {
+                    "Type": "SliderPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "3"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "4"
+                      }
+                    ],
+                    "Name": "input_2",
+                    "IsEnabled": true,
+                    "MinValue": 0,
+                    "MaxValue": 96,
+                    "Step": 1,
+                    "DefaultValue": 48,
+                    "Knob": {
+                      "Type": "ImagePacket",
+                      "Style": null,
+                      "OnClickContext": "",
+                      "AttachedProperties": [],
+                      "URI": "../../Assets/Textures/UI/Controls/Slider/knob.png",
+                      "Width": 16,
+                      "Height": 16
+                    }
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "3"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "5"
+                      }
+                    ],
+                    "Text": "48"
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "3"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "6"
+                      }
+                    ],
+                    "Text": "$1 920"
+                  },
+                  {
+                    "Type": "ImagePacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "4"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "0"
+                      }
+                    ],
+                    "URI": "../kern-ui/img/crystals/violet.png",
+                    "Width": 20,
+                    "Height": 20
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "4"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "1"
+                      }
+                    ],
+                    "Text": "Фиолетовые"
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "4"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "2"
+                      }
+                    ],
+                    "Text": "12"
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "4"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "3"
+                      }
+                    ],
+                    "Text": "$95"
+                  },
+                  {
+                    "Type": "SliderPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "4"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "4"
+                      }
+                    ],
+                    "Name": "input_3",
+                    "IsEnabled": true,
+                    "MinValue": 0,
+                    "MaxValue": 12,
+                    "Step": 1,
+                    "DefaultValue": 6,
+                    "Knob": {
+                      "Type": "ImagePacket",
+                      "Style": null,
+                      "OnClickContext": "",
+                      "AttachedProperties": [],
+                      "URI": "../../Assets/Textures/UI/Controls/Slider/knob.png",
+                      "Width": 16,
+                      "Height": 16
+                    }
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "4"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "5"
+                      }
+                    ],
+                    "Text": "6"
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "4"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "6"
+                      }
+                    ],
+                    "Text": "$570"
+                  },
+                  {
+                    "Type": "ImagePacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "5"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "0"
+                      }
+                    ],
+                    "URI": "../kern-ui/img/crystals/white.png",
+                    "Width": 20,
+                    "Height": 20
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "5"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "1"
+                      }
+                    ],
+                    "Text": "Белые"
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "5"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "2"
+                      }
+                    ],
+                    "Text": "3"
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "5"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "3"
+                      }
+                    ],
+                    "Text": "$260"
+                  },
+                  {
+                    "Type": "SliderPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "5"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "4"
+                      }
+                    ],
+                    "Name": "input_4",
+                    "IsEnabled": true,
+                    "MinValue": 0,
+                    "MaxValue": 3,
+                    "Step": 1,
+                    "DefaultValue": 2,
+                    "Knob": {
+                      "Type": "ImagePacket",
+                      "Style": null,
+                      "OnClickContext": "",
+                      "AttachedProperties": [],
+                      "URI": "../../Assets/Textures/UI/Controls/Slider/knob.png",
+                      "Width": 16,
+                      "Height": 16
+                    }
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "5"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "5"
+                      }
+                    ],
+                    "Text": "2"
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "5"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "6"
+                      }
+                    ],
+                    "Text": "$520"
+                  },
+                  {
+                    "Type": "ImagePacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "6"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "0"
+                      }
+                    ],
+                    "URI": "../kern-ui/img/crystals/cyan.png",
+                    "Width": 20,
+                    "Height": 20
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "6"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "1"
+                      }
+                    ],
+                    "Text": "Голубые"
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "6"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "2"
+                      }
+                    ],
+                    "Text": "57"
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "6"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "3"
+                      }
+                    ],
+                    "Text": "$70"
+                  },
+                  {
+                    "Type": "SliderPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "6"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "4"
+                      }
+                    ],
+                    "Name": "input_5",
+                    "IsEnabled": true,
+                    "MinValue": 0,
+                    "MaxValue": 57,
+                    "Step": 1,
+                    "DefaultValue": 29,
+                    "Knob": {
+                      "Type": "ImagePacket",
+                      "Style": null,
+                      "OnClickContext": "",
+                      "AttachedProperties": [],
+                      "URI": "../../Assets/Textures/UI/Controls/Slider/knob.png",
+                      "Width": 16,
+                      "Height": 16
+                    }
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "6"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "5"
+                      }
+                    ],
+                    "Text": "29"
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "6"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "6"
+                      }
+                    ],
+                    "Text": "$2 030"
+                  }
+                ],
+                "Columns": [
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                "Rows": [
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0
+                ]
+              }
+            ],
+            "Name": "",
+            "HorizontalScrollBar": "Auto",
+            "VerticalScrollBar": "Auto"
+          }
+        ]
+      }
+    },
+    "Gaps": [
+      {
+        "Path": "Content/Children/0",
+        "Feature": "role: rail",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/1",
+        "Feature": "role: head",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/1/Children/1",
+        "Feature": "role: title",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/2",
+        "Feature": "role: tabs",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/2/Children/0",
+        "Feature": "on",
+        "Reason": "Состояние/вариант не перенесён. Статические цвета и рамки могут выражаться Style; интерактивную семантику нужно сверить."
+      },
+      {
+        "Path": "Content/Children/3",
+        "Feature": "role: foot",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/3/Children/0",
+        "Feature": "role: total",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/3/Children/0/Children/0",
+        "Feature": "role: cap",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/3/Children/0/Children/1",
+        "Feature": "role: sum",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/3/Children/1",
+        "Feature": "role: annot",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/3/Children/2",
+        "Feature": "primary",
+        "Reason": "Состояние/вариант не перенесён. Статические цвета и рамки могут выражаться Style; интерактивную семантику нужно сверить."
+      },
+      {
+        "Path": "Content/Children/3/Children/2",
+        "Feature": "disabled",
+        "Reason": "Состояние/вариант не перенесён. Статические цвета и рамки могут выражаться Style; интерактивную семантику нужно сверить."
+      },
+      {
+        "Path": "Content/Children/3/Children/3",
+        "Feature": "disabled",
+        "Reason": "Состояние/вариант не перенесён. Статические цвета и рамки могут выражаться Style; интерактивную семантику нужно сверить."
+      },
+      {
+        "Path": "Content/Children/4/Children/0",
+        "Feature": "role: table",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/4/Children/0/Children/0",
+        "Feature": "role: cap",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/4/Children/0/Children/1",
+        "Feature": "role: cap",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/4/Children/0/Children/2",
+        "Feature": "role: cap num",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/4/Children/0/Children/3",
+        "Feature": "role: cap num",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/4/Children/0/Children/4",
+        "Feature": "role: cap",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/4/Children/0/Children/5",
+        "Feature": "role: cap",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/4/Children/0/Children/6",
+        "Feature": "role: cap num",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/4/Children/0/Children/9",
+        "Feature": "role: num",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/4/Children/0/Children/10",
+        "Feature": "role: num",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/4/Children/0/Children/12",
+        "Feature": "role: num strong",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/4/Children/0/Children/13",
+        "Feature": "role: num strong",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/4/Children/0/Children/16",
+        "Feature": "role: num",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/4/Children/0/Children/17",
+        "Feature": "role: num",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/4/Children/0/Children/19",
+        "Feature": "role: num strong",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/4/Children/0/Children/20",
+        "Feature": "role: num strong",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/4/Children/0/Children/23",
+        "Feature": "role: num",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/4/Children/0/Children/24",
+        "Feature": "role: num",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/4/Children/0/Children/26",
+        "Feature": "role: num strong",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/4/Children/0/Children/27",
+        "Feature": "role: num strong",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/4/Children/0/Children/30",
+        "Feature": "role: num",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/4/Children/0/Children/31",
+        "Feature": "role: num",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/4/Children/0/Children/33",
+        "Feature": "role: num strong",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/4/Children/0/Children/34",
+        "Feature": "role: num strong",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/4/Children/0/Children/37",
+        "Feature": "role: num",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/4/Children/0/Children/38",
+        "Feature": "role: num",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/4/Children/0/Children/40",
+        "Feature": "role: num strong",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/4/Children/0/Children/41",
+        "Feature": "role: num strong",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/4/Children/0/Children/44",
+        "Feature": "role: num",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/4/Children/0/Children/45",
+        "Feature": "role: num",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/4/Children/0/Children/47",
+        "Feature": "role: num strong",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/4/Children/0/Children/48",
+        "Feature": "role: num strong",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/4/Children/0",
+        "Feature": "Фиксированные ширины колонок",
+        "Reason": "В Kern UI положительные значения трактуются как px; в клиентском PacketGridLayout — как пропорции. Использован Auto, требуется сверка семантики."
+      }
+    ],
+    "EditorLayers": {
+      "Content/Children/0": "Информация о здании",
+      "Content/Children/1": "Шапка",
+      "Content/Children/2": "Вкладки",
+      "Content/Children/3": "Подвал",
+      "Content/Children/3/Children/0": "Итог",
+      "Content/Children/3/Children/1": "Пояснение",
+      "Content/Children/4/Children/0": "Таблица"
+    }
+  },
+  "resp": {
+    "Packet": {
+      "WindowTag": "resp",
+      "Width": 440,
+      "Height": 360,
+      "Content": {
+        "Type": "DockPanelPacket",
+        "Style": null,
+        "OnClickContext": "",
+        "AttachedProperties": [],
+        "Children": [
+          {
+            "Type": "DockPanelPacket",
+            "Style": null,
+            "OnClickContext": "",
+            "AttachedProperties": [
+              {
+                "Key": "DockPanel.Dock",
+                "Value": "Top"
+              }
+            ],
+            "Children": [
+              {
+                "Type": "TextPacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [
+                  {
+                    "Key": "DockPanel.Dock",
+                    "Value": "Left"
+                  }
+                ],
+                "Text": "Здание"
+              },
+              {
+                "Type": "TextPacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [
+                  {
+                    "Key": "DockPanel.Dock",
+                    "Value": "Right"
+                  }
+                ],
+                "Text": "1144:902"
+              },
+              {
+                "Type": "LinePacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [
+                  {
+                    "Key": "DockPanel.Dock",
+                    "Value": "Left"
+                  }
+                ],
+                "Direction": "Horizontal"
+              }
+            ]
+          },
+          {
+            "Type": "DockPanelPacket",
+            "Style": null,
+            "OnClickContext": "",
+            "AttachedProperties": [
+              {
+                "Key": "DockPanel.Dock",
+                "Value": "Top"
+              }
+            ],
+            "Children": [
+              {
+                "Type": "ImagePacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [
+                  {
+                    "Key": "DockPanel.Dock",
+                    "Value": "Left"
+                  }
+                ],
+                "URI": "../kern-ui/img/items/resp.png",
+                "Width": 32,
+                "Height": 32
+              },
+              {
+                "Type": "TextPacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [
+                  {
+                    "Key": "DockPanel.Dock",
+                    "Value": "Top"
+                  }
+                ],
+                "Text": "<b>Респаун</b>"
+              }
+            ]
+          },
+          {
+            "Type": "DockPanelPacket",
+            "Style": null,
+            "OnClickContext": "",
+            "AttachedProperties": [
+              {
+                "Key": "DockPanel.Dock",
+                "Value": "Bottom"
+              }
+            ],
+            "Children": [
+              {
+                "Type": "TextPacket",
+                "Style": null,
+                "OnClickContext": "/",
+                "AttachedProperties": [
+                  {
+                    "Key": "DockPanel.Dock",
+                    "Value": "Right"
+                  }
+                ],
+                "Text": "Сохранить"
+              },
+              {
+                "Type": "TextPacket",
+                "Style": null,
+                "OnClickContext": "/",
+                "AttachedProperties": [
+                  {
+                    "Key": "DockPanel.Dock",
+                    "Value": "Right"
+                  }
+                ],
+                "Text": "Отмена"
+              },
+              {
+                "Type": "TextPacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [
+                  {
+                    "Key": "DockPanel.Dock",
+                    "Value": "Left"
+                  }
+                ],
+                "Text": ""
+              }
+            ]
+          },
+          {
+            "Type": "GridPacket",
+            "Style": null,
+            "OnClickContext": "",
+            "AttachedProperties": [
+              {
+                "Key": "DockPanel.Dock",
+                "Value": "Top"
+              }
+            ],
+            "Children": [
+              {
+                "Type": "TextPacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [
+                  {
+                    "Key": "Grid.Row",
+                    "Value": "0"
+                  },
+                  {
+                    "Key": "Grid.Column",
+                    "Value": "0"
+                  }
+                ],
+                "Text": "Возрождение здесь"
+              },
+              {
+                "Type": "TextPacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [
+                  {
+                    "Key": "Grid.Row",
+                    "Value": "0"
+                  },
+                  {
+                    "Key": "Grid.Column",
+                    "Value": "1"
+                  }
+                ],
+                "Text": "$120"
+              },
+              {
+                "Type": "TextPacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [
+                  {
+                    "Key": "Grid.Row",
+                    "Value": "1"
+                  },
+                  {
+                    "Key": "Grid.Column",
+                    "Value": "0"
+                  }
+                ],
+                "Text": "Своим и союзникам"
+              },
+              {
+                "Type": "TextPacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [
+                  {
+                    "Key": "Grid.Row",
+                    "Value": "1"
+                  },
+                  {
+                    "Key": "Grid.Column",
+                    "Value": "1"
+                  }
+                ],
+                "Text": "бесплатно"
+              },
+              {
+                "Type": "TextPacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [
+                  {
+                    "Key": "Grid.Row",
+                    "Value": "2"
+                  },
+                  {
+                    "Key": "Grid.Column",
+                    "Value": "0"
+                  }
+                ],
+                "Text": "Расстояние"
+              },
+              {
+                "Type": "TextPacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [
+                  {
+                    "Key": "Grid.Row",
+                    "Value": "2"
+                  },
+                  {
+                    "Key": "Grid.Column",
+                    "Value": "1"
+                  }
+                ],
+                "Text": "640 клеток"
+              },
+              {
+                "Type": "TextPacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [
+                  {
+                    "Key": "Grid.Row",
+                    "Value": "3"
+                  },
+                  {
+                    "Key": "Grid.Column",
+                    "Value": "0"
+                  }
+                ],
+                "Text": "Заряд"
+              },
+              {
+                "Type": "TextPacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [
+                  {
+                    "Key": "Grid.Row",
+                    "Value": "3"
+                  },
+                  {
+                    "Key": "Grid.Column",
+                    "Value": "1"
+                  }
+                ],
+                "Text": "18 / 20 возрождений"
+              }
+            ],
+            "Columns": [
+              0,
+              0
+            ],
+            "Rows": [
+              0,
+              0,
+              0,
+              0
+            ]
+          },
+          {
+            "Type": "LinePacket",
+            "Style": null,
+            "OnClickContext": "",
+            "AttachedProperties": [
+              {
+                "Key": "DockPanel.Dock",
+                "Value": "Top"
+              }
+            ],
+            "Direction": "Horizontal"
+          },
+          {
+            "Type": "DockPanelPacket",
+            "Style": null,
+            "OnClickContext": "",
+            "AttachedProperties": [
+              {
+                "Key": "DockPanel.Dock",
+                "Value": "Top"
+              }
+            ],
+            "Children": [
+              {
+                "Type": "SelectablePacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [
+                  {
+                    "Key": "DockPanel.Dock",
+                    "Value": "Left"
+                  }
+                ],
+                "Name": "input_0",
+                "IsEnabled": true,
+                "DefaultValue": true,
+                "Checked": {
+                  "Type": "ImagePacket",
+                  "Style": null,
+                  "OnClickContext": "",
+                  "AttachedProperties": [],
+                  "URI": "../../Assets/Textures/UI/Controls/Toggle/States/checked.png",
+                  "Width": 16,
+                  "Height": 16
+                },
+                "Unchecked": {
+                  "Type": "ImagePacket",
+                  "Style": null,
+                  "OnClickContext": "",
+                  "AttachedProperties": [],
+                  "URI": "../../Assets/Textures/UI/Controls/Toggle/States/unchecked.png",
+                  "Width": 16,
+                  "Height": 16
+                }
+              },
+              {
+                "Type": "TextPacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [],
+                "Text": "Возрождаться на этом респауне"
+              }
+            ]
+          },
+          {
+            "Type": "DockPanelPacket",
+            "Style": null,
+            "OnClickContext": "",
+            "AttachedProperties": [
+              {
+                "Key": "DockPanel.Dock",
+                "Value": "Top"
+              }
+            ],
+            "Children": [
+              {
+                "Type": "TextPacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [
+                  {
+                    "Key": "DockPanel.Dock",
+                    "Value": "Left"
+                  }
+                ],
+                "Text": "Цена для чужих"
+              },
+              {
+                "Type": "TextBoxPacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [
+                  {
+                    "Key": "DockPanel.Dock",
+                    "Value": "Right"
+                  }
+                ],
+                "Name": "input_1",
+                "IsEnabled": true,
+                "DefaultValue": "120",
+                "Regex": ""
+              },
+              {
+                "Type": "SliderPacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [
+                  {
+                    "Key": "DockPanel.Dock",
+                    "Value": "Left"
+                  }
+                ],
+                "Name": "input_2",
+                "IsEnabled": true,
+                "MinValue": 0,
+                "MaxValue": 1000,
+                "Step": 10,
+                "DefaultValue": 120,
+                "Knob": {
+                  "Type": "ImagePacket",
+                  "Style": null,
+                  "OnClickContext": "",
+                  "AttachedProperties": [],
+                  "URI": "../../Assets/Textures/UI/Controls/Slider/knob.png",
+                  "Width": 16,
+                  "Height": 16
+                }
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "Gaps": [
+      {
+        "Path": "Content/Children/0",
+        "Feature": "role: rail",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/1",
+        "Feature": "role: head",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/1/Children/1",
+        "Feature": "role: title",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/2",
+        "Feature": "role: foot",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/2/Children/0",
+        "Feature": "primary",
+        "Reason": "Состояние/вариант не перенесён. Статические цвета и рамки могут выражаться Style; интерактивную семантику нужно сверить."
+      },
+      {
+        "Path": "Content/Children/3",
+        "Feature": "role: facts",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/3/Children/0",
+        "Feature": "role: label",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/3/Children/1",
+        "Feature": "role: num strong",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/3/Children/2",
+        "Feature": "role: label",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/3/Children/3",
+        "Feature": "role: num",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/3/Children/4",
+        "Feature": "role: label",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/3/Children/5",
+        "Feature": "role: num",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/3/Children/6",
+        "Feature": "role: label",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/3/Children/7",
+        "Feature": "role: num",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/6",
+        "Feature": "role: row",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/6/Children/0",
+        "Feature": "role: label",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/6/Children/1",
+        "Feature": "role: short",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      }
+    ],
+    "EditorLayers": {
+      "Content/Children/0": "Информация о здании",
+      "Content/Children/1": "Шапка",
+      "Content/Children/2": "Подвал",
+      "Content/Children/3": "Характеристики",
+      "Content/Children/6": "Строка"
+    }
+  },
+  "gun": {
+    "Packet": {
+      "WindowTag": "gun",
+      "Width": 460,
+      "Height": 420,
+      "Content": {
+        "Type": "DockPanelPacket",
+        "Style": null,
+        "OnClickContext": "",
+        "AttachedProperties": [],
+        "Children": [
+          {
+            "Type": "DockPanelPacket",
+            "Style": null,
+            "OnClickContext": "",
+            "AttachedProperties": [
+              {
+                "Key": "DockPanel.Dock",
+                "Value": "Top"
+              }
+            ],
+            "Children": [
+              {
+                "Type": "TextPacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [
+                  {
+                    "Key": "DockPanel.Dock",
+                    "Value": "Left"
+                  }
+                ],
+                "Text": "Здание"
+              },
+              {
+                "Type": "TextPacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [
+                  {
+                    "Key": "DockPanel.Dock",
+                    "Value": "Right"
+                  }
+                ],
+                "Text": "1172:901"
+              },
+              {
+                "Type": "LinePacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [
+                  {
+                    "Key": "DockPanel.Dock",
+                    "Value": "Left"
+                  }
+                ],
+                "Direction": "Horizontal"
+              }
+            ]
+          },
+          {
+            "Type": "DockPanelPacket",
+            "Style": null,
+            "OnClickContext": "",
+            "AttachedProperties": [
+              {
+                "Key": "DockPanel.Dock",
+                "Value": "Top"
+              }
+            ],
+            "Children": [
+              {
+                "Type": "ImagePacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [
+                  {
+                    "Key": "DockPanel.Dock",
+                    "Value": "Left"
+                  }
+                ],
+                "URI": "../kern-ui/img/items/gun.png",
+                "Width": 32,
+                "Height": 32
+              },
+              {
+                "Type": "TextPacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [
+                  {
+                    "Key": "DockPanel.Dock",
+                    "Value": "Top"
+                  }
+                ],
+                "Text": "<b>Пушка</b>"
+              }
+            ]
+          },
+          {
+            "Type": "DockPanelPacket",
+            "Style": null,
+            "OnClickContext": "",
+            "AttachedProperties": [
+              {
+                "Key": "DockPanel.Dock",
+                "Value": "Bottom"
+              }
+            ],
+            "Children": [
+              {
+                "Type": "TextPacket",
+                "Style": null,
+                "OnClickContext": "/",
+                "AttachedProperties": [
+                  {
+                    "Key": "DockPanel.Dock",
+                    "Value": "Right"
+                  }
+                ],
+                "Text": "Заправить"
+              },
+              {
+                "Type": "TextBoxPacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [
+                  {
+                    "Key": "DockPanel.Dock",
+                    "Value": "Right"
+                  }
+                ],
+                "Name": "input_0",
+                "IsEnabled": true,
+                "DefaultValue": "500",
+                "Regex": ""
+              },
+              {
+                "Type": "TextPacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [
+                  {
+                    "Key": "DockPanel.Dock",
+                    "Value": "Left"
+                  }
+                ],
+                "Text": "Голубые, шт"
+              }
+            ]
+          },
+          {
+            "Type": "GridPacket",
+            "Style": null,
+            "OnClickContext": "",
+            "AttachedProperties": [
+              {
+                "Key": "DockPanel.Dock",
+                "Value": "Top"
+              }
+            ],
+            "Children": [
+              {
+                "Type": "TextPacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [
+                  {
+                    "Key": "Grid.Row",
+                    "Value": "0"
+                  },
+                  {
+                    "Key": "Grid.Column",
+                    "Value": "0"
+                  }
+                ],
+                "Text": "Урон"
+              },
+              {
+                "Type": "TextPacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [
+                  {
+                    "Key": "Grid.Row",
+                    "Value": "0"
+                  },
+                  {
+                    "Key": "Grid.Column",
+                    "Value": "1"
+                  }
+                ],
+                "Text": "Радиус"
+              },
+              {
+                "Type": "TextPacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [
+                  {
+                    "Key": "Grid.Row",
+                    "Value": "0"
+                  },
+                  {
+                    "Key": "Grid.Column",
+                    "Value": "2"
+                  }
+                ],
+                "Text": "Перезарядка"
+              },
+              {
+                "Type": "TextPacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [
+                  {
+                    "Key": "Grid.Row",
+                    "Value": "1"
+                  },
+                  {
+                    "Key": "Grid.Column",
+                    "Value": "0"
+                  }
+                ],
+                "Text": "<b>40</b>"
+              },
+              {
+                "Type": "TextPacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [
+                  {
+                    "Key": "Grid.Row",
+                    "Value": "1"
+                  },
+                  {
+                    "Key": "Grid.Column",
+                    "Value": "1"
+                  }
+                ],
+                "Text": "<b>8</b> клеток"
+              },
+              {
+                "Type": "TextPacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [
+                  {
+                    "Key": "Grid.Row",
+                    "Value": "1"
+                  },
+                  {
+                    "Key": "Grid.Column",
+                    "Value": "2"
+                  }
+                ],
+                "Text": "<b>1,2</b> с"
+              }
+            ],
+            "Columns": [
+              0,
+              0,
+              0
+            ],
+            "Rows": [
+              0,
+              0
+            ]
+          },
+          {
+            "Type": "DockPanelPacket",
+            "Style": null,
+            "OnClickContext": "",
+            "AttachedProperties": [
+              {
+                "Key": "DockPanel.Dock",
+                "Value": "Top"
+              }
+            ],
+            "Children": [
+              {
+                "Type": "TextPacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [
+                  {
+                    "Key": "DockPanel.Dock",
+                    "Value": "Left"
+                  }
+                ],
+                "Text": "Заряд"
+              },
+              {
+                "Type": "TextPacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [
+                  {
+                    "Key": "DockPanel.Dock",
+                    "Value": "Right"
+                  }
+                ],
+                "Text": "3 200 / 5 000"
+              },
+              {
+                "Type": "SliderPacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [
+                  {
+                    "Key": "DockPanel.Dock",
+                    "Value": "Left"
+                  }
+                ],
+                "Name": "input_1",
+                "IsEnabled": false,
+                "MinValue": 0,
+                "MaxValue": 5000,
+                "Step": 1,
+                "DefaultValue": 3200,
+                "Knob": {
+                  "Type": "ImagePacket",
+                  "Style": null,
+                  "OnClickContext": "",
+                  "AttachedProperties": [],
+                  "URI": "../../Assets/Textures/UI/Controls/Slider/knob.png",
+                  "Width": 16,
+                  "Height": 16
+                }
+              }
+            ]
+          },
+          {
+            "Type": "LinePacket",
+            "Style": null,
+            "OnClickContext": "",
+            "AttachedProperties": [
+              {
+                "Key": "DockPanel.Dock",
+                "Value": "Top"
+              }
+            ],
+            "Direction": "Horizontal"
+          },
+          {
+            "Type": "DockPanelPacket",
+            "Style": null,
+            "OnClickContext": "",
+            "AttachedProperties": [
+              {
+                "Key": "DockPanel.Dock",
+                "Value": "Top"
+              }
+            ],
+            "Children": [
+              {
+                "Type": "TextPacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [
+                  {
+                    "Key": "DockPanel.Dock",
+                    "Value": "Left"
+                  }
+                ],
+                "Text": "Стрелять по"
+              },
+              {
+                "Type": "StringDropdownPacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [
+                  {
+                    "Key": "DockPanel.Dock",
+                    "Value": "Left"
+                  }
+                ],
+                "Name": "input_2",
+                "IsEnabled": true,
+                "DefaultValue": "Врагам клана",
+                "Values": [
+                  "Всем чужим",
+                  "Врагам клана",
+                  "Никому"
+                ]
+              }
+            ]
+          },
+          {
+            "Type": "DockPanelPacket",
+            "Style": null,
+            "OnClickContext": "",
+            "AttachedProperties": [
+              {
+                "Key": "DockPanel.Dock",
+                "Value": "Top"
+              }
+            ],
+            "Children": [
+              {
+                "Type": "SelectablePacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [
+                  {
+                    "Key": "DockPanel.Dock",
+                    "Value": "Left"
+                  }
+                ],
+                "Name": "input_3",
+                "IsEnabled": true,
+                "DefaultValue": true,
+                "Checked": {
+                  "Type": "ImagePacket",
+                  "Style": null,
+                  "OnClickContext": "",
+                  "AttachedProperties": [],
+                  "URI": "../../Assets/Textures/UI/Controls/Toggle/States/checked.png",
+                  "Width": 16,
+                  "Height": 16
+                },
+                "Unchecked": {
+                  "Type": "ImagePacket",
+                  "Style": null,
+                  "OnClickContext": "",
+                  "AttachedProperties": [],
+                  "URI": "../../Assets/Textures/UI/Controls/Toggle/States/unchecked.png",
+                  "Width": 16,
+                  "Height": 16
+                }
+              },
+              {
+                "Type": "TextPacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [],
+                "Text": "Предупреждать в чате клана"
+              }
+            ]
+          },
+          {
+            "Type": "DockPanelPacket",
+            "Style": null,
+            "OnClickContext": "",
+            "AttachedProperties": [
+              {
+                "Key": "DockPanel.Dock",
+                "Value": "Top"
+              }
+            ],
+            "Children": [
+              {
+                "Type": "SelectablePacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [
+                  {
+                    "Key": "DockPanel.Dock",
+                    "Value": "Left"
+                  }
+                ],
+                "Name": "input_4",
+                "IsEnabled": true,
+                "DefaultValue": false,
+                "Checked": {
+                  "Type": "ImagePacket",
+                  "Style": null,
+                  "OnClickContext": "",
+                  "AttachedProperties": [],
+                  "URI": "../../Assets/Textures/UI/Controls/Toggle/States/checked.png",
+                  "Width": 16,
+                  "Height": 16
+                },
+                "Unchecked": {
+                  "Type": "ImagePacket",
+                  "Style": null,
+                  "OnClickContext": "",
+                  "AttachedProperties": [],
+                  "URI": "../../Assets/Textures/UI/Controls/Toggle/States/unchecked.png",
+                  "Width": 16,
+                  "Height": 16
+                }
+              },
+              {
+                "Type": "TextPacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [],
+                "Text": "Пускать союзников без проверки"
+              }
+            ]
+          }
+        ]
+      }
+    },
+    "Gaps": [
+      {
+        "Path": "Content/Children/0",
+        "Feature": "role: rail",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/1",
+        "Feature": "role: head",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/1/Children/1",
+        "Feature": "role: title",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/2",
+        "Feature": "role: foot",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/2/Children/0",
+        "Feature": "primary",
+        "Reason": "Состояние/вариант не перенесён. Статические цвета и рамки могут выражаться Style; интерактивную семантику нужно сверить."
+      },
+      {
+        "Path": "Content/Children/2/Children/1",
+        "Feature": "role: short",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/2/Children/2",
+        "Feature": "role: label",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/3",
+        "Feature": "role: stats",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/3/Children/0",
+        "Feature": "role: label",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/3/Children/1",
+        "Feature": "role: label",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/3/Children/2",
+        "Feature": "role: label",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/3/Children/3",
+        "Feature": "role: big",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/3/Children/4",
+        "Feature": "role: big",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/3/Children/5",
+        "Feature": "role: big",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/4",
+        "Feature": "role: row",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/4/Children/0",
+        "Feature": "role: label",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/4/Children/1",
+        "Feature": "role: num",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/6",
+        "Feature": "role: row",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/6/Children/0",
+        "Feature": "role: label",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      }
+    ],
+    "EditorLayers": {
+      "Content/Children/0": "Информация о здании",
+      "Content/Children/1": "Шапка",
+      "Content/Children/2": "Подвал",
+      "Content/Children/3": "Показатели",
+      "Content/Children/4": "Строка",
+      "Content/Children/6": "Строка"
+    }
+  },
+  "clan_list": {
+    "Packet": {
+      "WindowTag": "clan_list",
+      "Width": 460,
+      "Height": 420,
+      "Content": {
+        "Type": "DockPanelPacket",
+        "Style": null,
+        "OnClickContext": "",
+        "AttachedProperties": [],
+        "Children": [
+          {
+            "Type": "DockPanelPacket",
+            "Style": null,
+            "OnClickContext": "",
+            "AttachedProperties": [
+              {
+                "Key": "DockPanel.Dock",
+                "Value": "Top"
+              }
+            ],
+            "Children": [
+              {
+                "Type": "ImagePacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [
+                  {
+                    "Key": "DockPanel.Dock",
+                    "Value": "Left"
+                  }
+                ],
+                "URI": "../kern-ui/img/items/clans.png",
+                "Width": 32,
+                "Height": 32
+              },
+              {
+                "Type": "TextPacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [
+                  {
+                    "Key": "DockPanel.Dock",
+                    "Value": "Top"
+                  }
+                ],
+                "Text": "<b>Доступные кланы</b>"
+              },
+              {
+                "Type": "TextPacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [
+                  {
+                    "Key": "DockPanel.Dock",
+                    "Value": "Top"
+                  }
+                ],
+                "Text": "Вступить можно по заявке"
+              }
+            ]
+          },
+          {
+            "Type": "ScrollViewerPacket",
+            "Style": null,
+            "OnClickContext": "",
+            "AttachedProperties": [
+              {
+                "Key": "DockPanel.Dock",
+                "Value": "Left"
+              }
+            ],
+            "Children": [
+              {
+                "Type": "DockPanelPacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [],
+                "Children": [
+                  {
+                    "Type": "DockPanelPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [],
+                    "Children": [
+                      {
+                        "Type": "ImagePacket",
+                        "Style": null,
+                        "OnClickContext": "",
+                        "AttachedProperties": [
+                          {
+                            "Key": "DockPanel.Dock",
+                            "Value": "Left"
+                          }
+                        ],
+                        "URI": "../kern-ui/img/clan.png",
+                        "Width": 24,
+                        "Height": 24
+                      },
+                      {
+                        "Type": "TextPacket",
+                        "Style": null,
+                        "OnClickContext": "",
+                        "AttachedProperties": [
+                          {
+                            "Key": "DockPanel.Dock",
+                            "Value": "Right"
+                          }
+                        ],
+                        "Text": "214"
+                      },
+                      {
+                        "Type": "TextPacket",
+                        "Style": null,
+                        "OnClickContext": "/",
+                        "AttachedProperties": [
+                          {
+                            "Key": "DockPanel.Dock",
+                            "Value": "Left"
+                          }
+                        ],
+                        "Text": "<b>Федерация</b> FED"
+                      }
+                    ]
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [],
+                    "Text": "Копаем глубоко, держим восток. Набор открыт."
+                  }
+                ]
+              },
+              {
+                "Type": "DockPanelPacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [],
+                "Children": [
+                  {
+                    "Type": "DockPanelPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [],
+                    "Children": [
+                      {
+                        "Type": "ImagePacket",
+                        "Style": null,
+                        "OnClickContext": "",
+                        "AttachedProperties": [
+                          {
+                            "Key": "DockPanel.Dock",
+                            "Value": "Left"
+                          }
+                        ],
+                        "URI": "../kern-ui/img/clan.png",
+                        "Width": 24,
+                        "Height": 24
+                      },
+                      {
+                        "Type": "TextPacket",
+                        "Style": null,
+                        "OnClickContext": "",
+                        "AttachedProperties": [
+                          {
+                            "Key": "DockPanel.Dock",
+                            "Value": "Right"
+                          }
+                        ],
+                        "Text": "96"
+                      },
+                      {
+                        "Type": "TextPacket",
+                        "Style": null,
+                        "OnClickContext": "/",
+                        "AttachedProperties": [
+                          {
+                            "Key": "DockPanel.Dock",
+                            "Value": "Left"
+                          }
+                        ],
+                        "Text": "<b>Дивизия</b> DVM"
+                      }
+                    ]
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [],
+                    "Text": "Пушки, тюрьма, порядок. Только с опытом."
+                  }
+                ]
+              },
+              {
+                "Type": "DockPanelPacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [],
+                "Children": [
+                  {
+                    "Type": "DockPanelPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [],
+                    "Children": [
+                      {
+                        "Type": "ImagePacket",
+                        "Style": null,
+                        "OnClickContext": "",
+                        "AttachedProperties": [
+                          {
+                            "Key": "DockPanel.Dock",
+                            "Value": "Left"
+                          }
+                        ],
+                        "URI": "../kern-ui/img/clan.png",
+                        "Width": 24,
+                        "Height": 24
+                      },
+                      {
+                        "Type": "TextPacket",
+                        "Style": null,
+                        "OnClickContext": "",
+                        "AttachedProperties": [
+                          {
+                            "Key": "DockPanel.Dock",
+                            "Value": "Right"
+                          }
+                        ],
+                        "Text": "41"
+                      },
+                      {
+                        "Type": "TextPacket",
+                        "Style": null,
+                        "OnClickContext": "/",
+                        "AttachedProperties": [
+                          {
+                            "Key": "DockPanel.Dock",
+                            "Value": "Left"
+                          }
+                        ],
+                        "Text": "<b>Орден руды</b> ORE"
+                      }
+                    ]
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [],
+                    "Text": "Тихие шахтёры. Без войн."
+                  }
+                ]
+              },
+              {
+                "Type": "DockPanelPacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [],
+                "Children": [
+                  {
+                    "Type": "DockPanelPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [],
+                    "Children": [
+                      {
+                        "Type": "ImagePacket",
+                        "Style": null,
+                        "OnClickContext": "",
+                        "AttachedProperties": [
+                          {
+                            "Key": "DockPanel.Dock",
+                            "Value": "Left"
+                          }
+                        ],
+                        "URI": "../kern-ui/img/clan.png",
+                        "Width": 24,
+                        "Height": 24
+                      },
+                      {
+                        "Type": "TextPacket",
+                        "Style": null,
+                        "OnClickContext": "",
+                        "AttachedProperties": [
+                          {
+                            "Key": "DockPanel.Dock",
+                            "Value": "Right"
+                          }
+                        ],
+                        "Text": "158"
+                      },
+                      {
+                        "Type": "TextPacket",
+                        "Style": null,
+                        "OnClickContext": "/",
+                        "AttachedProperties": [
+                          {
+                            "Key": "DockPanel.Dock",
+                            "Value": "Left"
+                          }
+                        ],
+                        "Text": "<b>Красный сектор</b> RED"
+                      }
+                    ]
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [],
+                    "Text": "Воюем за центр карты."
+                  }
+                ]
+              }
+            ],
+            "Name": "",
+            "HorizontalScrollBar": "Auto",
+            "VerticalScrollBar": "Auto"
+          }
+        ]
+      }
+    },
+    "Gaps": [
+      {
+        "Path": "Content/Children/0",
+        "Feature": "role: head",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/0/Children/1",
+        "Feature": "role: title",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/0/Children/2",
+        "Feature": "role: meta",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/1",
+        "Feature": "role: list",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/1/Children/0",
+        "Feature": "role: item",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/1/Children/0/Children/0",
+        "Feature": "role: item-head",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/1/Children/0/Children/0/Children/1",
+        "Feature": "role: num",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/1/Children/0/Children/0/Children/2",
+        "Feature": "role: link",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/1/Children/0/Children/0/Children/2",
+        "Feature": "HTML span",
+        "Reason": "HTML span не является разметкой TextPacket."
+      },
+      {
+        "Path": "Content/Children/1/Children/0/Children/1",
+        "Feature": "role: note",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/1/Children/1",
+        "Feature": "role: item",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/1/Children/1/Children/0",
+        "Feature": "role: item-head",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/1/Children/1/Children/0/Children/1",
+        "Feature": "role: num",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/1/Children/1/Children/0/Children/2",
+        "Feature": "role: link",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/1/Children/1/Children/0/Children/2",
+        "Feature": "HTML span",
+        "Reason": "HTML span не является разметкой TextPacket."
+      },
+      {
+        "Path": "Content/Children/1/Children/1/Children/1",
+        "Feature": "role: note",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/1/Children/2",
+        "Feature": "role: item",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/1/Children/2/Children/0",
+        "Feature": "role: item-head",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/1/Children/2/Children/0/Children/1",
+        "Feature": "role: num",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/1/Children/2/Children/0/Children/2",
+        "Feature": "role: link",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/1/Children/2/Children/0/Children/2",
+        "Feature": "HTML span",
+        "Reason": "HTML span не является разметкой TextPacket."
+      },
+      {
+        "Path": "Content/Children/1/Children/2/Children/1",
+        "Feature": "role: note",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/1/Children/3",
+        "Feature": "role: item",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/1/Children/3/Children/0",
+        "Feature": "role: item-head",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/1/Children/3/Children/0/Children/1",
+        "Feature": "role: num",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/1/Children/3/Children/0/Children/2",
+        "Feature": "role: link",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/1/Children/3/Children/0/Children/2",
+        "Feature": "HTML span",
+        "Reason": "HTML span не является разметкой TextPacket."
+      },
+      {
+        "Path": "Content/Children/1/Children/3/Children/1",
+        "Feature": "role: note",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      }
+    ],
+    "EditorLayers": {
+      "Content/Children/0": "Шапка",
+      "Content/Children/1": "Список",
+      "Content/Children/1/Children/0": "Карточка",
+      "Content/Children/1/Children/0/Children/0": "Шапка карточки",
+      "Content/Children/1/Children/1": "Карточка",
+      "Content/Children/1/Children/1/Children/0": "Шапка карточки",
+      "Content/Children/1/Children/2": "Карточка",
+      "Content/Children/1/Children/2/Children/0": "Шапка карточки",
+      "Content/Children/1/Children/3": "Карточка",
+      "Content/Children/1/Children/3/Children/0": "Шапка карточки"
+    }
+  },
+  "box": {
+    "Packet": {
+      "WindowTag": "box",
+      "Width": 560,
+      "Height": 500,
+      "Content": {
+        "Type": "DockPanelPacket",
+        "Style": null,
+        "OnClickContext": "",
+        "AttachedProperties": [],
+        "Children": [
+          {
+            "Type": "DockPanelPacket",
+            "Style": null,
+            "OnClickContext": "",
+            "AttachedProperties": [
+              {
+                "Key": "DockPanel.Dock",
+                "Value": "Top"
+              }
+            ],
+            "Children": [
+              {
+                "Type": "ImagePacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [
+                  {
+                    "Key": "DockPanel.Dock",
+                    "Value": "Left"
+                  }
+                ],
+                "URI": "../kern-ui/img/cells/Box.png",
+                "Width": 32,
+                "Height": 32
+              },
+              {
+                "Type": "TextPacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [
+                  {
+                    "Key": "DockPanel.Dock",
+                    "Value": "Top"
+                  }
+                ],
+                "Text": "<b>Создание бокса</b>"
+              }
+            ]
+          },
+          {
+            "Type": "TextPacket",
+            "Style": null,
+            "OnClickContext": "",
+            "AttachedProperties": [
+              {
+                "Key": "DockPanel.Dock",
+                "Value": "Top"
+              }
+            ],
+            "Text": "Выберите ползунками, сколько кристаллов положить в бокс."
+          },
+          {
+            "Type": "DockPanelPacket",
+            "Style": null,
+            "OnClickContext": "",
+            "AttachedProperties": [
+              {
+                "Key": "DockPanel.Dock",
+                "Value": "Bottom"
+              }
+            ],
+            "Children": [
+              {
+                "Type": "DockPanelPacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [
+                  {
+                    "Key": "DockPanel.Dock",
+                    "Value": "Left"
+                  }
+                ],
+                "Children": [
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [],
+                    "Text": "Кристаллов в боксе"
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [],
+                    "Text": "1 252"
+                  }
+                ]
+              },
+              {
+                "Type": "DockPanelPacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [
+                  {
+                    "Key": "DockPanel.Dock",
+                    "Value": "Left"
+                  }
+                ],
+                "Children": [
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [],
+                    "Text": "2 вида кристаллов"
+                  }
+                ]
+              },
+              {
+                "Type": "TextPacket",
+                "Style": null,
+                "OnClickContext": "/",
+                "AttachedProperties": [
+                  {
+                    "Key": "DockPanel.Dock",
+                    "Value": "Right"
+                  }
+                ],
+                "Text": "В бокс"
+              },
+              {
+                "Type": "TextPacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [
+                  {
+                    "Key": "DockPanel.Dock",
+                    "Value": "Left"
+                  }
+                ],
+                "Text": ""
+              }
+            ]
+          },
+          {
+            "Type": "ScrollViewerPacket",
+            "Style": null,
+            "OnClickContext": "",
+            "AttachedProperties": [
+              {
+                "Key": "DockPanel.Dock",
+                "Value": "Left"
+              }
+            ],
+            "Children": [
+              {
+                "Type": "GridPacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [],
+                "Children": [
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "0"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "0"
+                      }
+                    ],
+                    "Text": ""
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "0"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "1"
+                      }
+                    ],
+                    "Text": "Кристалл"
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "0"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "2"
+                      }
+                    ],
+                    "Text": "Останется"
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "0"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "3"
+                      }
+                    ],
+                    "Text": ""
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "0"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "4"
+                      }
+                    ],
+                    "Text": "Будет в боксе"
+                  },
+                  {
+                    "Type": "ImagePacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "1"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "0"
+                      }
+                    ],
+                    "URI": "../kern-ui/img/crystals/green.png",
+                    "Width": 20,
+                    "Height": 20
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "1"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "1"
+                      }
+                    ],
+                    "Text": "Зелёные"
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "1"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "2"
+                      }
+                    ],
+                    "Text": "2 340"
+                  },
+                  {
+                    "Type": "SliderPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "1"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "3"
+                      }
+                    ],
+                    "Name": "input_0",
+                    "IsEnabled": true,
+                    "MinValue": 0,
+                    "MaxValue": 2340,
+                    "Step": 1,
+                    "DefaultValue": 0,
+                    "Knob": {
+                      "Type": "ImagePacket",
+                      "Style": null,
+                      "OnClickContext": "",
+                      "AttachedProperties": [],
+                      "URI": "../../Assets/Textures/UI/Controls/Slider/knob.png",
+                      "Width": 16,
+                      "Height": 16
+                    }
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "1"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "4"
+                      }
+                    ],
+                    "Text": "0"
+                  },
+                  {
+                    "Type": "ImagePacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "2"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "0"
+                      }
+                    ],
+                    "URI": "../kern-ui/img/crystals/blue.png",
+                    "Width": 20,
+                    "Height": 20
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "2"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "1"
+                      }
+                    ],
+                    "Text": "Синие"
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "2"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "2"
+                      }
+                    ],
+                    "Text": "0"
+                  },
+                  {
+                    "Type": "SliderPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "2"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "3"
+                      }
+                    ],
+                    "Name": "input_1",
+                    "IsEnabled": true,
+                    "MinValue": 0,
+                    "MaxValue": 1204,
+                    "Step": 1,
+                    "DefaultValue": 1204,
+                    "Knob": {
+                      "Type": "ImagePacket",
+                      "Style": null,
+                      "OnClickContext": "",
+                      "AttachedProperties": [],
+                      "URI": "../../Assets/Textures/UI/Controls/Slider/knob.png",
+                      "Width": 16,
+                      "Height": 16
+                    }
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "2"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "4"
+                      }
+                    ],
+                    "Text": "1 204"
+                  },
+                  {
+                    "Type": "ImagePacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "3"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "0"
+                      }
+                    ],
+                    "URI": "../kern-ui/img/crystals/red.png",
+                    "Width": 20,
+                    "Height": 20
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "3"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "1"
+                      }
+                    ],
+                    "Text": "Красные"
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "3"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "2"
+                      }
+                    ],
+                    "Text": "48"
+                  },
+                  {
+                    "Type": "SliderPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "3"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "3"
+                      }
+                    ],
+                    "Name": "input_2",
+                    "IsEnabled": true,
+                    "MinValue": 0,
+                    "MaxValue": 96,
+                    "Step": 1,
+                    "DefaultValue": 48,
+                    "Knob": {
+                      "Type": "ImagePacket",
+                      "Style": null,
+                      "OnClickContext": "",
+                      "AttachedProperties": [],
+                      "URI": "../../Assets/Textures/UI/Controls/Slider/knob.png",
+                      "Width": 16,
+                      "Height": 16
+                    }
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "3"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "4"
+                      }
+                    ],
+                    "Text": "48"
+                  },
+                  {
+                    "Type": "ImagePacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "4"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "0"
+                      }
+                    ],
+                    "URI": "../kern-ui/img/crystals/violet.png",
+                    "Width": 20,
+                    "Height": 20
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "4"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "1"
+                      }
+                    ],
+                    "Text": "Фиолетовые"
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "4"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "2"
+                      }
+                    ],
+                    "Text": "12"
+                  },
+                  {
+                    "Type": "SliderPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "4"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "3"
+                      }
+                    ],
+                    "Name": "input_3",
+                    "IsEnabled": true,
+                    "MinValue": 0,
+                    "MaxValue": 12,
+                    "Step": 1,
+                    "DefaultValue": 0,
+                    "Knob": {
+                      "Type": "ImagePacket",
+                      "Style": null,
+                      "OnClickContext": "",
+                      "AttachedProperties": [],
+                      "URI": "../../Assets/Textures/UI/Controls/Slider/knob.png",
+                      "Width": 16,
+                      "Height": 16
+                    }
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "4"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "4"
+                      }
+                    ],
+                    "Text": "0"
+                  },
+                  {
+                    "Type": "ImagePacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "5"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "0"
+                      }
+                    ],
+                    "URI": "../kern-ui/img/crystals/white.png",
+                    "Width": 20,
+                    "Height": 20
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "5"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "1"
+                      }
+                    ],
+                    "Text": "Белые"
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "5"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "2"
+                      }
+                    ],
+                    "Text": "3"
+                  },
+                  {
+                    "Type": "SliderPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "5"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "3"
+                      }
+                    ],
+                    "Name": "input_4",
+                    "IsEnabled": true,
+                    "MinValue": 0,
+                    "MaxValue": 3,
+                    "Step": 1,
+                    "DefaultValue": 0,
+                    "Knob": {
+                      "Type": "ImagePacket",
+                      "Style": null,
+                      "OnClickContext": "",
+                      "AttachedProperties": [],
+                      "URI": "../../Assets/Textures/UI/Controls/Slider/knob.png",
+                      "Width": 16,
+                      "Height": 16
+                    }
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "5"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "4"
+                      }
+                    ],
+                    "Text": "0"
+                  },
+                  {
+                    "Type": "ImagePacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "6"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "0"
+                      }
+                    ],
+                    "URI": "../kern-ui/img/crystals/cyan.png",
+                    "Width": 20,
+                    "Height": 20
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "6"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "1"
+                      }
+                    ],
+                    "Text": "Голубые"
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "6"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "2"
+                      }
+                    ],
+                    "Text": "57"
+                  },
+                  {
+                    "Type": "SliderPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "6"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "3"
+                      }
+                    ],
+                    "Name": "input_5",
+                    "IsEnabled": true,
+                    "MinValue": 0,
+                    "MaxValue": 57,
+                    "Step": 1,
+                    "DefaultValue": 0,
+                    "Knob": {
+                      "Type": "ImagePacket",
+                      "Style": null,
+                      "OnClickContext": "",
+                      "AttachedProperties": [],
+                      "URI": "../../Assets/Textures/UI/Controls/Slider/knob.png",
+                      "Width": 16,
+                      "Height": 16
+                    }
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [
+                      {
+                        "Key": "Grid.Row",
+                        "Value": "6"
+                      },
+                      {
+                        "Key": "Grid.Column",
+                        "Value": "4"
+                      }
+                    ],
+                    "Text": "0"
+                  }
+                ],
+                "Columns": [
+                  0,
+                  0,
+                  0,
+                  0,
+                  0
+                ],
+                "Rows": [
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0,
+                  0
+                ]
+              }
+            ],
+            "Name": "",
+            "HorizontalScrollBar": "Auto",
+            "VerticalScrollBar": "Auto"
+          }
+        ]
+      }
+    },
+    "Gaps": [
+      {
+        "Path": "Content/Children/0",
+        "Feature": "role: head",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/0/Children/1",
+        "Feature": "role: title",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/1",
+        "Feature": "role: text",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/2",
+        "Feature": "role: foot",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/2/Children/0",
+        "Feature": "role: total",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/2/Children/0/Children/0",
+        "Feature": "role: cap",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/2/Children/0/Children/1",
+        "Feature": "role: sum",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/2/Children/1",
+        "Feature": "role: annot",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/2/Children/2",
+        "Feature": "primary",
+        "Reason": "Состояние/вариант не перенесён. Статические цвета и рамки могут выражаться Style; интерактивную семантику нужно сверить."
+      },
+      {
+        "Path": "Content/Children/2/Children/2",
+        "Feature": "disabled",
+        "Reason": "Состояние/вариант не перенесён. Статические цвета и рамки могут выражаться Style; интерактивную семантику нужно сверить."
+      },
+      {
+        "Path": "Content/Children/3/Children/0",
+        "Feature": "role: table",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/3/Children/0/Children/0",
+        "Feature": "role: cap",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/3/Children/0/Children/1",
+        "Feature": "role: cap",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/3/Children/0/Children/2",
+        "Feature": "role: cap num",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/3/Children/0/Children/3",
+        "Feature": "role: cap",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/3/Children/0/Children/4",
+        "Feature": "role: cap num",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/3/Children/0/Children/7",
+        "Feature": "role: num",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/3/Children/0/Children/9",
+        "Feature": "role: num strong",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/3/Children/0/Children/12",
+        "Feature": "role: num",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/3/Children/0/Children/14",
+        "Feature": "role: num strong",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/3/Children/0/Children/17",
+        "Feature": "role: num",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/3/Children/0/Children/19",
+        "Feature": "role: num strong",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/3/Children/0/Children/22",
+        "Feature": "role: num",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/3/Children/0/Children/24",
+        "Feature": "role: num strong",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/3/Children/0/Children/27",
+        "Feature": "role: num",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/3/Children/0/Children/29",
+        "Feature": "role: num strong",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/3/Children/0/Children/32",
+        "Feature": "role: num",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/3/Children/0/Children/34",
+        "Feature": "role: num strong",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/3/Children/0",
+        "Feature": "Фиксированные ширины колонок",
+        "Reason": "В Kern UI положительные значения трактуются как px; в клиентском PacketGridLayout — как пропорции. Использован Auto, требуется сверка семантики."
+      }
+    ],
+    "EditorLayers": {
+      "Content/Children/0": "Шапка",
+      "Content/Children/2": "Подвал",
+      "Content/Children/2/Children/0": "Итог",
+      "Content/Children/2/Children/1": "Пояснение",
+      "Content/Children/3/Children/0": "Таблица"
+    }
+  },
+  "donate": {
+    "Packet": {
+      "WindowTag": "donate",
+      "Width": 560,
+      "Height": 540,
+      "Content": {
+        "Type": "DockPanelPacket",
+        "Style": null,
+        "OnClickContext": "",
+        "AttachedProperties": [],
+        "Children": [
+          {
+            "Type": "DockPanelPacket",
+            "Style": null,
+            "OnClickContext": "",
+            "AttachedProperties": [
+              {
+                "Key": "DockPanel.Dock",
+                "Value": "Top"
+              }
+            ],
+            "Children": [
+              {
+                "Type": "ImagePacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [
+                  {
+                    "Key": "DockPanel.Dock",
+                    "Value": "Left"
+                  }
+                ],
+                "URI": "../kern-ui/img/ui/credit.svg",
+                "Width": 32,
+                "Height": 32
+              },
+              {
+                "Type": "TextPacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [
+                  {
+                    "Key": "DockPanel.Dock",
+                    "Value": "Top"
+                  }
+                ],
+                "Text": "<b>Пополнение</b>"
+              },
+              {
+                "Type": "TextPacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [
+                  {
+                    "Key": "DockPanel.Dock",
+                    "Value": "Top"
+                  }
+                ],
+                "Text": "На счету — 340 кредитов"
+              }
+            ]
+          },
+          {
+            "Type": "DockPanelPacket",
+            "Style": null,
+            "OnClickContext": "",
+            "AttachedProperties": [
+              {
+                "Key": "DockPanel.Dock",
+                "Value": "Bottom"
+              }
+            ],
+            "Children": [
+              {
+                "Type": "DockPanelPacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [
+                  {
+                    "Key": "DockPanel.Dock",
+                    "Value": "Left"
+                  }
+                ],
+                "Children": [
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [],
+                    "Text": "К оплате"
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [],
+                    "Text": "$4.99"
+                  }
+                ]
+              },
+              {
+                "Type": "DockPanelPacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [
+                  {
+                    "Key": "DockPanel.Dock",
+                    "Value": "Left"
+                  }
+                ],
+                "Children": [
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [],
+                    "Text": "550 кредитов"
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [],
+                    "Text": "Из них бонус — 50"
+                  }
+                ]
+              },
+              {
+                "Type": "TextPacket",
+                "Style": null,
+                "OnClickContext": "/",
+                "AttachedProperties": [
+                  {
+                    "Key": "DockPanel.Dock",
+                    "Value": "Right"
+                  }
+                ],
+                "Text": "Оплатить"
+              },
+              {
+                "Type": "TextPacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [
+                  {
+                    "Key": "DockPanel.Dock",
+                    "Value": "Left"
+                  }
+                ],
+                "Text": ""
+              }
+            ]
+          },
+          {
+            "Type": "GridPacket",
+            "Style": null,
+            "OnClickContext": "",
+            "AttachedProperties": [
+              {
+                "Key": "DockPanel.Dock",
+                "Value": "Top"
+              }
+            ],
+            "Children": [
+              {
+                "Type": "DockPanelPacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [
+                  {
+                    "Key": "Grid.Row",
+                    "Value": "0"
+                  },
+                  {
+                    "Key": "Grid.Column",
+                    "Value": "0"
+                  }
+                ],
+                "Children": [
+                  {
+                    "Type": "ImagePacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [],
+                    "URI": "../kern-ui/img/ui/credit.svg",
+                    "Width": 18,
+                    "Height": 24
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [],
+                    "Text": "<b>100</b>кредитов"
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [],
+                    "Text": "без бонуса"
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "/",
+                    "AttachedProperties": [],
+                    "Text": "$0.99"
+                  }
+                ]
+              },
+              {
+                "Type": "DockPanelPacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [
+                  {
+                    "Key": "Grid.Row",
+                    "Value": "0"
+                  },
+                  {
+                    "Key": "Grid.Column",
+                    "Value": "1"
+                  }
+                ],
+                "Children": [
+                  {
+                    "Type": "ImagePacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [],
+                    "URI": "../kern-ui/img/ui/credit.svg",
+                    "Width": 18,
+                    "Height": 24
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [],
+                    "Text": "<b>300</b>кредитов"
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [],
+                    "Text": "без бонуса"
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "/",
+                    "AttachedProperties": [],
+                    "Text": "$2.99"
+                  }
+                ]
+              },
+              {
+                "Type": "DockPanelPacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [
+                  {
+                    "Key": "Grid.Row",
+                    "Value": "0"
+                  },
+                  {
+                    "Key": "Grid.Column",
+                    "Value": "2"
+                  }
+                ],
+                "Children": [
+                  {
+                    "Type": "ImagePacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [],
+                    "URI": "../kern-ui/img/ui/credit.svg",
+                    "Width": 18,
+                    "Height": 24
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [],
+                    "Text": "<b>550</b>кредитов"
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [],
+                    "Text": "+10% бонус"
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "/",
+                    "AttachedProperties": [],
+                    "Text": "$4.99"
+                  }
+                ]
+              },
+              {
+                "Type": "DockPanelPacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [
+                  {
+                    "Key": "Grid.Row",
+                    "Value": "1"
+                  },
+                  {
+                    "Key": "Grid.Column",
+                    "Value": "0"
+                  }
+                ],
+                "Children": [
+                  {
+                    "Type": "ImagePacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [],
+                    "URI": "../kern-ui/img/ui/credit.svg",
+                    "Width": 18,
+                    "Height": 24
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [],
+                    "Text": "<b>1 200</b>кредитов"
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [],
+                    "Text": "+20% бонус"
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "/",
+                    "AttachedProperties": [],
+                    "Text": "$9.99"
+                  }
+                ]
+              },
+              {
+                "Type": "DockPanelPacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [
+                  {
+                    "Key": "Grid.Row",
+                    "Value": "1"
+                  },
+                  {
+                    "Key": "Grid.Column",
+                    "Value": "1"
+                  }
+                ],
+                "Children": [
+                  {
+                    "Type": "ImagePacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [],
+                    "URI": "../kern-ui/img/ui/credit.svg",
+                    "Width": 18,
+                    "Height": 24
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [],
+                    "Text": "<b>2 500</b>кредитов"
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [],
+                    "Text": "+25% бонус"
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "/",
+                    "AttachedProperties": [],
+                    "Text": "$19.99"
+                  }
+                ]
+              },
+              {
+                "Type": "DockPanelPacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [
+                  {
+                    "Key": "Grid.Row",
+                    "Value": "1"
+                  },
+                  {
+                    "Key": "Grid.Column",
+                    "Value": "2"
+                  }
+                ],
+                "Children": [
+                  {
+                    "Type": "ImagePacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [],
+                    "URI": "../kern-ui/img/ui/credit.svg",
+                    "Width": 18,
+                    "Height": 24
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [],
+                    "Text": "<b>6 500</b>кредитов"
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "",
+                    "AttachedProperties": [],
+                    "Text": "+30% бонус"
+                  },
+                  {
+                    "Type": "TextPacket",
+                    "Style": null,
+                    "OnClickContext": "/",
+                    "AttachedProperties": [],
+                    "Text": "$49.99"
+                  }
+                ]
+              }
+            ],
+            "Columns": [
+              0,
+              0,
+              0
+            ],
+            "Rows": [
+              0,
+              0
+            ]
+          }
+        ]
+      }
+    },
+    "Gaps": [
+      {
+        "Path": "Content/Children/0",
+        "Feature": "role: head",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/0/Children/1",
+        "Feature": "role: title",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/0/Children/2",
+        "Feature": "role: meta",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/1",
+        "Feature": "role: foot",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/1/Children/0",
+        "Feature": "role: total",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/1/Children/0/Children/0",
+        "Feature": "role: cap",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/1/Children/0/Children/1",
+        "Feature": "role: sum",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/1/Children/1",
+        "Feature": "role: annot",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/1/Children/2",
+        "Feature": "primary",
+        "Reason": "Состояние/вариант не перенесён. Статические цвета и рамки могут выражаться Style; интерактивную семантику нужно сверить."
+      },
+      {
+        "Path": "Content/Children/2",
+        "Feature": "role: packs",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/2/Children/0",
+        "Feature": "role: pack",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/2/Children/0/Children/1",
+        "Feature": "role: big",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/2/Children/0/Children/2",
+        "Feature": "role: note",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/2/Children/0/Children/3",
+        "Feature": "on",
+        "Reason": "Состояние/вариант не перенесён. Статические цвета и рамки могут выражаться Style; интерактивную семантику нужно сверить."
+      },
+      {
+        "Path": "Content/Children/2/Children/1",
+        "Feature": "role: pack",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/2/Children/1/Children/1",
+        "Feature": "role: big",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/2/Children/1/Children/2",
+        "Feature": "role: note",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/2/Children/1/Children/3",
+        "Feature": "on",
+        "Reason": "Состояние/вариант не перенесён. Статические цвета и рамки могут выражаться Style; интерактивную семантику нужно сверить."
+      },
+      {
+        "Path": "Content/Children/2/Children/2",
+        "Feature": "role: pack",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/2/Children/2/Children/1",
+        "Feature": "role: big",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/2/Children/2/Children/2",
+        "Feature": "role: note bonus",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/2/Children/2/Children/3",
+        "Feature": "on",
+        "Reason": "Состояние/вариант не перенесён. Статические цвета и рамки могут выражаться Style; интерактивную семантику нужно сверить."
+      },
+      {
+        "Path": "Content/Children/2/Children/3",
+        "Feature": "role: pack",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/2/Children/3/Children/1",
+        "Feature": "role: big",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/2/Children/3/Children/2",
+        "Feature": "role: note bonus",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/2/Children/3/Children/3",
+        "Feature": "on",
+        "Reason": "Состояние/вариант не перенесён. Статические цвета и рамки могут выражаться Style; интерактивную семантику нужно сверить."
+      },
+      {
+        "Path": "Content/Children/2/Children/4",
+        "Feature": "role: pack",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/2/Children/4/Children/1",
+        "Feature": "role: big",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/2/Children/4/Children/2",
+        "Feature": "role: note bonus",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/2/Children/4/Children/3",
+        "Feature": "on",
+        "Reason": "Состояние/вариант не перенесён. Статические цвета и рамки могут выражаться Style; интерактивную семантику нужно сверить."
+      },
+      {
+        "Path": "Content/Children/2/Children/5",
+        "Feature": "role: pack",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/2/Children/5/Children/1",
+        "Feature": "role: big",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/2/Children/5/Children/2",
+        "Feature": "role: note bonus",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/2/Children/5/Children/3",
+        "Feature": "on",
+        "Reason": "Состояние/вариант не перенесён. Статические цвета и рамки могут выражаться Style; интерактивную семантику нужно сверить."
+      }
+    ],
+    "EditorLayers": {
+      "Content/Children/0": "Шапка",
+      "Content/Children/1": "Подвал",
+      "Content/Children/1/Children/0": "Итог",
+      "Content/Children/1/Children/1": "Пояснение",
+      "Content/Children/2": "Наборы",
+      "Content/Children/2/Children/0": "Карточка набора",
+      "Content/Children/2/Children/1": "Карточка набора",
+      "Content/Children/2/Children/2": "Карточка набора",
+      "Content/Children/2/Children/3": "Карточка набора",
+      "Content/Children/2/Children/4": "Карточка набора",
+      "Content/Children/2/Children/5": "Карточка набора"
+    }
+  },
+  "clan_info": {
+    "Packet": {
+      "WindowTag": "clan_info",
+      "Width": 420,
+      "Height": 300,
+      "Content": {
+        "Type": "DockPanelPacket",
+        "Style": null,
+        "OnClickContext": "",
+        "AttachedProperties": [],
+        "Children": [
+          {
+            "Type": "DockPanelPacket",
+            "Style": null,
+            "OnClickContext": "",
+            "AttachedProperties": [
+              {
+                "Key": "DockPanel.Dock",
+                "Value": "Top"
+              }
+            ],
+            "Children": [
+              {
+                "Type": "ImagePacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [
+                  {
+                    "Key": "DockPanel.Dock",
+                    "Value": "Left"
+                  }
+                ],
+                "URI": "../kern-ui/img/items/clans.png",
+                "Width": 32,
+                "Height": 32
+              },
+              {
+                "Type": "TextPacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [
+                  {
+                    "Key": "DockPanel.Dock",
+                    "Value": "Top"
+                  }
+                ],
+                "Text": "<b>Мой клан</b>"
+              },
+              {
+                "Type": "TextPacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [
+                  {
+                    "Key": "DockPanel.Dock",
+                    "Value": "Top"
+                  }
+                ],
+                "Text": "Клан FED // №12"
+              }
+            ]
+          },
+          {
+            "Type": "DockPanelPacket",
+            "Style": null,
+            "OnClickContext": "",
+            "AttachedProperties": [
+              {
+                "Key": "DockPanel.Dock",
+                "Value": "Bottom"
+              }
+            ],
+            "Children": [
+              {
+                "Type": "TextPacket",
+                "Style": null,
+                "OnClickContext": "/",
+                "AttachedProperties": [
+                  {
+                    "Key": "DockPanel.Dock",
+                    "Value": "Right"
+                  }
+                ],
+                "Text": "Покинуть клан"
+              },
+              {
+                "Type": "TextPacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [
+                  {
+                    "Key": "DockPanel.Dock",
+                    "Value": "Left"
+                  }
+                ],
+                "Text": ""
+              }
+            ]
+          },
+          {
+            "Type": "TextPacket",
+            "Style": null,
+            "OnClickContext": "",
+            "AttachedProperties": [
+              {
+                "Key": "DockPanel.Dock",
+                "Value": "Top"
+              }
+            ],
+            "Text": "Копаем глубоко, держим восток. Набор открыт."
+          },
+          {
+            "Type": "GridPacket",
+            "Style": null,
+            "OnClickContext": "",
+            "AttachedProperties": [
+              {
+                "Key": "DockPanel.Dock",
+                "Value": "Top"
+              }
+            ],
+            "Children": [
+              {
+                "Type": "TextPacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [
+                  {
+                    "Key": "Grid.Row",
+                    "Value": "0"
+                  },
+                  {
+                    "Key": "Grid.Column",
+                    "Value": "0"
+                  }
+                ],
+                "Text": "Участников"
+              },
+              {
+                "Type": "TextPacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [
+                  {
+                    "Key": "Grid.Row",
+                    "Value": "0"
+                  },
+                  {
+                    "Key": "Grid.Column",
+                    "Value": "1"
+                  }
+                ],
+                "Text": "214"
+              },
+              {
+                "Type": "TextPacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [
+                  {
+                    "Key": "Grid.Row",
+                    "Value": "1"
+                  },
+                  {
+                    "Key": "Grid.Column",
+                    "Value": "0"
+                  }
+                ],
+                "Text": "Казна"
+              },
+              {
+                "Type": "TextPacket",
+                "Style": null,
+                "OnClickContext": "",
+                "AttachedProperties": [
+                  {
+                    "Key": "Grid.Row",
+                    "Value": "1"
+                  },
+                  {
+                    "Key": "Grid.Column",
+                    "Value": "1"
+                  }
+                ],
+                "Text": "$1 840 200"
+              }
+            ],
+            "Columns": [
+              0,
+              0
+            ],
+            "Rows": [
+              0,
+              0
+            ]
+          }
+        ]
+      }
+    },
+    "Gaps": [
+      {
+        "Path": "Content/Children/0",
+        "Feature": "role: head",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/0/Children/1",
+        "Feature": "role: title",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/0/Children/2",
+        "Feature": "role: meta",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/1",
+        "Feature": "role: foot",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/1/Children/0",
+        "Feature": "danger",
+        "Reason": "Состояние/вариант не перенесён. Статические цвета и рамки могут выражаться Style; интерактивную семантику нужно сверить."
+      },
+      {
+        "Path": "Content/Children/2",
+        "Feature": "role: text",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/3",
+        "Feature": "role: facts",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/3/Children/0",
+        "Feature": "role: label",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/3/Children/1",
+        "Feature": "role: num",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/3/Children/2",
+        "Feature": "role: label",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      },
+      {
+        "Path": "Content/Children/3/Children/3",
+        "Feature": "role: num strong",
+        "Reason": "CSS-роль не перенесена. Сначала проверить выражение через rich text и Style; ограничение протокола не доказано."
+      }
+    ],
+    "EditorLayers": {
+      "Content/Children/0": "Шапка",
+      "Content/Children/1": "Подвал",
+      "Content/Children/3": "Характеристики"
+    }
+  }
+}

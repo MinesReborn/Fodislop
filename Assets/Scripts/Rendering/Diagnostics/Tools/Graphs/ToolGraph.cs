@@ -36,6 +36,8 @@ public sealed class ToolGraph : IDisposable
 
     public float Average { get; private set; }
 
+    public int Count => _count;
+
     public void Push(float value)
     {
         if (float.IsNaN(value) || float.IsInfinity(value))

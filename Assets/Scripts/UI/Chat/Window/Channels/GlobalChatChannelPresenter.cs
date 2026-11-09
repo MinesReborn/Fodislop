@@ -27,6 +27,7 @@ internal sealed class GlobalChatChannelPresenter
     private string _activeTag = ChatProtocolLimits.GlobalChannelTag;
     private string? _activeChatName;
     private bool _chatListRequested;
+    private string _activeTitle = string.Empty;
 
     public GlobalChatChannelPresenter(
         ChatEventGateway chatEvents,
@@ -53,13 +54,53 @@ internal sealed class GlobalChatChannelPresenter
 
     public void BindView(ChatViewElements view) => _view = view;
 
+    public bool IsChatListOpen => _view?.ChatListScroll?.style.display == DisplayStyle.Flex;
+
+    // Шапка окна — имя текущего канала из списка сервера (ChatListPacket); до списка — тег канала.
+    // Метка свёрнутого чата — тег канала
     public void UpdateChannelHeader()
     {
-        ChatChannelPresenter.UpdatePresentation(
-            _view?.ChatHeader,
-            _view?.GlobalChannelButton,
-            _localization,
-            _activeChatName);
+        _activeTitle = string.IsNullOrEmpty(_activeChatName)
+            ? _activeTag
+            : ChatMessageFormatter.PlainText(_activeChatName!);
+        if (_view?.ChatHeader != null)
+        {
+            _view.ChatHeader.text = _activeTitle;
+        }
+
+        if (_view?.PeekTag != null)
+        {
+            _view.PeekTag.text = _activeTag.ToUpperInvariant();
+        }
+    }
+
+    // Кнопка списка: открыть все каналы поверх ленты или закрыть список
+    public void ToggleChatList()
+    {
+        if (IsChatListOpen)
+        {
+            CloseChatListPopup();
+        }
+        else
+        {
+            OpenChatList();
+        }
+    }
+
+    // Счётчики непрочитанного: на кнопке списка — сумма по каналам, в строках списка — по каналу
+    public void RefreshUnread()
+    {
+        int total = _chatEvents.GetTotalUnread();
+        if (_view?.ListBadge != null)
+        {
+            _view.ListBadge.text = total > 99 ? "99+" : total.ToString(System.Globalization.CultureInfo.InvariantCulture);
+            _view.ListBadge.EnableInClassList("is-hidden", total <= 0);
+        }
+
+        if (IsChatListOpen && _chatEvents.LastChatList is ChatListPacket list)
+        {
+            RenderChatList(list);
+        }
     }
 
     public void OpenChatList()
@@ -83,22 +124,40 @@ internal sealed class GlobalChatChannelPresenter
     public void CloseChatListPopup()
     {
         _chatListRequested = false;
-        if (_view?.ChatListPopup != null)
+        SetChatListShown(false);
+    }
+
+    // Открыт список — название текущего канала в шапке не нужно, место держим (шапка не прыгает)
+    private void SetChatListShown(bool shown)
+    {
+        if (_view?.ChatListScroll != null)
         {
-            _view.ChatListPopup.style.display = DisplayStyle.None;
+            _view.ChatListScroll.style.display = shown ? DisplayStyle.Flex : DisplayStyle.None;
+        }
+
+        if (_view?.ChatHeader != null)
+        {
+            _view.ChatHeader.style.visibility = shown ? Visibility.Hidden : Visibility.Visible;
         }
     }
 
     public void ApplyChatList(ChatListPacket packet)
     {
         _knownChatTags.Clear();
-        foreach (var (tag, _, _) in packet.Chats)
+        foreach (var (tag, name, _) in packet.Chats)
         {
             if (!string.IsNullOrEmpty(tag))
             {
                 _knownChatTags.Add(tag);
             }
+
+            if (string.Equals(tag, _activeTag, StringComparison.OrdinalIgnoreCase) && !string.IsNullOrEmpty(name))
+            {
+                _activeChatName = name;
+            }
         }
+
+        UpdateChannelHeader();
 
         _refreshChatControls(_isMuted());
         if (_chatListRequested)
@@ -124,9 +183,11 @@ internal sealed class GlobalChatChannelPresenter
         }
     }
 
+    // Строка канала (макет: .chat-list button): «FED – Федеральный чат», счётчик непрочитанного,
+    // ниже — последнее сообщение «ник: текст» или «Сообщений нет»; текущий канал отмечен
     private void RenderChatList(ChatListPacket packet)
     {
-        if (_view?.ChatListScroll == null || _view.ChatListPopup == null)
+        if (_view?.ChatListScroll == null)
         {
             return;
         }
@@ -136,14 +197,29 @@ internal sealed class GlobalChatChannelPresenter
         foreach (var (tag, name, lastMessage) in packet.Chats)
         {
             string chatName = string.IsNullOrEmpty(name) ? tag : name;
-            string preview = string.IsNullOrEmpty(lastMessage.Message) ? chatName : lastMessage.Message;
+            string title = string.IsNullOrEmpty(name) ? tag : tag + " – " + name;
+            string preview = string.IsNullOrEmpty(lastMessage.Message)
+                ? _localization.Get("chat.list.empty")
+                : lastMessage.PlayerName + ": " + lastMessage.Message;
             var row = new Button { text = string.Empty };
-            row.AddToClassList("gchat-chat-row");
-            var nameLabel = new Label(ChatMessageFormatter.PlainText(chatName));
-            nameLabel.AddToClassList("gchat-chat-row-name");
-            var previewLabel = new Label(ChatMessageFormatter.PlainText(preview));
-            previewLabel.AddToClassList("gchat-chat-row-preview");
-            row.Add(nameLabel);
+            row.AddToClassList("chat-list-row");
+            row.EnableInClassList("is-on", string.Equals(tag, _activeTag, StringComparison.OrdinalIgnoreCase));
+            var head = new VisualElement { pickingMode = PickingMode.Ignore };
+            head.AddToClassList("chat-list-row__head");
+            var nameLabel = new Label(ChatMessageFormatter.PlainText(title)) { pickingMode = PickingMode.Ignore };
+            nameLabel.AddToClassList("chat-list-row__name");
+            head.Add(nameLabel);
+            int unread = _chatEvents.GetUnread(tag);
+            if (unread > 0)
+            {
+                var badge = new Label(unread > 99 ? "99+" : unread.ToString(System.Globalization.CultureInfo.InvariantCulture)) { pickingMode = PickingMode.Ignore };
+                badge.AddToClassList("chat-list-row__count");
+                head.Add(badge);
+            }
+
+            var previewLabel = new Label(ChatMessageFormatter.PlainText(preview)) { pickingMode = PickingMode.Ignore };
+            previewLabel.AddToClassList("chat-list-row__preview");
+            row.Add(head);
             row.Add(previewLabel);
             string chosenTag = tag;
             string chosenName = chatName;
@@ -151,7 +227,7 @@ internal sealed class GlobalChatChannelPresenter
             scroll.Add(row);
         }
 
-        _view.ChatListPopup.style.display = DisplayStyle.Flex;
+        SetChatListShown(true);
     }
 
     private void ChooseChat(string tag, string chatName)
@@ -165,10 +241,7 @@ internal sealed class GlobalChatChannelPresenter
         _activeChatName = chatName;
         _chatListRequested = false;
         _chatEvents.SetFocusedTag(_isChatOpen() ? tag : null);
-        if (_view?.ChatListPopup != null)
-        {
-            _view.ChatListPopup.style.display = DisplayStyle.None;
-        }
+        SetChatListShown(false);
 
         _messages.Clear();
         UpdateChannelHeader();

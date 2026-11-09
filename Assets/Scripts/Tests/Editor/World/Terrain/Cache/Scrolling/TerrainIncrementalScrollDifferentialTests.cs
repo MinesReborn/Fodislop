@@ -4,7 +4,7 @@ using Kern.World.Terrain;
 using NUnit.Framework;
 using UnityEngine;
 
-using Kern.Networking.Offline;
+using Kern.Networking.Dummy;
 
 namespace Kern.Tests.World;
 

@@ -1,7 +1,16 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <!-- Экран загрузки — экран boot макета (visual/kern-ui/index.html, data-screen="boot"):
+         фон экранов вне игры, знак, заголовок, фаза моно и шкала ступенями. -->
     <ui:Style src="../Styles/BootstrapLoadingScreen.uss" />
-    <ui:VisualElement name="BootstrapLoadingOverlay" class="bootstrap-loading-overlay is-hidden" picking-mode="Ignore">
-        <ui:Label class="bootstrap-loading-title" text="assetload.title" />
-        <ui:Label name="BootstrapLoadingPhase" class="bootstrap-loading-phase" />
+    <ui:VisualElement name="BootstrapLoadingOverlay" class="screen-space boot-screen is-hidden" picking-mode="Ignore">
+        <ui:VisualElement class="screen-space__dots" picking-mode="Ignore" />
+        <ui:VisualElement class="boot" picking-mode="Ignore">
+            <ui:VisualElement class="boot-logo" />
+            <ui:Label class="boot-title" text="bootstrap.title" />
+            <ui:Label name="BootstrapLoadingPhase" class="boot-phase" />
+            <ui:VisualElement name="BootstrapLoadingMeter" class="meter-quant boot-meter">
+                <ui:VisualElement name="BootstrapLoadingFill" class="meter-quant__fill" />
+            </ui:VisualElement>
+        </ui:VisualElement>
     </ui:VisualElement>
 </ui:UXML>

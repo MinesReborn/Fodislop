@@ -48,8 +48,6 @@ namespace Kern.UI.Settings
         [Inject]
         private DisplayManager _displayManager = null!;
         [Inject]
-        private ILocalPlayerState _localPlayer = null!;
-        [Inject]
         private IMainMenuNavigation _mainMenuNavigation = null!;
         [Inject]
         private ILocalizationService _loc = null!;
@@ -57,9 +55,8 @@ namespace Kern.UI.Settings
         private VisualElement? _menuPanel;
         private TemplateContainer? _menuTree;
         private VisualElement? _mainPage;
-        private VisualElement? _settingsPage;
         private bool _isOpen;
-        private readonly List<Action> _settingsRefreshers = new();
+        private SettingsWindow? _settings;
         private bool _initialized;
         private bool _initializationFailed;
 
@@ -68,15 +65,14 @@ namespace Kern.UI.Settings
         [Inject]
         private IAudioSystem _audioSystem = null!;
         [Inject]
-        private IConnectionService _connectionService = null!;
-        [Inject]
         private IInputBlocker _inputBlocker = null!;
         [Inject]
         private UIInputManager _uiInput = null!;
         [Inject]
+        private IPlayerStats _playerStats = null!;
+        [Inject]
         private TouchCommands _touchCommands = null!;
         private bool _touchSubscribed;
-        private PauseMenuTabRouter? _tabRouter;
 
         protected void Start()
         {
@@ -174,7 +170,6 @@ namespace Kern.UI.Settings
                 _clientConfig.Config == null ? "ClientConfig" :
                 _networkService == null ? nameof(INetworkService) :
                 _audioSystem == null ? nameof(IAudioSystem) :
-                _connectionService == null ? nameof(IConnectionService) :
                 _inputBlocker == null ? nameof(IInputBlocker) :
                 _lightingEngine == null ? nameof(LightingEngine) :
                 _postProcessController == null ? nameof(PostProcessController) :
@@ -231,6 +226,19 @@ namespace Kern.UI.Settings
 
             HideMenu();
 
+            // Окно настроек — общее с главным меню; в игре применяет графику сразу на живые системы
+            _settings = new SettingsWindow(
+                _doc,
+                _doc.rootVisualElement,
+                _clientConfig,
+                _audioSystem,
+                _displayManager,
+                new GameSettingsApply(_graphicsSettings),
+                _loc,
+                _playerStats,
+                capturing => _uiInput.IsKeyCaptureInProgress = capturing);
+            _settings.Closed += OnSettingsClosed;
+
             UIScreen.Bind(_doc, _clientConfig.Config.Interface.UIScale, _clientConfig.Config.Interface.TextScale);
 
             // Реестр применяет текст сразу и на каждой смене языка — подписка
@@ -268,6 +276,13 @@ namespace Kern.UI.Settings
 
             _uiInput.IsPauseMenuOpen = false;
 
+            if (_settings != null)
+            {
+                _settings.Closed -= OnSettingsClosed;
+                _settings.Dispose();
+                _settings = null;
+            }
+
             if (_menuTree != null && _menuTree.parent != null)
             {
                 _menuTree.parent.Remove(_menuTree);
@@ -279,27 +294,12 @@ namespace Kern.UI.Settings
             VisualTreeAsset template = Resources.Load<VisualTreeAsset>(ResourcePaths.PauseMenuUxml) ??
                 throw new InvalidOperationException(
                     "[PauseMenu] Resources/UI/Settings/Pause/Templates/PauseMenu.uxml is required.");
-            PauseMenuViewState view = new PauseMenuViewBuilder(
-                _doc,
-                _clientConfig,
-                _audioSystem,
-                _displayManager,
-                _graphicsSettings,
-                _lightingEngine,
-                _postProcessController,
-                _networkService,
-                _connectionService,
-                _localPlayer,
-                _uiInput,
-                _mainMenuNavigation,
-                _loc)
-                .Build(template, root, CloseMenu, OpenSettings, CloseSettings, _settingsRefreshers);
+            PauseMenuViewState view = new PauseMenuViewBuilder(_mainMenuNavigation, _loc)
+                .Build(template, root, CloseMenu, OpenSettings);
 
             _menuTree = view.MenuTree;
             _menuPanel = view.MenuPanel;
             _mainPage = view.MainPage;
-            _settingsPage = view.SettingsPage;
-            _tabRouter = view.TabRouter;
         }
 
         private void ToggleMenu()
@@ -331,9 +331,9 @@ namespace Kern.UI.Settings
                 }
             }
 
-            if (_settingsPage != null && _settingsPage.style.display == DisplayStyle.Flex)
+            if (_settings != null && _settings.IsOpen)
             {
-                CloseSettings();
+                _settings.Close();
                 return;
             }
 
@@ -372,11 +372,6 @@ namespace Kern.UI.Settings
             {
                 _mainPage.style.display = DisplayStyle.Flex;
             }
-
-            if (_settingsPage != null)
-            {
-                _settingsPage.style.display = DisplayStyle.None;
-            }
         }
 
         private void CloseMenu()
@@ -399,21 +394,23 @@ namespace Kern.UI.Settings
             }
         }
 
+        // Настройки открываются поверх игры вместо паузы; закрыли — пауза возвращается
         private void OpenSettings()
         {
-            foreach (Action refresh in _settingsRefreshers)
+            if (_menuTree != null)
             {
-                refresh();
+                _menuTree.style.display = DisplayStyle.None;
             }
 
-            if (_mainPage != null)
-            {
-                _mainPage.style.display = DisplayStyle.None;
-            }
+            _settings?.Open();
+        }
 
-            if (_settingsPage != null)
+        private void OnSettingsClosed()
+        {
+            if (_isOpen && _menuTree != null)
             {
-                _settingsPage.style.display = DisplayStyle.Flex;
+                _menuTree.style.display = DisplayStyle.Flex;
+                _menuTree.BringToFront();
             }
         }
 
@@ -426,12 +423,11 @@ namespace Kern.UI.Settings
             }
 
             bool wasOpen = _isOpen;
-            bool wasSettings = _settingsPage != null && _settingsPage.style.display == DisplayStyle.Flex;
-            int activeTab = _tabRouter?.ActiveTab ?? 0;
+            bool settingsOpen = _settings != null && _settings.IsOpen;
 
             CreateMenu(_doc.rootVisualElement);
 
-            if (wasOpen && _menuTree != null)
+            if (wasOpen && !settingsOpen && _menuTree != null)
             {
                 _menuTree.style.display = DisplayStyle.Flex;
                 _menuTree.BringToFront();
@@ -440,12 +436,7 @@ namespace Kern.UI.Settings
                     _menuPanel.style.display = DisplayStyle.Flex;
                 }
 
-                if (wasSettings)
-                {
-                    OpenSettings();
-                    _tabRouter?.ShowTab(activeTab);
-                }
-                else if (_mainPage != null)
+                if (_mainPage != null)
                 {
                     _mainPage.style.display = DisplayStyle.Flex;
                 }
@@ -456,20 +447,5 @@ namespace Kern.UI.Settings
                 UILocalizer.AssertLocalized(_menuTree, _loc);
             }
         }
-
-        private void CloseSettings()
-        {
-            if (_settingsPage != null)
-            {
-                _settingsPage.style.display = DisplayStyle.None;
-            }
-
-            if (_mainPage != null)
-            {
-                _mainPage.style.display = DisplayStyle.Flex;
-            }
-        }
-
-
     }
 }

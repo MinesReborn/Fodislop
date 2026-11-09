@@ -4,10 +4,10 @@ using System;
 using System.Collections.Generic;
 using MinesServer.Data;
 using Kern.Core.Interfaces;
+using Kern.Core.Models;
 using UnityEngine;
 
 using Kern.AssetPipeline.Loading;
-using Kern.Networking.Offline;
 
 namespace Kern.Game.Inventory;
 
@@ -26,9 +26,9 @@ public sealed class ItemRegistry : IItemCatalog
     // Локальный справочник: русское название и описание предмета. Серверные
     // метаданные (SelectItemPacket) имеют приоритет — этот текст используется,
     // пока метаданные не пришли или пришли пустыми.
-    public string GetName(ItemType type) => DummyItemInfo.GetItemInfo(type).Name;
+    public string GetName(ItemType type) => ItemInfoCatalog.GetItemInfo(type).Name;
 
-    public string GetDescription(ItemType type) => DummyItemInfo.GetItemInfo(type).Desc;
+    public string GetDescription(ItemType type) => ItemInfoCatalog.GetItemInfo(type).Desc;
 
     public IEnumerable<ItemType> AllTypes => (ItemType[])System.Enum.GetValues(typeof(ItemType));
 

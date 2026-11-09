@@ -263,7 +263,7 @@ internal static class ClientConfigMigrations
 
         if (schema == TerrainDepthSchemaVersion)
         {
-            // Initialized defaults supply scale 1 when absent; saved zero stays zero.
+            // Сила рыбьего глаза — эффект удалён, шаг ничего не переносит.
             schema = FisheyeSettingsSchemaVersion;
         }
 
@@ -308,6 +308,21 @@ internal static class ClientConfigMigrations
                 config.Interface.MovementAssist = InterfaceSettings.DefaultMovementAssist;
             }
 
+            schema = 52;
+        }
+
+        if (schema == 52)
+        {
+            // Режим для дальтоников появился выключенным
+            config.Effects.ColorVision = ColorVisionMode.Off;
+            schema = 53;
+        }
+
+        if (schema == 53)
+        {
+            // Уровень чёрного и яркость SDR появились нейтральными: картинка не меняется до калибровки
+            config.Display.BlackLevel = DisplaySettings.DefaultBlackLevel;
+            config.Display.Brightness = DisplaySettings.DefaultBrightness;
             schema = ClientConfig.CurrentSchemaVersion;
         }
 

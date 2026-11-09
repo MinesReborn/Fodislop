@@ -3,7 +3,7 @@
 /* ── Значок кнопки ── */
 .pg { display: inline-grid; place-items: center; flex: none; min-width: 22px; height: 22px; padding: 0 var(--sp-3);
   background: var(--plate-hover); border: 1px solid var(--seam-strong); color: var(--bone); font: var(--fw-bold) var(--t-3)/1 var(--font); letter-spacing: 0; white-space: nowrap; }
-.pg:where([data-btn="a"], [data-btn="b"], [data-btn="x"], [data-btn="y"]) { width: 22px; padding: 0; border-radius: var(--r-round); font-size: var(--t-4); }
+.pg:where([data-btn="a"], [data-btn="b"], [data-btn="x"], [data-btn="y"]) { width: 22px; padding: 0; font-size: var(--t-4); }
 .pg:where([data-btn="up"], [data-btn="down"], [data-btn="left"], [data-btn="right"]) { width: 22px; padding: 0; font-size: var(--t-5); }
 .pg:where([data-btn="start"], [data-btn="select"]) { height: 18px; font-size: var(--t-2); }
 .frame[data-pad="xbox"] .pg[data-btn="a"] { color: var(--pad-xbox-a); }
@@ -21,7 +21,7 @@
 .toggle .pg { margin-left: auto; }
 
 /* ── Фокус: виден всегда, наведения у пада нет ── */
-.frame.in-pad :focus { outline: 2px solid var(--signal); outline-offset: 2px; }
+
 
 /* ── Пад на сенсорном устройстве: стик, «Копать» и дуга действий не нужны ── */
 .frame.compact.in-pad #pad, .frame.compact.in-pad .act-arc, .frame.compact.in-pad #fastMove { display: none; }
@@ -51,7 +51,7 @@
 .pd-y { grid-area: y; } .pd-x { grid-area: x; } .pd-b { grid-area: b; } .pd-a { grid-area: a; }
 .pd-rt { background: var(--signal); border-color: var(--signal); }
 .pd-rt > small { color: var(--on-signal) !important; font-weight: var(--fw-bold); }
-.pd.is-on { border-color: var(--signal); color: var(--signal); }
+
 .pd.is-idle { opacity: .45; }
 .pd-shoulders .pd { width: auto; height: 34px; padding: 0 var(--sp-6) 0 38px; grid-auto-flow: column; gap: var(--sp-3); }
 .pd-shoulders .pd > .pg { left: 4px; right: auto; top: 50%; bottom: auto; transform: translateY(-50%); }
@@ -69,7 +69,7 @@
 
 /* ── Строка подсказок в меню и окнах ── */
 .pad-bar { position: absolute; z-index: var(--z-top); left: 50%; bottom: calc(var(--sb, 0px) + 10px); transform: translateX(-50%); display: flex; gap: var(--sp-9);
-  padding: var(--sp-3) var(--sp-7); background: var(--float); border: 1px solid var(--seam); color: var(--ash); font-size: var(--t-small); pointer-events: none; }
+  padding: var(--sp-3) var(--sp-7); border: 1px solid var(--seam); color: var(--ash); font-size: var(--t-small); pointer-events: none; }
 .pad-bar[hidden] { display: none; }
 .pad-bar span { display: flex; align-items: center; gap: var(--sp-3); white-space: nowrap; }
 .pad-bar .pg + .pg { margin-left: -2px; }

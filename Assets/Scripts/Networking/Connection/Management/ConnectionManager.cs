@@ -21,7 +21,6 @@ using VContainer;
 
 using Kern.Diagnostics.Memory;
 using Kern.Networking.Authentication;
-using Kern.Networking.Offline;
 
 namespace Kern.Networking.Connection
 {
@@ -32,7 +31,7 @@ namespace Kern.Networking.Connection
         public bool IsConnected => Connection != null && Connection.ConnectionStatus == ConnectionStatus.Connected;
         public bool IsAutoReconnecting => _shouldAutoReconnect;
         public bool IsWorldStartupPending => _isWorldStartupPending;
-        public bool IsOffline => Connection is IOfflineConnection;
+        public bool IsDummy => Connection is IDummyConnection;
 
         public void RequestWorldRegion(string worldCodeName, RectInt serverRegion)
         {
@@ -64,7 +63,7 @@ namespace Kern.Networking.Connection
         private IGameTokenStore _tokens = null!;
 
         [Inject]
-        private DummyConnection _dummyConnection = null!;
+        private IDummyConnection _dummyConnection = null!;
         [Inject]
         private ConnectionTransportFactory _transportFactory = null!;
 
@@ -113,9 +112,13 @@ namespace Kern.Networking.Connection
 
             _reconnectCountdown -= Time.unscaledDeltaTime;
             int secsRemaining = Mathf.CeilToInt(_reconnectCountdown);
-            string status = secsRemaining > 0
-                ? _loc.Get("network.reconnect.retry", secsRemaining)
-                : _loc.Get("network.connecting");
+            // Без сети отсчёт до повтора ничего не объясняет: игроку важно знать,
+            // что дело в интернете, а не в сервере.
+            string status = Application.internetReachability == NetworkReachability.NotReachable
+                ? _loc.Get("network.no_internet")
+                : secsRemaining > 0
+                    ? _loc.Get("network.reconnect.retry", secsRemaining)
+                    : _loc.Get("network.connecting");
             if (status != _reconnectStatus)
             {
                 _reconnectStatus = status;
@@ -229,9 +232,9 @@ namespace Kern.Networking.Connection
 
         public void TriggerDisconnect(string reason)
         {
-            if (Connection is IOfflineConnection offline)
+            if (Connection is IDummyConnection dummy)
             {
-                offline.TriggerDisconnect(reason);
+                dummy.TriggerDisconnect(reason);
                 return;
             }
 
@@ -240,9 +243,9 @@ namespace Kern.Networking.Connection
 
         public void TriggerReconnect(string reason)
         {
-            if (Connection is IOfflineConnection offline)
+            if (Connection is IDummyConnection dummy)
             {
-                offline.TriggerReconnect(reason);
+                dummy.TriggerReconnect(reason);
                 return;
             }
 

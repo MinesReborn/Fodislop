@@ -65,8 +65,8 @@ internal sealed class ScopesExposureReadout
         string nitUnit = sourceMode == ScopesSourceMode.Before
             ? "нит (эквивалент сцены)"
             : "нит (линейный выход)";
-        string calibrationNote = calibrationMode == CalibrationPattern.PeakLadder
-            ? $" Лестница намеренно включает ступени выше маркера {calibrationValue:0.#} nit."
+        string calibrationNote = calibrationMode == CalibrationPattern.PeakMark
+            ? $" Поле узора пика намеренно ярче маркера {calibrationValue:0.#} nit."
             : string.Empty;
         if (float.IsNaN(median) || float.IsNaN(p95))
         {

@@ -1,0 +1,38 @@
+{
+  "Exo2_SDF": {
+    "Family": "Exo 2",
+    "Asset": "Assets/Resources/Fonts/Exo2/Exo2_SDF.asset",
+    "Resource": "Fonts/Exo2/Exo2_SDF",
+    "Source": "../../Assets/Resources/Fonts/Exo2/Exo2.ttf"
+  },
+  "JetBrainsMono_SDF": {
+    "Family": "JetBrains Mono",
+    "Asset": "Assets/Resources/Fonts/JetBrainsMono/JetBrainsMono_SDF.asset",
+    "Resource": "Fonts/JetBrainsMono/JetBrainsMono_SDF",
+    "Source": "../../Assets/Resources/Fonts/JetBrainsMono/JetBrainsMono.ttf"
+  },
+  "NotoSansSC_SDF": {
+    "Family": "Noto Sans SC",
+    "Asset": "Assets/Resources/Fonts/NotoSansSC/NotoSansSC_SDF.asset",
+    "Resource": "Fonts/NotoSansSC/NotoSansSC_SDF",
+    "Source": "../../Assets/Resources/Fonts/NotoSansSC/NotoSansSC-Regular.otf"
+  },
+  "NotoSansTC_SDF": {
+    "Family": "Noto Sans TC",
+    "Asset": "Assets/Resources/Fonts/NotoSansTC/NotoSansTC_SDF.asset",
+    "Resource": "Fonts/NotoSansTC/NotoSansTC_SDF",
+    "Source": "../../Assets/Resources/Fonts/NotoSansTC/NotoSansTC-Regular.otf"
+  },
+  "Onest_SDF": {
+    "Family": "Onest",
+    "Asset": "Assets/Resources/Fonts/Onest/Onest_SDF.asset",
+    "Resource": "Fonts/Onest/Onest_SDF",
+    "Source": "../../Assets/Resources/Fonts/Onest/Onest.ttf"
+  },
+  "Unbounded_SDF": {
+    "Family": "Unbounded",
+    "Asset": "Assets/Resources/Fonts/Unbounded/Unbounded_SDF.asset",
+    "Resource": "Fonts/Unbounded/Unbounded_SDF",
+    "Source": "../../Assets/Resources/Fonts/Unbounded/Unbounded.ttf"
+  }
+}

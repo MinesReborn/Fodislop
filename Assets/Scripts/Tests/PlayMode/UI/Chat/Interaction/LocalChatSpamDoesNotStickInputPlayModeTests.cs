@@ -50,7 +50,7 @@ public sealed class LocalChatSpamDoesNotStickInputPlayModeTests
         // без высоты мира и подобные), они не относятся к проверке. Гасим
         // только на время SetUp.
         LogAssert.ignoreFailingMessages = true;
-        yield return PlayModeHarness.StartAtGateway();
+        yield return PlayModeHarness.StartAtMainMenu();
         Kern.Bootstrap.Scenes.BootstrapLifetimeScope bootstrap = PlayModeHarness.FindBootstrap()!;
         yield return PlayModeHarness.EnterMainGame(bootstrap);
         LogAssert.ignoreFailingMessages = false;

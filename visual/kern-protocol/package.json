@@ -1,0 +1,13 @@
+{
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "node --test model.test.mjs builder.test.mjs",
+    "check": "node --check app.js",
+    "sync": "node sync-fonts.mjs && node sync-reference.mjs && node capture-design.mjs",
+    "test:browser": "node flow-check.mjs && node text-position-check.mjs && node window-picker-check.mjs && node window-content-check.mjs && node tree-check.mjs && node builder-check.mjs && node hierarchy-check.mjs && node template-update-check.mjs && node typography-check.mjs && node browser-check.mjs && node geometry-check.mjs"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.58.0"
+  }
+}

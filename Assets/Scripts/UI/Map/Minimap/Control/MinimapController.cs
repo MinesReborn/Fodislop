@@ -15,8 +15,9 @@ namespace Kern.UI.Map
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, sourceNamespace: "Kern.UI", sourceAssembly: null, sourceClassName: "MinimapController")]
     public class MinimapController : MonoBehaviour
     {
-        [SerializeField]
-        private int _uiSize = 160;
+        // Миникарта макета (visual/kern-ui .minimap): поле 262 px, клетка — 2 px. Текстура — клетка на пиксель,
+        // панель растягивает её ровно вдвое: точечная выборка без неровных пикселей
+        private const int UiSize = 131;
 
         [Inject]
         private UIDocument _doc = null!;
@@ -66,15 +67,9 @@ namespace Kern.UI.Map
             _refreshTexture = RefreshTexture;
             _setVisible = SetVisible;
             _cellInvalidation = new MinimapCellInvalidation(_cellSampler);
-            if (_uiSize < 3)
-            {
-                throw new InvalidOperationException(
-                    $"Minimap size must be at least 3 pixels for the player marker; got {_uiSize}.");
-            }
+            _textureRenderer = new MinimapTextureRenderer(UiSize);
 
-            _textureRenderer = new MinimapTextureRenderer(_uiSize);
-
-            _minimapTexture = new RenderTexture(_uiSize, _uiSize, 0, RenderTextureFormat.ARGB32)
+            _minimapTexture = new RenderTexture(UiSize, UiSize, 0, RenderTextureFormat.ARGB32)
             {
                 name = "MinimapRenderTexture",
                 enableRandomWrite = true,

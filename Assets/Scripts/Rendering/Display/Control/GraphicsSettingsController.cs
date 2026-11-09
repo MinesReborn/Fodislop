@@ -56,22 +56,6 @@ public sealed class GraphicsSettingsController
         _postProcessController.ApplyClientConfig();
     }
 
-    public void UpdateTerrainDepthEnabled(bool enabled)
-    {
-        _clientConfig.UpdateAndSave(config => config.Terrain.DepthEnabled = enabled);
-        _terrainRenderer.ApplyDepthConfig();
-    }
-
-    public void UpdateTerrainDepthSettings(float depthPixels, float darkening)
-    {
-        _clientConfig.UpdateAndSave(config =>
-        {
-            config.Terrain.DepthPixels = Mathf.Round(Mathf.Clamp(depthPixels, 0f, 16f));
-            config.Terrain.DepthDarkening = Mathf.Clamp01(darkening);
-        });
-        _terrainRenderer.ApplyDepthConfig();
-    }
-
     public void UpdateWorldMaterialSettings(Action<ClientConfig> update)
     {
         Debug.Log("[GraphicsSettingsController] Updating world material settings");

@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Kern.Core;
 using Kern.Core.Interfaces;
 using Kern.Core.Localization;
@@ -9,6 +10,7 @@ using UnityEngine;
 using UnityEngine.UIElements;
 
 using Kern.Rendering.Display;
+using Kern.UI.Screens;
 
 namespace Kern.UI.Gateway;
 
@@ -17,7 +19,6 @@ public sealed class GatewayOnboarding
     private const string StepActiveClass = "onb-step--active";
     private const string PillActiveClass = "onb-pill--active";
     private const string PillDoneClass = "onb-pill--done";
-    private const string ButtonHiddenClass = "onb-btn--hidden";
 
     private static readonly string[] s_stepTitles =
     {
@@ -33,22 +34,11 @@ public sealed class GatewayOnboarding
         Kern.Rendering.GraphicsPreset.Standard,
     };
 
-    private static readonly (string Label, int Value)[] s_frameRates =
-    {
-        ("gateway.onb.fps.unlimited", -1),
-        ("144 FPS", 144),
-        ("120 FPS", 120),
-        ("60 FPS", 60),
-    };
-
-    private static readonly (string Label, float Value)[] s_uiScales =
-    {
-        ("gateway.onb.ui_scale.100", 1.00f),
-        ("gateway.onb.ui_scale.115", 1.15f),
-        ("gateway.onb.ui_scale.130", 1.30f),
-        ("gateway.onb.ui_scale.150", 1.50f),
-        ("gateway.onb.ui_scale.175", 1.75f),
-    };
+    // Списки — общие с окном настроек (SettingsChoices), чтобы не расходились
+    private static readonly (string Label, int Value)[] s_frameRates = Kern.UI.Settings.SettingsChoices.FrameRates;
+    private static readonly (string Label, float Value)[] s_uiScales = Kern.UI.Settings.SettingsChoices.UIScales;
+    private static readonly (string Code, string Label)[] s_languages = Kern.UI.Settings.SettingsChoices.Languages;
+    private static readonly (string Label, float Value)[] s_textScales = Kern.UI.Settings.SettingsChoices.TextScales;
 
     private readonly VisualElement _root;
     private readonly VisualElement _overlay;
@@ -56,6 +46,9 @@ public sealed class GatewayOnboarding
     private readonly ILocalizationService _loc;
     private readonly Action _onFinished;
     private readonly Action<float> _onApplyUIScale;
+    private readonly UIDocument _document;
+    private readonly Kern.Rendering.Display.DisplayManager _display;
+    private readonly IPlayerStats _stats;
     private int _step;
 
     private GatewayOnboarding(
@@ -64,8 +57,14 @@ public sealed class GatewayOnboarding
         IClientConfigManager clientConfig,
         ILocalizationService loc,
         Action onFinished,
-        Action<float> onApplyUIScale)
+        Action<float> onApplyUIScale,
+        UIDocument document,
+        Kern.Rendering.Display.DisplayManager display,
+        IPlayerStats stats)
     {
+        _document = document;
+        _display = display;
+        _stats = stats;
         _root = root;
         _overlay = overlay;
         _clientConfig = clientConfig;
@@ -81,7 +80,10 @@ public sealed class GatewayOnboarding
         IClientConfigManager clientConfig,
         ILocalizationService loc,
         Action onFinished,
-        Action<float> onApplyUIScale)
+        Action<float> onApplyUIScale,
+        UIDocument document,
+        Kern.Rendering.Display.DisplayManager display,
+        IPlayerStats stats)
     {
         VisualElement? overlay = root.Q<VisualElement>("OnboardingOverlay");
         if (overlay == null)
@@ -89,7 +91,7 @@ public sealed class GatewayOnboarding
             return null;
         }
 
-        return new GatewayOnboarding(root, overlay, clientConfig, loc, onFinished, onApplyUIScale);
+        return new GatewayOnboarding(root, overlay, clientConfig, loc, onFinished, onApplyUIScale, document, display, stats);
     }
 
     public void Show()
@@ -121,15 +123,22 @@ public sealed class GatewayOnboarding
             }
         }
 
-        var controlScheme = _root.Q<DropdownField>("OnbControlScheme");
-        if (controlScheme != null)
+        SetChoices(_root.Q<DropdownField>("OnbLanguage"), s_languages.Select(l => _loc.Get(l.Label)));
+        SetChoices(_root.Q<DropdownField>("OnbTextScale"), s_textScales.Select(t => _loc.Get(t.Label)));
+        SetChoices(_root.Q<DropdownField>("OnbColorVision"), Kern.UI.Settings.SettingsChoices.ColorVision.Select(c => _loc.Get(c.Label)));
+    }
+
+    // Подписи пересобираются на смене языка, выбранный пункт остаётся
+    private static void SetChoices(DropdownField? field, IEnumerable<string> labels)
+    {
+        if (field == null)
         {
-            controlScheme.choices = new List<string>
-            {
-                _loc.Get("gateway.onb.controls.keyboard"),
-                _loc.Get("gateway.onb.controls.mouse"),
-            };
+            return;
         }
+
+        int index = field.index;
+        field.choices = labels.ToList();
+        field.SetValueWithoutNotify(index >= 0 && index < field.choices.Count ? field.choices[index] : field.value);
     }
 
     private void BindControls()
@@ -182,21 +191,61 @@ public sealed class GatewayOnboarding
             vsync.SetValueWithoutNotify(config.Display.VSync);
         }
 
-        var controlScheme = _root.Q<DropdownField>("OnbControlScheme");
-        if (controlScheme != null)
+        // Язык применяется сразу: экраны пересобирают текст по OnLanguageChanged
+        var language = _root.Q<DropdownField>("OnbLanguage");
+        if (language != null)
         {
-            controlScheme.choices = new List<string>
+            language.choices = s_languages.Select(l => _loc.Get(l.Label)).ToList();
+            language.index = Math.Max(0, Array.FindIndex(s_languages, l => l.Code == _loc.CurrentLanguage));
+            language.RegisterValueChangedCallback(_ =>
             {
-                _loc.Get("gateway.onb.controls.keyboard"),
-                _loc.Get("gateway.onb.controls.mouse"),
-            };
-            controlScheme.index = Mathf.Clamp(config.Interface.ControlScheme, 0, 1);
+                string code = s_languages[Mathf.Clamp(language.index, 0, s_languages.Length - 1)].Code;
+                if (code != _loc.CurrentLanguage)
+                {
+                    _loc.SetLanguage(code);
+                }
+            });
+        }
+
+        // Размер текста виден сразу, сохраняется по «Начать» вместе с остальным
+        var textScale = _root.Q<DropdownField>("OnbTextScale");
+        if (textScale != null)
+        {
+            textScale.choices = s_textScales.Select(t => _loc.Get(t.Label)).ToList();
+            textScale.index = IndexOfTextScale(config.Interface.TextScale);
+            textScale.RegisterValueChangedCallback(_ => UIScreen.SetTextScale(ValueOfTextScale(textScale.index)));
+        }
+
+        var colorVision = _root.Q<DropdownField>("OnbColorVision");
+        if (colorVision != null)
+        {
+            colorVision.choices = Kern.UI.Settings.SettingsChoices.ColorVision.Select(c => _loc.Get(c.Label)).ToList();
+            colorVision.index = Math.Max(0, Array.FindIndex(Kern.UI.Settings.SettingsChoices.ColorVision, c => c.Value == config.Effects.ColorVision));
+        }
+
+        // HDR, который дисплей не умеет, — неактивный переключатель; смена режима — с подтверждением и откатом
+        var hdr = _root.Q<Toggle>("OnbHdr");
+        if (hdr != null)
+        {
+            hdr.SetEnabled(Kern.Rendering.Display.HDROutput.CanSwitch);
+            hdr.SetValueWithoutNotify(Kern.Rendering.Display.HDROutput.AppliesAtNextStart
+                ? Kern.Rendering.Display.HDROutput.Enabled
+                : Kern.Rendering.Display.HDROutput.Active);
+            hdr.RegisterValueChangedCallback(evt => Kern.UI.Settings.HDRSwitch.Request(_document, _display, _loc, hdr, evt.newValue));
+        }
+
+        // Калибровка — тот же экран, что в настройках: в HDR три шага, в SDR — яркость
+        var calibrate = _root.Q<Button>("OnbCalibrate");
+        if (calibrate != null)
+        {
+            calibrate.clicked += () => new Kern.UI.Settings.DisplayCalibrationScreen(_document, _clientConfig, _display, _loc, _stats, _ => { }).Open();
         }
 
         var masterVol = _root.Q<Slider>("OnbMasterVolume");
         var masterVolLbl = _root.Q<Label>("OnbMasterVolumeLabel");
         if (masterVol != null)
         {
+            Kern.UI.Controls.KernRange.Decorate(masterVol);
             masterVol.value = Mathf.RoundToInt(config.Audio.MasterVolume * 100f);
             if (masterVolLbl != null)
             {
@@ -212,10 +261,11 @@ public sealed class GatewayOnboarding
             });
         }
 
-        var mute = _root.Q<Toggle>("OnbMuteInBackground");
-        if (mute != null)
+        // «Звук в фоне» — обратное MuteInBackground
+        var backgroundSound = _root.Q<Toggle>("OnbBackgroundSound");
+        if (backgroundSound != null)
         {
-            mute.SetValueWithoutNotify(config.Audio.MuteInBackground);
+            backgroundSound.SetValueWithoutNotify(!config.Audio.MuteInBackground);
         }
 
         var prev = _root.Q<Button>("OnbPrevButton");
@@ -263,6 +313,8 @@ public sealed class GatewayOnboarding
                 continue;
             }
 
+            // Номер шага — как в макете: «01 · Доступность»
+            pill.text = $"{i + 1:00} · {_loc.Get($"gateway.onb.pill{i + 1}")}";
             pill.EnableInClassList(PillActiveClass, i == _step);
             pill.EnableInClassList(PillDoneClass, i < _step);
         }
@@ -273,7 +325,8 @@ public sealed class GatewayOnboarding
             title.text = _loc.Get(s_stepTitles[_step]);
         }
 
-        _root.Q<Button>("OnbPrevButton")?.EnableInClassList(ButtonHiddenClass, _step == 0);
+        // На первом шаге «Назад» недоступна, а не спрятана: подвал не прыгает (макет)
+        _root.Q<Button>("OnbPrevButton")?.SetEnabled(_step != 0);
 
         var next = _root.Q<Button>("OnbNextButton");
         if (next != null)
@@ -318,10 +371,10 @@ public sealed class GatewayOnboarding
                 config.Display.VSync = vsync.value;
             }
 
-            var controlScheme = _root.Q<DropdownField>("OnbControlScheme");
-            if (controlScheme != null && controlScheme.index >= 0)
+            var textScale = _root.Q<DropdownField>("OnbTextScale");
+            if (textScale != null)
             {
-                config.Interface.ControlScheme = controlScheme.index;
+                config.Interface.TextScale = ValueOfTextScale(textScale.index);
             }
 
             var masterVol = _root.Q<Slider>("OnbMasterVolume");
@@ -330,14 +383,40 @@ public sealed class GatewayOnboarding
                 config.Audio.MasterVolume = masterVol.value / 100f;
             }
 
-            var mute = _root.Q<Toggle>("OnbMuteInBackground");
-            if (mute != null)
+            var backgroundSound = _root.Q<Toggle>("OnbBackgroundSound");
+            if (backgroundSound != null)
             {
-                config.Audio.MuteInBackground = mute.value;
+                config.Audio.MuteInBackground = !backgroundSound.value;
+            }
+
+            var colorVision = _root.Q<DropdownField>("OnbColorVision");
+            if (colorVision != null && colorVision.index >= 0 && colorVision.index < Kern.UI.Settings.SettingsChoices.ColorVision.Length)
+            {
+                config.Effects.ColorVision = Kern.UI.Settings.SettingsChoices.ColorVision[colorVision.index].Value;
             }
         });
 
         Kern.Rendering.Display.DisplayManager.ApplyFrameTiming(_clientConfig.Config.Display);
+    }
+
+    private static float ValueOfTextScale(int index)
+    {
+        return index >= 0 && index < s_textScales.Length ? s_textScales[index].Value : 1f;
+    }
+
+    // Ближайшая ступень: в настройках множитель ставится ползунком с шагом 0.05
+    private static int IndexOfTextScale(float value)
+    {
+        int best = 1;
+        for (int i = 0; i < s_textScales.Length; i++)
+        {
+            if (Math.Abs(s_textScales[i].Value - value) < Math.Abs(s_textScales[best].Value - value))
+            {
+                best = i;
+            }
+        }
+
+        return best;
     }
 
     private static float ValueOfUIScale(int index)

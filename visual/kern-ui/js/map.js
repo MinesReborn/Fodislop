@@ -34,7 +34,7 @@
   window.kernMark = setMark;
 
   function draw() {
-    const w = window.kernWorld, map = w.map, H = map.length, W = map[0].length, z = ZOOMS[zi];
+    const w = window.kernWorld, map = w.map, H = map.length, W = map[0].length, z = ZOOMS[zi], M = window.kernMapModes;
     const vw = view.clientWidth, vh = view.clientHeight, dpr = devicePixelRatio || 1;
     canvas.width = Math.round(vw * dpr); canvas.height = Math.round(vh * dpr);
     canvas.style.width = vw + 'px'; canvas.style.height = vh + 'px';
@@ -45,7 +45,8 @@
     const ox = vw / 2 - (cx - x0) * z, oy = vh / 2 - (cy - y0) * z;
     for (let y = 0; y <= vh / z + 1; y++) for (let x = 0; x <= vw / z + 1; x++) {
       const t = map[y0 + y]?.[x0 + x]; if (!t) continue;
-      ctx.fillStyle = w.TYPES[t].mm; ctx.fillRect(Math.floor(ox + x * z), Math.floor(oy + y * z), Math.ceil(z), Math.ceil(z));
+      const c = M ? M.color(t, x0 + x, y0 + y) : w.TYPES[t].mm; if (!c) continue;   // null — чанк не приходил
+      ctx.fillStyle = c; ctx.fillRect(Math.floor(ox + x * z), Math.floor(oy + y * z), Math.ceil(z), Math.ceil(z));
     }
     // Сетка по 10 клеток — с крупного масштаба
     if (z >= 6) {
@@ -96,7 +97,7 @@
   view.addEventListener('wheel', e => { e.preventDefault(); zoom(e.deltaY < 0 ? 1 : -1, e); }, { passive: false });
   $('mapZoomIn').onclick = () => zoom(1); $('mapZoomOut').onclick = () => zoom(-1);
   $('mapHome').onclick = () => { home(); draw(); };
-  $('mapFilters').onchange = e => { shown[e.target.dataset.kind] = e.target.checked; draw(); };
+  $('mapFilters').onchange = e => { if (!e.target.dataset.kind) return; shown[e.target.dataset.kind] = e.target.checked; draw(); };
   function renderPlaces() {
     $('mapPlaces').innerHTML = PLACES().filter(p => p.kind !== 'me').map((p, i) =>
       `<li><button type="button" data-i="${i}"><i class="pin-dot pin-dot--${p.kind}"></i><b>${p.name}</b><small>${gx(p.x)}:${gy(p.y)}</small></button>${p.kind === 'mark' ? '<button type="button" class="icon-btn" data-unmark title="Убрать метку"><svg><use href="#i-close"/></svg></button>' : ''}</li>`).join('')
@@ -107,6 +108,7 @@
   const open = () => { dlg.hidden = false; home(); renderPlaces(); $('mapCoords').textContent = `${gx(window.kernWorld.PX)}:${gy(window.kernWorld.PY)}`; requestAnimationFrame(draw); };
   const close = () => { dlg.hidden = true; };
   window.openMap = open;
+  window.kernMapRedraw = () => { if (!dlg.hidden) draw(); };
   document.querySelector('.minimap').addEventListener('click', open);
   dlg.querySelector('[data-close]').onclick = close;
   addEventListener('resize', () => { if (!dlg.hidden) draw(); });

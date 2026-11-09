@@ -212,7 +212,7 @@ internal static class FrameBreakdownDiagnosticsBuilder
         rows.Add(new FrameBreakdownRow(
             FrameBreakdownRowKind.Text,
             "Пачки измерены в разные кадры; значения суммируют потоки и вложенные вызовы. " +
-            "Это список кандидатов, не раскладка одного кадра. UI включает окна редактора."));
+            "Это список кандидатов из разных пачек, не раскладка одного кадра; родительские и дочерние маркеры могут пересекаться."));
         double scale = BudgetMilliseconds;
         foreach (HotMarkerSweep.Hit hit in sweep.Hits)
         {

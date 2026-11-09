@@ -81,7 +81,7 @@ public sealed class AuthGate
             tabLogin == null || tabRegister == null || login == null ||
             autoLogin == null || hint == null)
         {
-            Debug.LogWarning("[AuthGate] Разметка ворот входа не найдена в MainMenu.uxml — экран пропущен.");
+            Debug.LogWarning("[AuthGate] Разметка ворот входа не найдена в Gateway.uxml — экран пропущен.");
             return null;
         }
 
@@ -107,25 +107,18 @@ public sealed class AuthGate
 
         tree.Q<Button>("AuthSubmitButton")!.clicked += Submit;
 
-        var vkButton = tree.Q<Button>("AuthVkButton");
-        var vkSeparator = tree.Q<VisualElement>("AuthVkSeparator");
-        if (vkButton != null)
+        // Регистрация протоколом не проверяется: «Создать аккаунт» входит так же, как «Войти»
+        var registerSubmit = tree.Q<Button>("AuthRegisterSubmitButton");
+        if (registerSubmit != null)
         {
-            if (Kern.Core.Platform.ClientMarketPolicy.IsVkAvailable)
-            {
-                vkButton.clicked += Submit;
-            }
-            else
-            {
-                vkButton.AddToClassList("is-hidden");
-                vkSeparator?.AddToClassList("is-hidden");
-            }
+            registerSubmit.clicked += Submit;
         }
 
-        var offline = tree.Q<Button>("AuthOfflineButton");
-        if (offline != null)
+        // Вход через VK — везде, как в макете: регион системы его не прячет
+        var vkButton = tree.Q<Button>("AuthVkButton");
+        if (vkButton != null)
         {
-            offline.clicked += StartOffline;
+            vkButton.clicked += Submit;
         }
 
         var recover = tree.Q<Button>("AuthRecoverButton");
@@ -136,13 +129,13 @@ public sealed class AuthGate
                 warn: true);
         }
 
-        _login.SetValueWithoutNotify(GenerateCallsign());
         _autoLogin.SetValueWithoutNotify(_clientConfig.Config.Interface.AutoLogin);
     }
 
-    public void Show()
+    // forceForm — смена аккаунта: форму показываем и при сохранённом токене.
+    public void Show(bool forceForm)
     {
-        if (!GatewayDevFlags.ForceGates && _tokens.HasToken && _autoLogin.value)
+        if (!forceForm && !GatewayDevFlags.ForceGates && _tokens.HasToken && _autoLogin.value)
         {
             Pass();
             return;
@@ -158,23 +151,13 @@ public sealed class AuthGate
         _loginForm.EnableInClassList(HiddenFormClass, register);
         _registerForm.EnableInClassList(HiddenFormClass, !register);
 
-        ShowHint(
-            register
-                ? L("gateway.auth.register_hint", "Регистрация")
-                : L("gateway.auth.login_hint", "Вход"),
-            warn: register);
+        // Подсказки под вкладками в макете нет: строка заметки пуста до действия игрока
+        ShowHint(string.Empty, warn: false);
     }
 
     private void Submit()
     {
         ShowHint(L("gateway.auth.connecting", "Подключение..."), warn: false);
-        Pass();
-    }
-
-    private void StartOffline()
-    {
-        _clientConfig.UpdateSection(config => config.Connection, settings => settings.UseDummyConnection = true);
-        ShowHint(L("gateway.auth.offline_hint", "Офлайн-режим"), warn: false);
         Pass();
     }
 
@@ -192,15 +175,5 @@ public sealed class AuthGate
     {
         _hint.text = text;
         _hint.EnableInClassList(HintWarnClass, warn);
-    }
-
-    private string GenerateCallsign()
-    {
-        string seed = SystemInfo.deviceUniqueIdentifier;
-        int hash = seed.GetHashCode();
-        string[] clans = { "DVM", "VOID", "NEO", "CORE", "ORE", "HDS" };
-        int number = Math.Abs(hash % 900) + 100;
-        string clan = clans[Math.Abs(hash / 900) % clans.Length];
-        return L("gateway.auth.callsign", $"#{number} {clan}", number, clan);
     }
 }

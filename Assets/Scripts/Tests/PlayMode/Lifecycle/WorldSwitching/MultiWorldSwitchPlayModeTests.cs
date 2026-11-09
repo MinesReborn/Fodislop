@@ -17,7 +17,7 @@ using VContainer;
 using Kern.Bootstrap.Scenes;
 using Kern.Game.Entities.Robots;
 using Kern.Game.Session;
-using Kern.Networking.Offline;
+using Kern.Networking.Dummy;
 using Kern.Networking.Processing;
 
 namespace Kern.Tests.PlayMode;
@@ -34,7 +34,7 @@ public sealed class MultiWorldSwitchPlayModeTests
     public IEnumerator SetUp()
     {
         _authentication = DummyAuthenticationScope.Seed(TestDummyToken);
-        yield return PlayModeHarness.StartAtGateway();
+        yield return PlayModeHarness.StartAtMainMenu();
         _bootstrap = PlayModeHarness.FindBootstrap()!;
         _scenario = _bootstrap.Container.Resolve<IDummyScenarioSettings>();
         _scenario.Scenario = DummyScenario.HappyPath;
@@ -80,7 +80,7 @@ public sealed class MultiWorldSwitchPlayModeTests
             "Multiverse Alpha",
             64,
             64,
-            Kern.Networking.Offline.DummyCellConfigurationFactory.CreateCellConfigurations(),
+            Kern.Networking.Dummy.DummyCellConfigurationFactory.CreateCellConfigurations(),
             new[] { new byte[] { 37, 38, 106 } });
 
         // 3. Process WorldInit mid-session

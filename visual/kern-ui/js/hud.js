@@ -15,7 +15,7 @@
     chat: 0, channel: 'FED', autodig: false, prog: false,
   };
   const CRYSTALS = [['g', 'green'], ['r', 'red'], ['b', 'blue'], ['v', 'violet'], ['w', 'white'], ['c', 'cyan']];
-  // Режим стенда «много денег и груза» (список «Груз и деньги», ?rich=1|2|3): уровень 1 — деньги до 100 млрд (КК), 2 — ×1000 (ККК), 3 — ×1 000 000 (КККК); груз с лимитом 10 млрд ×то же
+  // Режим стенда «много денег и груза» (список «Груз и деньги», ?rich=1|2|3): уровень 1 — деньги до 100 млрд (B), 2 — ×1000 (T), 3 — ×1 000 000 (Q); груз с лимитом 10 млрд ×то же
   const RICH = { money: 99165000000, creds: 1250000, capacity: 10000000000, basket: { g: 9900000000, r: 320000000, b: 4700000000, v: 85000000, w: 12000000, c: 1300000000 } };
   // Геология по уровням того же списка: счётчик «N/M» растёт до четырёх знаков, полоса — до 20 делений
   const RICH_GEO = { 1: [86, 120], 2: [940, 1500], 3: [9999, 9999] };
@@ -23,13 +23,10 @@
   // Геология видна в состоянии «Все» и всегда, когда выбран режим «Груз и деньги»: иначе её смену не увидеть
   const showGeo = () => { $('geo').hidden = !(sceneBusy || richOn); };
 
-  // Число от 100 000 сокращается тысячами — K, KK, KKK, KKKK, перед буквами не больше 99 999 (как в окнах сервера, js/srvgui.js: short):
-  // панель не растёт от данных. Полное значение — по наведению (.pk-cut из css/srvgui.css). Деньги, кредиты и кристаллы
-  const cut = n => {
-    if (n < 1e5) return group(n);
-    let k = 0, v = n; while (v >= 1e5 && k < 4) { v /= 1e3; k++; }
-    return `<span class="pk-cut" tabindex="0" data-full="${group(n)}">${group(Math.floor(v))} ${'K'.repeat(k)}</span>`;
-  };
+  // Общее сокращение (js/numbers.js): целиком, пока помещается. Кристаллы — колонка в шестую часть панели (до «9 999»),
+  // кошелёк — ячейки постоянной ширины рядом с «Пополнить» (до «9 999»: две ячейки по шесть знаков в колонку не входят)
+  const cut = n => window.kernCut(n);
+  const cutWallet = n => window.kernCut(n, '', 5);
   // SetBasket: цвет и полосы по порогам 50 / 100 / 115 / 200
   const cargoTone = p => p < 50 ? [token('--cargo-low'), token('--cargo-low-fill'), null] : p < 100 ? [token('--cargo-normal'), token('--cargo-normal-fill'), null]
     : p < 115 ? [token('--cargo-warn'), token('--cargo-warn-fill'), token('--cargo-warn-line')] : p < 200 ? [token('--cargo-high'), token('--cargo-high-fill'), token('--cargo-danger-line')] : [token('--cargo-danger'), token('--cargo-danger-fill'), token('--cargo-danger-line')];
@@ -48,8 +45,8 @@
     $('hpValue').style.color = hpTone(f);
     if (f < .25 && hpWas >= .25) window.kernFlash($('hpValue'));
     hpWas = f;
-    window.kernCount($('money'), state.money, cut);
-    window.kernCount($('creds'), state.creds, cut);
+    window.kernCount($('money'), state.money, cutWallet);
+    window.kernCount($('creds'), state.creds, cutWallet);
   }
   // Включает и выключает режим; обычные значения запоминаются и возвращаются как были
   window.kernHudRich = level => {
@@ -76,9 +73,9 @@
     const lit = Math.min(20, Math.ceil(Math.max(...values) * 100 / state.capacity / 5));
     $('cargoCells').style.setProperty('--bar', bar);
     window.kernQuant($('cargoCells'), 20, lit);
-    // Между иконкой и числом — доля лимита этого кристалла (лимит у каждого типа свой), до 100%; непустой — не уже 2 px
-    $('crystals').innerHTML = CRYSTALS.filter(([k]) => state.basket[k] > 0)
-      .map(([k, f]) => `<li style="color:var(--cry-${k})"><img src="img/crystals/${f}.png" alt=""><i class="share"><i style="width:max(2px, ${Math.min(100, state.basket[k] / state.capacity * 100).toFixed(1)}%)"></i></i><span>${cut(state.basket[k])}</span></li>`).join('');
+    // Шесть кристаллов в один ряд: значок, под ним число; пустой — приглушён, ряд не прыгает от состава груза
+    $('crystals').innerHTML = CRYSTALS
+      .map(([k, f]) => `<li class="${state.basket[k] > 0 ? '' : 'is-zero'}" style="color:var(--cry-${k})"><img src="img/crystals/${f}.png" alt=""><span>${cut(state.basket[k] || 0)}</span></li>`).join('');
     // Геология: ячейка — блок (до 20 ячеек, больше — доля на 20)
     const [gN, gMax] = state.geo, gCells = Math.min(gMax, 20), gLit = gN ? Math.max(1, Math.round(gN / gMax * gCells)) : 0;
     $('geoCells').style.gridTemplateColumns = `repeat(${gCells}, 1fr)`;
@@ -322,7 +319,6 @@
     ['eMI', 3, 'ЭМИ', 'Предмет, который запрещает игрокам в радиусе 20 блоков использовать инвентарь/копать'],
     ['geoBlackRock', 8, 'Чёрная скала', 'Предмет, который мгновенно ставит черноскал на пустоте'],
   ];
-  window.kernItems = items;                                   // те же предметы кладутся в бокс (srvgui.js)
   $('invSlots').innerHTML = items.map(([f, n, name], i) => `<li title="${name}" data-i="${i}"><img src="img/items/${f}.png" alt=""><span>${n}</span></li>`).join('');
   $('invSlots').onclick = e => {
     const li = e.target.closest('li'); if (!li) return;
@@ -543,10 +539,10 @@
     const need = heads.map(row => {
       const cs = getComputedStyle(row), kids = [...row.children].filter(c => c.offsetParent);
       const box = getComputedStyle(row.parentElement);
-      // Кошелёк — две равные половины ряда: нужной ширине — две самые широкие суммы, а не сумма ширин (половины тянутся на всю половину)
-      const wide = row.classList.contains('wallet'), sc = frame.getBoundingClientRect().width / frame.offsetWidth || 1;
-      const widths = kids.map(c => (wide ? c.querySelector('dd') : c).getBoundingClientRect().width / sc);
-      return (wide ? Math.max(...widths) * kids.length : widths.reduce((w, x) => w + x, 0))
+      // Кошелёк — суммы по содержимому и клавиша «Пополнить»: ширина ячейки суммы — по самой сумме (dd), клавиша — своя
+      const wallet = row.classList.contains('wallet'), sc = frame.getBoundingClientRect().width / frame.offsetWidth || 1;
+      const widths = kids.map(c => (wallet && c.querySelector('dd') ? c.querySelector('dd') : c).getBoundingClientRect().width / sc);
+      return widths.reduce((w, x) => w + x, 0)
         + parseFloat(cs.columnGap || 0) * (kids.length - 1) + parseFloat(box.paddingLeft) + parseFloat(box.paddingRight) + 2;
     });
     const col = parseFloat(getComputedStyle(frame).getPropertyValue('--col')) || 0;

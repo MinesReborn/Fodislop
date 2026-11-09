@@ -1,15 +1,33 @@
-/* ═══════════════════════════════════════════════════════════
-   HUD — стили интерфейса игрока
-   ═══════════════════════════════════════════════════════════ */
+/* HUD игры — раскладка ПК макета visual/kern-ui (css/hud.css, systems.css, micro.css, motion.css; значения сняты
+   с вычисленных стилей стенда 1920×1080). Сетка: поле 24, колонка 264, шаг 8. Числа и метки — JetBrains Mono,
+   ник и заголовки — Exo 2, текст — Onest. Панели (.panel) рисует KernVector: корпус .88, Г-уголки 10 px, срез угла.
+   Интервал букв UI Toolkit — в сотых кегля: 0.02em = 2px. fw-semi макета — bold (начертания 500/600 у шрифтов нет). */
 
-.hud-root {
-    position: absolute;
-    left: 0;
-    top: 0;
-    right: 0;
-    bottom: 0;
+/* ── Цвета игры (tokens.css: деньги, кредиты, кристаллы, пороги груза, навыки) ── */
+.hud {
+    --money: rgb(126, 224, 160);
+    --creds: rgb(232, 226, 122);
+    --cry-g: rgb(79, 232, 133);
+    --cry-r: rgb(255, 111, 134);
+    --cry-b: rgb(122, 140, 255);
+    --cry-v: rgb(238, 111, 224);
+    --cry-w: rgb(236, 234, 248);
+    --cry-c: rgb(79, 230, 240);
+    --cargo-low: rgb(154, 163, 169);
+    --cargo-low-fill: rgb(126, 135, 141);
+    --cargo-normal: rgb(121, 217, 138);
+    --cargo-normal-fill: rgb(92, 196, 111);
+    --cargo-warn: rgb(255, 224, 102);
+    --cargo-warn-fill: rgb(232, 200, 69);
+    --cargo-high: rgb(255, 157, 92);
+    --cargo-high-fill: rgb(245, 144, 72);
+    --cargo-danger: rgb(255, 107, 94);
+    --cargo-danger-fill: rgb(230, 89, 89);
+    --skill-preview: rgb(88, 206, 211);
+    --mark-own: rgb(79, 230, 240);
 }
 
+.hud-root,
 .hud-content {
     position: absolute;
     left: 0;
@@ -18,941 +36,1273 @@
     bottom: 0;
 }
 
-.hud-top-pill-container {
-    position: absolute;
-    top: var(--space-4);
-    left: 0;
-    right: 0;
-    align-items: center;
+.hud {
+    color: var(--bone);
+    -unity-font-definition: var(--face-text);
+    font-size: var(--t-body);
 }
 
-.hud-top-pill {
+.hud Label {
+    margin: 0;
+    padding: 0;
+}
+
+.hud Button {
+    margin: 0;
+    background-image: none;
+}
+
+/* Тусклая фаза вспышки тревоги (KernFlash) */
+.is-flash-dim {
+    opacity: 0.25;
+}
+
+/* Подпись раздела — инверсная табличка со срезом правого нижнего угла (.sec-plate) */
+.sec-plate,
+.hud .sec-plate {
+    height: 14px;
+    padding: 0 10px 0 6px;
+    flex-shrink: 0;
+    -unity-text-align: middle-left;
+    color: var(--void);
+    -unity-font-definition: var(--face-mono);
+    font-size: var(--t-0);
+    -unity-font-style: bold;
+    letter-spacing: 14px;
+    --shape-color: var(--bone);
+    --shape-notch: 4;
+    --shape-corner: bottom-right;
+}
+
+/* Единица мелко сверху: «113 HP», «68 %» */
+.unit,
+.hud .unit {
+    align-self: flex-start;
+    margin-left: 2px;
+    color: var(--ash);
+    -unity-font-definition: var(--face-mono);
+    font-size: var(--t-0);
+    -unity-font-style: bold; /* fw-semi макета: 600 нет — жирное */
+    letter-spacing: 12px;
+}
+
+/* Шкала ячеек (KernQuant): ячейка — пустая лунка, горящая — цветом шкалы; загораются по одной (transition-delay) */
+.cells {
+    flex-direction: row;
+}
+
+.cells > .cell {
+    flex-grow: 1;
+    margin-left: 2px;
+    background-color: var(--well);
+    transition-property: background-color, border-color;
+    transition-duration: 0.001s;
+    transition-timing-function: linear;
+}
+
+.cells > .cell--first {
+    margin-left: 0;
+}
+
+/* Кнопка-значок */
+.icon-btn {
+    width: var(--row);
+    height: var(--row);
+    padding: 0;
+    align-items: center;
+    justify-content: center;
+    border-width: 0;
+    background-color: rgba(0, 0, 0, 0);
+    transition-property: background-color, border-color;
+    transition-duration: var(--dur-fast);
+}
+
+.icon-btn:hover {
+    background-color: var(--plate-hover);
+}
+
+.icon-btn:hover > .ico {
+    -unity-background-image-tint-color: var(--bone);
+}
+
+.icon-btn--small {
+    width: var(--ctl-xs);
+    height: var(--ctl-xs);
+}
+
+.icon-btn--small > .ico {
+    width: 17px;
+    height: 17px;
+}
+
+/* ── Строка состояния: вплотную к верхнему краю, по центру ── */
+.status-bar {
+    position: absolute;
+    top: 2px;
+    left: 50%;
+    translate: -50% 0;
+    height: 18px;
+    padding: 0 8px;
     flex-direction: row;
     align-items: center;
-    padding: var(--space-1) var(--space-4);
-    background-color: var(--surface-void-shade);
-    border-color: var(--border-subtle);
-    border-width: var(--border-width-thin);
-    border-radius: var(--radius-md);
+    border-width: 1px;
+    border-color: var(--seam);
+    background-color: rgba(10, 9, 15, 0.84);
+    -unity-font-definition: var(--face-mono);
+    font-size: var(--t-2);
+    -unity-font-style: bold; /* fw-semi макета: 600 нет — жирное */
+    color: var(--mist);
 }
 
-.hud-top-pill-version {
-    -unity-font-definition: var(--face-data);
-    font-size: var(--size-xs);
-    color: var(--text-tertiary);
-    margin: 0;
-    padding: 0;
-    -unity-text-align: middle-center;
+.status-bar Label {
+    -unity-font-definition: var(--face-mono);
+    font-size: var(--t-2);
+    -unity-font-style: bold; /* fw-semi макета: 600 нет — жирное */
+    letter-spacing: 2px;
+    white-space: nowrap;
 }
 
-.hud-top-pill-divider {
-    width: 1px;
-    height: var(--space-6);
-    background-color: var(--border-line);
-    margin-left: var(--space-3);
-    margin-right: var(--space-3);
-}
-
-.hud-top-pill-fps {
-    -unity-font-definition: var(--face-data);
-    font-size: var(--size-xs);
-    color: var(--light-solid);
-    margin: 0;
-    padding: 0;
-    -unity-text-align: middle-center;
-}
-
-.hud-top-pill-asset {
+.online {
     flex-direction: row;
     align-items: center;
+    margin-right: 10px;
 }
 
-.hud-top-pill-dot {
-    width: var(--space-3);
-    height: var(--space-3);
-    border-radius: var(--radius-pill);
-    background-color: var(--state-ok);
-    margin-right: var(--space-2);
+.online > .ico {
+    width: 12px;
+    height: 12px;
+    margin-right: 4px;
 }
 
-.hud-top-pill-dot.is-loading {
-    background-color: var(--accent-gold);
+.online__count,
+.hud .online__count {
+    color: var(--mist);
+    margin-right: 4px;
 }
 
-.hud-top-pill-asset-text {
-    -unity-font-definition: var(--face-data);
-    font-size: var(--size-xs);
-    color: var(--text-secondary);
-    margin: 0;
-    padding: 0;
-    -unity-text-align: middle-center;
+.online__progs,
+.diag__text {
+    color: var(--ash);
 }
 
-.hud-fps-counter {
-    padding: var(--space-1) var(--space-4);
-    background-color: var(--surface-void-shade);
-    border-radius: var(--radius-md);
-    color: var(--light-solid);
-    font-size: var(--size-base);
-    -unity-text-align: upper-center;
+.diag {
+    flex-direction: row;
 }
 
-.world-map-overlay {
+.diag__sep,
+.hud .diag__sep {
+    margin: 0 5px;
+}
+
+.asset-load {
+    flex-direction: row;
+    align-items: center;
+    margin-left: 10px;
+}
+
+.asset-load__bar {
+    width: var(--ctl-xs);
+    height: 3px;
+    margin-right: 6px;
+    overflow: hidden;
+    background-color: var(--well);
+}
+
+.asset-load__fill {
     position: absolute;
     left: 0;
-    right: 0;
     top: 0;
     bottom: 0;
-    justify-content: center;
-    align-items: center;
-    background-color: var(--surface-scrim);
+    width: 0;
+    background-color: var(--mist);
+    transition-property: width;
+    transition-duration: var(--dur-fast);
+    transition-timing-function: linear;
 }
 
-.world-map-window {
-    width: 72%;
-    height: 72%;
-    max-width: 1100px;
-    max-height: 760px;
-    min-width: 560px;
-    min-height: 360px;
+.asset-load__text {
+    min-width: 42px;
+    -unity-text-align: middle-right;
+    color: var(--dim);
+}
+
+/* ── Левый верх: игрок, груз, состояния, рост навыков ── */
+/* Колонка шириной не меньше 264 и по самому широкому содержимому: ник не режется — растёт колонка,
+   остальные панели тянутся по ней (макет: --pcol, js/hud.js fitColumn) */
+.col-top {
+    position: absolute;
+    left: var(--margin);
+    top: var(--margin);
+    min-width: var(--col);
     flex-direction: column;
-    background-color: var(--surface-panel);
-    border-color: var(--border-cyan);
-    border-width: var(--border-width-thin);
-    border-radius: var(--radius-md);
-    overflow: hidden;
+    align-items: stretch;
 }
 
-.world-map-header {
-    height: 44px;
-    min-height: 44px;
+.col-top > * {
+    margin-bottom: var(--gap);
+}
+
+.player {
+    padding: 12px 14px;
+    flex-direction: column;
+}
+
+.player-head {
     flex-direction: row;
     align-items: center;
-    justify-content: space-between;
-    padding-left: var(--space-5);
-    padding-right: var(--space-3);
-    background-color: var(--surface-slate-solid);
-    border-bottom-color: var(--border-subtle);
-    border-bottom-width: var(--border-width-thin);
+    height: 24px;
+    margin-bottom: 10px;
 }
 
-.world-map-title {
-    -unity-font-definition: var(--face-display);
-    color: var(--text-primary);
-    font-size: var(--size-sm);
-    -unity-font-style: bold;
-    -unity-text-align: middle-left;
-}
-
-.world-map-close {
-    width: 32px;
-    height: 32px;
+/* Знак клана — кнопка в рамке 22 */
+.clan-btn,
+.hud .clan-btn {
+    width: 22px;
+    height: 22px;
     padding: 0;
-    color: var(--text-secondary);
-    background-color: transparent;
-    border-width: 0;
-    font-size: var(--size-lg);
+    margin-right: 6px;
+    align-items: center;
+    justify-content: center;
+    border-width: 1px;
+    border-color: var(--seam-strong);
+    background-color: rgba(0, 0, 0, 0);
 }
 
-.world-map-follow {
-    min-width: 120px;
-    height: 32px;
-    margin-left: auto;
-    margin-right: var(--space-3);
-    padding-left: var(--space-3);
-    padding-right: var(--space-3);
-    color: var(--accent-cyan-hover);
-    background-color: var(--surface-slate-dense);
-    border-color: var(--border-subtle);
-    border-width: var(--border-width-thin);
+.clan-btn:hover {
+    border-color: var(--ash);
 }
 
-.world-map-status {
-    position: absolute;
-    left: var(--radius-pill);
-    top: var(--radius-pill);
-    translate: -50% -50%;
-    padding: var(--space-3) var(--space-5);
-    color: var(--text-primary);
-    background-color: var(--surface-raised);
-    border-color: var(--border-subtle);
-    border-width: var(--border-width-thin);
-    border-radius: var(--radius-sm);
-    font-size: var(--size-sm);
-}
-
-.world-map-viewport {
-    flex-grow: 1;
-    position: relative;
-    width: 100%;
-    min-height: 0;
-    overflow: hidden;
-}
-
-.world-map-image {
-    width: 100%;
-    height: 100%;
+.clan-btn__icon {
+    width: 13px;
+    height: 13px;
     -unity-background-scale-mode: scale-to-fit;
 }
 
-.world-map-player-marker {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: var(--space-5);
-    height: var(--space-5);
-    background-color: var(--state-danger);
-    border-color: var(--light-solid);
-    border-width: 1.5px;
-    border-radius: var(--radius-pill);
-    translate: -50% -50%;
-}
-
-.hud-top-left {
-    position: absolute;
-    top: var(--space-5);
-    left: var(--space-5);
-}
-
-.hud-top-right {
-    position: absolute;
-    top: var(--space-5);
-    right: var(--space-5);
-}
-
-.hud-bottom-left {
-    position: absolute;
-    bottom: var(--space-5);
-    left: var(--space-5);
-}
-
-.hud-bottom-right {
-    position: absolute;
-    bottom: var(--space-5);
-    right: var(--space-5);
-}
-
-.asset-status-root {
-    position: absolute;
-    right: var(--space-5);
-    bottom: var(--space-5);
-    align-items: flex-end;
-}
-
-.asset-status-button {
-    min-width: 38px;
-    width: auto;
-    height: var(--space-11);
-    padding: 0 var(--space-4);
-    background-color: var(--surface-slate-dense);
-    border-color: var(--text-tertiary);
-    border-width: var(--border-width-thin);
-    border-radius: var(--radius-md);
-    color: var(--light-solid);
-    -unity-text-align: middle-center;
-}
-
-.asset-status-button:hover,
-.asset-status-button.asset-status-loading {
-    background-color: var(--surface-shelf-solid);
-    border-color: var(--accent-gold);
-}
-
-.asset-status-button-label {
-    color: var(--light-solid);
-    font-size: var(--size-sm);
-    -unity-text-align: middle-center;
-}
-
-.asset-status-panel {
-    width: 300px;
-    margin-bottom: var(--space-3);
-    padding: var(--space-4);
-    background-color: var(--surface-solid);
-    border-color: var(--accent-cyan-fill);
-    border-width: var(--border-width-thin);
-    border-radius: var(--radius-md);
-}
-
-.asset-status-summary,
-.asset-status-metrics,
-.asset-status-details {
-    color: var(--light-solid);
-    font-size: var(--size-sm);
-    white-space: normal;
-}
-
-.asset-status-metrics {
-    margin-top: var(--radius-sm);
-    color: var(--text-secondary);
-}
-
-.asset-status-details {
-    margin-top: var(--radius-sm);
-    color: var(--text-secondary);
-}
-
-.hud-button {
-    background-color: var(--surface-raised);
-    border-color: var(--border-subtle);
-    border-width: var(--space-1);
-    border-radius: var(--radius-sm);
-    padding: 0;
-    min-width: 100px;
-    height: var(--space-11);
-    font-size: var(--size-sm);
-    color: var(--text-primary);
-    -unity-text-align: middle-center;
-}
-
-.hud-button:hover {
-    background-color: var(--accent-cyan-wash);
-}
-
-.hud-button.active {
-    background-color: var(--accent-gold);
-    color: var(--shadow-solid);
-}
-
-.hud-stat {
-    color: var(--text-primary);
-    font-size: var(--size-md);
-    margin: var(--space-1) 0;
-}
-
-.hud-stat-label {
-    color: var(--text-secondary);
-    font-size: var(--size-sm);
-}
-
-.hud-bar {
-    background-color: var(--surface-shelf-solid);
-    border-color: var(--border-subtle);
-    border-width: var(--border-width-thin);
-    border-radius: var(--radius-sharp);
-    height: var(--space-6);
-    width: 150px;
-}
-
-.hud-bar-fill {
-    background-color: var(--accent-gold);
-    border-radius: var(--radius-sharp);
-}
-
-.hud-panel {
-    position: absolute;
-    top: var(--space-5);
-    left: var(--space-5);
-    width: 240px;
-    padding: var(--space-6);
-    background-color: var(--surface-panel);
-    /* Рецепт окна меню (mm-modal-card / hud-minimap-panel): тонкая
-       бирюзовая рамка со скруглением вместо серого прямогольника. */
-    border-color: var(--border-cyan);
-    border-width: var(--border-width-thin);
-    border-radius: var(--radius-md);
-    flex-direction: column;
-}
-
-.hud-title-row {
-    flex-direction: row;
-    margin-bottom: var(--space-5);
-    align-items: center;
-}
-
-.hud-clan-button {
-    width: 15px;
-    height: 15px;
-    flex-shrink: 0;
-    padding: 0;
-    margin-left: var(--space-2);
-    background-color: var(--accent-gold-glow);
-    border-width: var(--border-width-thin);
-    border-color: var(--text-disabled);
-}
-
-.hud-panel .hud-title-row {
-    flex-direction: row;
-    margin-bottom: var(--space-2);
-}
-
-.hud-panel .hud-nickname {
-    font-size: var(--size-lg);
-    -unity-font-style: bold;
-    color: var(--accent-gold);
-    flex-grow: 1;
-}
-
-/* Уровень под никнеймом: "Уровень: X" — компактная строка */
-.hud-panel .hud-level {
-    font-size: var(--size-sm);
-    color: var(--light-solid);
-    margin: 0 0 var(--space-1);
-    -unity-font-style: bold;
-}
-
-.hud-panel .hud-separator {
-    height: 1px;
-    background-color: var(--border-line);
-    margin-bottom: var(--space-2);
-}
-
-.hud-panel .hud-stat {
-    font-size: var(--size-md);
-    color: var(--text-primary);
-    margin: 0 0 var(--space-1);
-}
-
-.hud-panel .hud-money {
-    -unity-font-style: bold;
-    font-size: var(--size-md);
-    color: var(--text-secondary);
-    margin: 0;
-}
-
-.hud-panel .hud-credits {
-    -unity-font-style: bold;
-    font-size: var(--size-md);
-    color: var(--accent-gold);
-    margin: 0;
-}
-
-.hud-panel .hud-basket {
-    -unity-font-style: bold;
-    font-size: var(--size-md);
-    color: var(--accent-gold);
-    margin-bottom: var(--space-1);
-}
-
-/* Строка "Груз: X% [▣]": процент груза + кнопка выброса бокса справа.
-   По мотивам старой кнопки dropbox, стиль — как у .hud-clan-button. */
-.hud-basket-row {
-    flex-direction: row;
-    align-items: center;
-    margin-bottom: var(--space-1);
-}
-
-.hud-basket-row .hud-basket {
-    margin-bottom: 0;
-}
-
-.hud-panel .hud-dropbox-button {
-    width: 15px;
-    height: 15px;
-    flex-shrink: 0;
-    padding: 0;
-    margin-left: var(--space-2);
-    font-size: var(--size-sm);
-    -unity-text-align: middle-center;
-    color: var(--accent-gold);
-    background-color: var(--accent-gold-glow);
-    border-width: var(--border-width-thin);
-    border-color: var(--text-disabled);
-}
-
-.hud-panel .hud-dropbox-button:hover {
-    background-color: var(--accent-gold);
-    color: var(--surface-panel);
-}
-
-.hud-panel .hud-donate-button {
-    width: 24px;
-    height: 24px;
-    flex-shrink: 0;
-    padding: 0;
-    margin-left: var(--space-2);
-    font-size: var(--size-sm);
-    -unity-text-align: middle-center;
-    color: var(--accent-gold);
-    background-color: var(--accent-gold-glow);
+/* ID игрока — текст в рамке */
+.pid,
+.hud .pid {
+    height: 22px;
+    padding: 0 6px;
+    margin-right: 6px;
     border-width: 1px;
-    border-color: var(--text-disabled);
+    border-color: var(--seam-strong);
+    background-color: var(--well);
+    color: var(--mist);
+    -unity-font-definition: var(--face-mono);
+    font-size: var(--t-3);
+    -unity-font-style: bold; /* fw-semi макета: 600 нет — жирное */
+    letter-spacing: 2px;
+    -unity-text-align: middle-center;
 }
 
-.hud-panel .hud-donate-button:hover {
-    background-color: var(--accent-gold);
-    color: var(--surface-panel);
+/* Ник одной строкой, целиком: не режется и не переносится */
+.nick {
+    -unity-font-definition: var(--face-display);
+    font-size: var(--t-strong);
+    -unity-font-style: bold;
+    letter-spacing: 2px;
+    white-space: nowrap;
+    flex-shrink: 0;
 }
 
-.hud-basket-container {
+/* Прочность: 20 точек и число цветом доли (цвет ставит код) */
+.hp {
+    flex-direction: row;
+    align-items: center;
+    height: 25px;
+    margin-bottom: 10px;
+}
+
+.hp-dots {
+    flex-grow: 1;
+    flex-direction: row;
+    height: 7px;
+    margin-right: 10px;
+}
+
+.hp-dots > .cell {
+    flex-grow: 1;
+    margin-left: 2px;
+    border-width: 1px;
+    border-radius: 50%;
+    transition-property: background-color, border-color;
+    transition-duration: 0.001s;
+}
+
+.hp-dots > .cell--first {
+    margin-left: 0;
+}
+
+.hp-value {
+    flex-direction: row;
+    flex-shrink: 0;
+}
+
+.hp-value__num,
+.cargo-percent__num {
+    -unity-font-definition: var(--face-display);
+    font-size: 26px;
+    -unity-font-style: bold;
+    height: 21px;
+    -unity-text-align: lower-left;
+}
+
+/* Деньги и кредиты: ячейки по 5 знаков, «Пополнить» справа */
+.wallet {
+    flex-direction: row;
+    align-items: center;
+    height: 15px;
+}
+
+.wallet__cell {
+    flex-direction: row;
+    align-items: center;
+    width: 60px;
+    margin-right: 10px;
+}
+
+.wallet__cell > .cur,
+.wallet__cell > .cur-cred {
+    width: 9px;
+    margin-right: 4px;
+    -unity-text-align: middle-center;
+}
+
+.wallet__cell Label {
+    -unity-text-align: middle-left;
+    -unity-font-definition: var(--face-mono);
+    font-size: var(--t-7);
+    -unity-font-style: bold; /* fw-semi макета: 600 нет — жирное */
+    letter-spacing: 2px;
+    white-space: nowrap;
+}
+
+/* Число урезано (14K): пунктир снизу, полное значение — в подсказке */
+.wallet__num.is-cut {
+    --dash-color: rgba(216, 213, 238, 0.45);
+}
+
+.money Label {
+    color: var(--money);
+}
+
+.creds Label {
+    color: var(--creds);
+}
+
+/* Знак кредита — вектор высотой с цифры */
+.cur-cred {
+    height: 11px;
+    -unity-background-image-tint-color: var(--creds);
+}
+
+.btn.wallet-buy {
+    min-width: 0;
+    height: 24px;
+    margin: -5px 0 -5px auto;
+    padding: 0 6px;
+    flex-direction: row;
+    align-items: center;
+    font-size: var(--t-4);
+}
+
+.wallet-buy__ico {
+    width: 12px;
+    height: 12px;
+    margin-right: 4px;
+    -unity-background-image-tint-color: var(--creds);
+}
+
+.wallet-buy__text {
+    font-size: var(--t-4);
+    -unity-font-style: bold; /* fw-semi макета: 600 нет — жирное */
+    letter-spacing: 1px;
+    color: var(--bone);
+}
+
+/* Груз */
+.cargo {
+    padding: 10px 14px 12px;
     flex-direction: column;
 }
 
-.hud-stat-wrap {
-    white-space: normal;
-}
-
-.hud-hp-bar {
-    height: var(--space-7);
-    background-color: var(--surface-shelf-solid);
-    border-radius: var(--radius-sm);
+.cargo-head {
     flex-direction: row;
-    margin-bottom: var(--space-2);
+    align-items: center;
+    height: 28px;
+    margin-bottom: 8px;
 }
 
-.hud-hp-fill {
-    height: var(--space-7);
-    border-radius: var(--radius-sm);
+.cargo-head > .sec-plate {
+    margin-right: 8px;
 }
 
-/* Счётчик прочности внутри полосы: белый текст, обводка ТОГО ЖЕ цвета —
- * утолщает буквы (эффект жирного), на заливке не даёт тёмной каши. */
-.hud-hp-count {
+.cargo-percent {
+    flex-direction: row;
+}
+
+.cargo-box,
+.hud .cargo-box {
+    margin-left: auto;
+    margin-right: -6px;
+}
+
+.cargo-cells {
+    height: 10px;
+    margin-bottom: 8px;
+}
+
+/* Цвет порога груза: 50 / 100 / 115 / 200 %  */
+.cargo--low Label { color: var(--cargo-low); }
+.cargo--normal Label { color: var(--cargo-normal); }
+.cargo--warn Label { color: var(--cargo-warn); }
+.cargo--high Label { color: var(--cargo-high); }
+.cargo--danger Label { color: var(--cargo-danger); }
+.cargo-percent .unit { color: var(--ash); }
+.cargo-cells.cargo--low > .cell.on { background-color: var(--cargo-low-fill); }
+.cargo-cells.cargo--normal > .cell.on { background-color: var(--cargo-normal-fill); }
+.cargo-cells.cargo--warn > .cell.on { background-color: var(--cargo-warn-fill); }
+.cargo-cells.cargo--high > .cell.on { background-color: var(--cargo-high-fill); }
+.cargo-cells.cargo--danger > .cell.on { background-color: var(--cargo-danger-fill); }
+
+.cargo-scale {
+    flex-direction: row;
+    justify-content: space-between;
+    margin-top: -4px;
+    margin-bottom: 8px;
+    height: 7px;
+}
+
+.cargo-scale > Label {
+    -unity-font-definition: var(--face-mono);
+    font-size: 7px;
+    -unity-font-style: bold; /* fw-semi макета: 600 нет — жирное */
+    letter-spacing: 14px;
+    color: var(--dim);
+}
+
+/* Кристаллы — шесть в ряд: значок, под ним число цветом кристалла; пустой приглушён */
+.crystals {
+    flex-direction: row;
+    height: 36px;
+}
+
+.geo {
+    margin-top: 8px;
+}
+
+.crystal {
+    flex-grow: 1;
+    flex-basis: 0;
+    margin-left: 6px;
+    flex-direction: column;
+    align-items: center;
+}
+
+.crystal--g {
+    margin-left: 0;
+}
+
+.crystal__icon {
+    width: 20px;
+    height: 20px;
+    margin-bottom: 4px;
+    -unity-background-scale-mode: scale-to-fit;
+}
+
+.crystal__count {
+    -unity-font-definition: var(--face-mono);
+    font-size: var(--t-4);
+    -unity-font-style: bold; /* fw-semi макета: 600 нет — жирное */
+    letter-spacing: 2px;
+    white-space: nowrap;
+}
+
+.crystal--g .crystal__count { color: var(--cry-g); }
+.crystal--r .crystal__count { color: var(--cry-r); }
+.crystal--b .crystal__count { color: var(--cry-b); }
+.crystal--v .crystal__count { color: var(--cry-v); }
+.crystal--w .crystal__count { color: var(--cry-w); }
+.crystal--c .crystal__count { color: var(--cry-c); }
+
+.crystal.is-zero .crystal__count {
+    color: var(--dim);
+}
+
+.crystal.is-zero .crystal__icon {
+    opacity: 0.35;
+}
+
+/* Геология: над ней пунктир (линия 1 px, штрих 2/2), табличка, ячейка — блок, счёт; ниже — последний блок словом */
+.dash-rule {
+    height: 1px;
+    margin-bottom: 10px;
+    --dash-color: var(--seam);
+}
+
+.geo-row {
+    flex-direction: row;
+    align-items: center;
+    height: 14px;
+}
+
+.geo-row > .sec-plate {
+    margin-right: 8px;
+}
+
+.geo-cells {
+    flex-grow: 1;
+    height: 8px;
+    margin-right: 8px;
+}
+
+.geo-cells > .cell.on {
+    background-color: var(--ash);
+}
+
+.geo-count {
+    -unity-font-definition: var(--face-mono);
+    font-size: var(--t-5);
+    -unity-font-style: bold; /* fw-semi макета: 600 нет — жирное */
+    letter-spacing: 2px;
+    color: var(--ash);
+}
+
+.geo-last {
+    flex-direction: row;
+    margin-top: 6px;
+}
+
+.geo-last > Label {
+    -unity-font-definition: var(--face-mono);
+    font-size: 7px;
+    -unity-font-style: bold; /* fw-semi макета: 600 нет — жирное */
+    letter-spacing: 14px;
+    color: var(--dim);
+    margin-right: 4px;
+}
+
+.geo-last > .geo-last__sl {
+    color: var(--seam-strong);
+}
+
+.geo-last > .geo-last__name {
+    color: var(--ash);
+    -unity-font-style: bold;
+    flex-shrink: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+/* Состояния и рост навыков — под грузом */
+.left-stack {
+    flex-direction: column;
+}
+
+.states {
+    flex-direction: column;
+    margin-bottom: var(--gap);
+}
+
+.state {
+    flex-direction: row;
+    align-items: center;
+    height: 30px;
+    padding: 6px 10px;
+    margin-bottom: 4px;
+    border-width: 1px;
+    border-color: var(--seam);
+    background-color: var(--graphite);
+}
+
+.state__name {
+    flex-grow: 1;
+    font-size: var(--t-5);
+    color: var(--bone);
+}
+
+.state__time,
+.hud .state__time {
+    margin-left: 8px;
+    -unity-font-definition: var(--face-mono);
+    font-size: var(--t-4);
+    -unity-font-style: bold; /* fw-semi макета: 600 нет — жирное */
+    letter-spacing: 2px;
+    color: var(--ash);
+}
+
+/* Мини-навыки: значок 32, полоска справа во всю высоту, «up» над значком */
+.mini-skills {
+    flex-direction: row;
+    flex-wrap: wrap;
+    padding-top: 14px;
+}
+
+.mini-skill {
+    width: var(--ctl-s);
+    height: var(--ctl-s);
+    margin-right: 12px;
+    margin-bottom: 14px;
+}
+
+.mini-skill__ico {
     position: absolute;
     left: 0;
     top: 0;
     right: 0;
     bottom: 0;
-    -unity-text-align: middle-center;
-    -unity-font-style: bold;
-    font-size: var(--size-base);
-    color: var(--light-solid);
-    letter-spacing: 1px;
-
-    /* Мягкое тёмное хало вокруг цифр на светлой заливке и тёмном треке. */
-    text-shadow: 0 0 6px rgba(0, 0, 0, 0.9);
-    translate: 0 -2px;
-    padding: 0;
+    border-radius: 50%;
+    -unity-background-scale-mode: scale-to-fit;
 }
 
-.hud-button-accent {
-    background-color: var(--accent-gold);
-    border-color: var(--border-subtle);
-    border-width: var(--space-1);
-    border-radius: var(--radius-sm);
-    color: var(--surface-shelf-solid);
-    font-size: var(--size-md);
-    -unity-font-style: bold;
-    -unity-text-align: middle-center;
-    padding: 0;
-}
-
-.hud-button-accent:hover {
-    background-color: var(--accent-gold-hover);
-}
-
-.hud-button-label {
-    font-size: var(--size-sm);
-    -unity-font-style: bold;
-    -unity-text-align: middle-center;
-    flex-grow: 1;
-}
-
-.hud-status-panel {
+.mini-skill__bar {
     position: absolute;
-    /* Под панелью игрока, как было в C#-версии */
-    top: 66px;
-    left: 256px;
-    width: 220px;
-    padding: var(--space-6);
-    background-color: var(--surface-panel);
-    border-color: var(--border-subtle);
-    border-width: var(--border-width-thin);
-    border-radius: var(--radius-md);
+    left: 105%;
+    bottom: 0;
+    width: 22.6%;
+    height: 100%;
+    overflow: hidden;
+    background-color: var(--well);
+}
+
+.mini-skill__fill {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    height: 0;
+    background-color: var(--skill-preview);
+    transition-property: height;
+    transition-duration: var(--dur-fast);
+    transition-timing-function: linear;
+}
+
+.mini-skill__up {
+    display: none;
+    position: absolute;
+    left: 56%;
+    bottom: 100%;
+    width: 55%;
+    height: 30%;
+    translate: -50% 0;
+    background-image: resource("UI/HUD/Player/Skills/up_word");
+    -unity-background-scale-mode: stretch-to-fill;
+    -unity-background-image-tint-color: var(--skill-preview);
+}
+
+.mini-skill.is-ready .mini-skill__up {
+    display: flex;
+}
+
+.mini-skill.is-ready .mini-skill__fill {
+    background-color: var(--danger);
+}
+
+/* Цвета навыков (tokens.css --skill-*) */
+.mini-skill--Digging .mini-skill__fill { background-color: rgb(255, 255, 0); }
+.mini-skill--Digging .mini-skill__up { -unity-background-image-tint-color: rgb(255, 255, 0); }
+.mini-skill--MineGeneral .mini-skill__fill { background-color: rgb(255, 102, 0); }
+.mini-skill--MineGeneral .mini-skill__up { -unity-background-image-tint-color: rgb(255, 102, 0); }
+.mini-skill--Movement .mini-skill__fill { background-color: rgb(0, 255, 230); }
+.mini-skill--Movement .mini-skill__up { -unity-background-image-tint-color: rgb(0, 255, 230); }
+.mini-skill--Health .mini-skill__fill { background-color: rgb(255, 0, 255); }
+.mini-skill--Health .mini-skill__up { -unity-background-image-tint-color: rgb(255, 0, 255); }
+.mini-skill--BuildRoad .mini-skill__fill { background-color: rgb(174, 184, 192); }
+.mini-skill--BuildRoad .mini-skill__up { -unity-background-image-tint-color: rgb(174, 184, 192); }
+.mini-skill--BuildGreen .mini-skill__fill { background-color: rgb(91, 204, 122); }
+.mini-skill--BuildGreen .mini-skill__up { -unity-background-image-tint-color: rgb(91, 204, 122); }
+.mini-skill--BuildYellow .mini-skill__fill { background-color: rgb(242, 192, 55); }
+.mini-skill--BuildYellow .mini-skill__up { -unity-background-image-tint-color: rgb(242, 192, 55); }
+.mini-skill--BuildRed .mini-skill__fill { background-color: rgb(255, 95, 95); }
+.mini-skill--BuildRed .mini-skill__up { -unity-background-image-tint-color: rgb(255, 95, 95); }
+.mini-skill--Cooling .mini-skill__fill { background-color: rgb(90, 155, 255); }
+.mini-skill--Cooling .mini-skill__up { -unity-background-image-tint-color: rgb(90, 155, 255); }
+.mini-skill--RoadMovement .mini-skill__fill { background-color: rgb(201, 155, 79); }
+.mini-skill--RoadMovement .mini-skill__up { -unity-background-image-tint-color: rgb(201, 155, 79); }
+.mini-skill--Packing .mini-skill__fill { background-color: rgb(176, 124, 255); }
+.mini-skill--Packing .mini-skill__up { -unity-background-image-tint-color: rgb(176, 124, 255); }
+.mini-skill--PackingBlue .mini-skill__fill { background-color: rgb(111, 140, 255); }
+.mini-skill--PackingBlue .mini-skill__up { -unity-background-image-tint-color: rgb(111, 140, 255); }
+.mini-skill--PackingCyan .mini-skill__fill { background-color: rgb(69, 211, 230); }
+.mini-skill--PackingCyan .mini-skill__up { -unity-background-image-tint-color: rgb(69, 211, 230); }
+.mini-skill--PackingRed .mini-skill__fill { background-color: rgb(255, 122, 122); }
+.mini-skill--PackingRed .mini-skill__up { -unity-background-image-tint-color: rgb(255, 122, 122); }
+
+/* ── Левый низ: автокопание, программатор ── */
+.col-bottom {
+    position: absolute;
+    left: var(--margin);
+    bottom: var(--margin);
+    width: var(--col);
     flex-direction: column;
 }
 
-.hud-status-line {
-    font-size: var(--size-md);
-    margin-bottom: var(--space-1);
-    white-space: normal;
+/* Переключатель: дорожка с бегунком — сразу видно «выкл / вкл»; бегунок перескакивает, а не едет */
+.toggle,
+.hud .toggle {
+    height: var(--row);
+    margin-bottom: var(--gap);
+    padding: 0 12px;
+    flex-direction: row;
+    align-items: center;
+    border-width: 1px;
+    border-color: var(--seam);
+    background-color: var(--graphite);
+    transition-property: background-color, border-color;
+    transition-duration: var(--dur-fast);
 }
 
-.hud-skill-container {
+.toggle:hover .toggle__label {
+    color: var(--bone);
+}
+
+.toggle__dot {
+    width: 26px;
+    height: 14px;
+    margin-right: 10px;
+    border-width: 1px;
+    border-color: var(--seam-strong);
+    background-color: var(--well);
+}
+
+/* Бегунок — 2 px внутри рамки дорожки (hud.css .toggle .dot::after). Абсолютный отступ UI Toolkit здесь считается
+   от внешнего края, браузер — от внутреннего: к 2 px добавлена рамка 1 px (замер: было 1 px сверху и 3 снизу) */
+.toggle__knob {
     position: absolute;
-    bottom: var(--space-5);
-    right: var(--space-5);
-    padding: var(--space-4);
-    flex-direction: column-reverse;
+    left: 3px;
+    top: 3px;
+    width: 8px;
+    height: 8px;
+    background-color: var(--smoke);
+    transition-property: left, background-color;
+    transition-duration: var(--dur-fast);
+    transition-timing-function: linear;
+}
+
+.toggle__label {
+    flex-grow: 1;
+    -unity-text-align: middle-left;
+    -unity-font-style: bold; /* fw-semi макета (hud.css .toggle): 600 у шрифта нет — жирное */
+    color: var(--ash);
+}
+
+.toggle.is-on {
+    border-color: var(--seam-strong);
+}
+
+.toggle.is-on .toggle__label {
+    color: var(--bone);
+}
+
+.toggle.is-on .toggle__dot {
+    border-color: var(--bone);
+    background-color: rgba(216, 213, 238, 0.1);
+}
+
+.toggle.is-on .toggle__knob {
+    left: 15px;
+    background-color: var(--bone);
+}
+
+/* Клавиша действия */
+.kbd,
+.hud .kbd {
+    height: 14px;
+    padding: 0 6px;
+    flex-shrink: 0;
+    letter-spacing: 2px;
+    border-width: 1px 1px 2px 1px;
+    border-color: var(--seam-strong);
+    background-color: var(--plate);
+    color: var(--ash);
+    -unity-font-definition: var(--face-mono);
+    font-size: var(--t-1);
+    -unity-font-style: bold; /* fw-semi макета: 600 нет — жирное */
+    -unity-text-align: middle-center;
+}
+
+.prog {
+    height: var(--row);
+    padding: 0 2px 0 0;
+    flex-direction: row;
+    align-items: center;
+}
+
+.prog-open {
+    flex-grow: 1;
+    height: 100%;
+    padding: 0 12px;
+    flex-direction: row;
+    align-items: center;
+    border-width: 0;
+    background-color: rgba(0, 0, 0, 0);
+}
+
+.prog-open:active {
+    background-color: var(--well);
+}
+
+.prog-open > .ico {
+    margin-right: 10px;
+}
+
+.prog-open:hover > .ico {
+    -unity-background-image-tint-color: var(--bone);
+}
+
+.prog-open__label,
+.prog-name {
+    -unity-font-style: bold; /* fw-semi макета (hud.css .prog-open) */
+    color: var(--bone);
+    -unity-text-align: middle-left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    flex-shrink: 1;
+}
+
+.prog-run {
+    width: var(--ctl-s);
+    height: 30px;
+}
+
+.prog-run > .ico {
+    width: 16px;
+    height: 16px;
+}
+
+.prog-run.is-running > .ico {
+    -unity-background-image-tint-color: var(--signal);
+}
+
+/* ── Правый верх: игровое | системное; кнопка 72×52, значок над подписью ── */
+.top-right {
+    position: absolute;
+    right: var(--margin);
+    top: var(--margin);
+    flex-direction: column;
     align-items: flex-end;
 }
 
-.hud-skill-row {
+.sysbuttons {
+    flex-direction: row;
+    align-items: center;
+    height: 52px;
+}
+
+.sys-btn,
+.hud .sys-btn {
+    width: 72px;
+    height: 52px;
+    margin-left: 6px;
+    padding: 4px 2px;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    border-width: 1px;
+    border-color: var(--seam-strong);
+    background-color: var(--graphite);
+    transition-property: background-color, border-color;
+    transition-duration: var(--dur-fast);
+}
+
+.sys-btn:hover {
+    border-color: var(--ash);
+}
+
+.sys-btn:active {
+    background-color: var(--well);
+}
+
+.sys-btn > .ico {
+    margin-bottom: 4px;
+}
+
+.sys-btn:hover > .ico,
+.sys-btn:hover > .control-label {
+    -unity-background-image-tint-color: var(--bone);
+    color: var(--bone);
+}
+
+.control-label {
+    height: 12px;
+    -unity-font-definition: var(--face-mono);
+    font-size: 7.5px;
+    -unity-font-style: bold; /* fw-semi макета: 600 нет — жирное */
+    letter-spacing: 4px;
+    color: var(--ash);
+    -unity-text-align: middle-center;
+    white-space: nowrap;
+}
+
+/* Делит игровое и системное: вертикальный пунктир 2/2 */
+.sys-sep {
+    width: 1px;
+    height: 32px;
+    margin: 0 2px 0 8px;
+    --dash-color: var(--seam-strong);
+}
+
+/* ── Миссия — под миникартой (правый столбец: кнопки 52 + 8 + миникарта 264 + 8) ── */
+.mission {
+    position: absolute;
+    right: var(--margin);
+    top: 356px;
+    width: var(--col);
+    padding: 0 14px 12px;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.mission-cells {
+    height: 4px;
+    margin: 8px 0 10px;
+}
+
+.mission-cells > .cell.on {
+    background-color: var(--bone);
+}
+
+.mission-body {
     flex-direction: row;
     align-items: flex-start;
 }
 
-/* Ячейка умения - колонка БЕЗ подложки: рамка с иконкой, под ней полоса
-   опыта с процентами. Никаких фонов вокруг - HUD не перекрывает сцену. */
-.hud-skill-icon {
-    position: relative;
-    flex-direction: column;
-    align-items: center;
-    margin-right: var(--space-4);
-    margin-bottom: var(--space-4);
-}
-
-/* Рамка иконки - точка привязки "up". Верхний отступ 16px - зарезервированное
-   место под надпись: держится всегда, даже когда текста нет. Центрируется
-   общим align-items: center ячейки. */
-.hud-skill-icon-frame {
-    position: relative;
-    margin-top: var(--space-8);
-}
-
-/* Надпись "up" при готовности апгрейда: абсолютный слой строго над иконкой,
-   растянут ровно на ширину рамки - middle-center центрирует текст по боксу
-   надписи. Бокс чуть сдвинут вправо (left/right парой) - оптическая подгонка:
-   при 0px надпись выглядела немного левее центра, при 14px - сильно правее.
-   Подстройка: менять left и right ВМЕСТЕ (right = -left), шаг 1-2px; прыжок
-   в PlayerHUDSkillGrid сдвигает только по Y и подгонку не затирает. */
-.hud-skill-arrow {
-    position: absolute;
-    left: var(--space-1);
-    right: -2px;
-    top: -16px;
-    height: var(--space-7);
-    font-size: var(--size-xs);
-    -unity-font-style: bold;
-    color: var(--accent-gold);
-    -unity-text-align: middle-center;
-}
-
-/* Полоса опыта умения ПОД иконкой: трек, лаймовая заливка и ОДНО число
-   процентов ПРЯМО В треке - без копий и слоёв. Читаемость и на лайме, и на
-   тёмном треке - обводка из рецепта числа корзины (.hud-crystal-count):
-   тонкий чёрный контур 1px и мягкое хало. Высота 20px - как у полосы
-   корзины, чтобы числа выглядели одинаково. */
-.hud-skill-bar {
-    width: 44px;
-    height: var(--space-9);
-    position: relative;
-    margin-top: var(--space-3);
-    border-radius: var(--radius-sm);
-    background-color: var(--surface-panel);
-    border-width: var(--border-width-thin);
-    border-color: var(--border-subtle);
-    overflow: hidden;
-}
-
-.hud-skill-bar-fill {
-    height: 100%;
-    border-radius: var(--radius-sm);
-}
-
-/* Проценты В треке: цифры крупно (15px), знак "%" мельче - его размер
-   задаётся rich-тегом <size> из кода. Цвет всегда белый - при любом
-   заполнении: и на лайме, и на красном переливе, и на тёмном треке.
-   Рецепт числа корзины: моно-шрифт данных, контур 1px, мягкое хало. */
-.hud-skill-bar-pct {
-    position: absolute;
-    left: 0;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    -unity-text-align: middle-center;
-    -unity-font-definition: var(--face-data);
-    -unity-font-style: bold;
-    font-size: var(--size-md);
-    color: var(--light-solid);
-    -unity-text-outline-width: 1px;
-    -unity-text-outline-color: rgba(0, 0, 0, 0.95);
-    text-shadow: 0 0 6px rgba(0, 0, 0, 0.85);
-    translate: 0 -1px;
-    padding: 0;
-}
-
-.hud-crystal-row {
-    flex-direction: row;
-    margin-bottom: var(--space-1);
-    align-items: center;
-}
-
-.hud-crystal-row .hud-stat {
-    margin: 0 var(--space-2);
-}
-
-.hud-crystal-dot {
-    width: var(--space-8);
-    height: var(--space-8);
-    margin-right: var(--space-3);
+.mission-img {
     align-self: center;
-}
-
-/* Кристаллы корзины: полоса с тонированным зоной треком и числом внутри.
- * Зона: <100% лайм, 100-114% жёлтый, 114%+ коралл (перегруз). */
-.hud-crystal-bar {
-    flex-grow: 1;
-    height: var(--space-9);
-    border-radius: var(--radius-sm);
-    overflow: hidden;
-}
-
-.hud-crystal-fill {
-    height: 100%;
-    border-radius: var(--radius-sm);
-}
-
-/* Число внутри полосы: моно-шрифт данных (язык меню: числа - JetBrainsMono),
- * белый жирный, тонкий чёрный контур 1px и мягкое хало - читается одинаково
- * и на светлой лаймовой заливке, и на тёмной части трека. Прежний контур
- * 2px съедал цифру: обводка рисуется по центру штриха, при кегле 15px внутрь
- * уходила половина - от белого оставалась щель, и число читалось тёмным. */
-.hud-crystal-count {
-    position: absolute;
-    left: 0;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    -unity-text-align: middle-center;
-    -unity-font-definition: var(--face-data);
-    -unity-font-style: bold;
-    font-size: var(--size-md);
-    color: var(--light-solid);
-    -unity-text-outline-width: 1px;
-    -unity-text-outline-color: rgba(0, 0, 0, 0.95);
-    text-shadow: 0 0 6px rgba(0, 0, 0, 0.85);
-    translate: 0 -1px;
-    padding: 0;
-}
-
-/* Зоны корзины: оттенки взяты из семантических токенов меню —
-   state-ok (норма), accent-gold (близко к переполнению), state-danger
-   (перегруз). Заливка почти плотная (0.8): сквозь полосу силуэт мира
-   виден, но под цифрами остаётся ровный цвет - шумная текстура руды
-   сквозь сильно прозрачный фон контраст цифр убивала. */
-.hud-crystal-row--ok .hud-crystal-bar {
-    background-color: rgba(74, 222, 128, 0.3);
-    border-width: var(--border-width-thin);
-    border-color: rgba(74, 222, 128, 0.45);
-}
-
-.hud-crystal-row--ok .hud-crystal-fill {
-    background-color: rgba(74, 222, 128, 0.8); /* state-ok */
-}
-
-.hud-crystal-row--warn .hud-crystal-bar {
-    background-color: rgba(245, 197, 66, 0.3);
-    border-width: var(--border-width-thin);
-    border-color: var(--border-gold);
-}
-
-.hud-crystal-row--warn .hud-crystal-fill {
-    background-color: rgba(245, 197, 66, 0.8); /* accent-gold */
-}
-
-.hud-crystal-row--over .hud-crystal-bar {
-    background-color: rgba(255, 85, 85, 0.3);
-    border-width: var(--border-width-thin);
-    border-color: var(--border-danger);
-}
-
-.hud-crystal-row--over .hud-crystal-fill {
-    background-color: rgba(255, 85, 85, 0.8); /* state-danger */
-}
-
-.hud-skill-icon-image {
-    width: var(--space-10);
-    height: var(--space-10);
-}
-
-.hud-mission-panel {
-    position: absolute;
-    top: 50px;
-    left: var(--radius-pill);
-    translate: -50% 0;
-    min-width: 300px;
-    padding: var(--space-4);
-    background-color: var(--surface-panel);
-    border-color: var(--border-cyan);
-    border-width: var(--border-width-thin);
-    border-radius: var(--radius-md);
-    flex-direction: column;
-}
-
-.hud-mission-title {
-    color: var(--accent-gold);
-    margin-bottom: var(--space-2);
-}
-
-.hud-mission-desc {
-    margin-bottom: var(--space-4);
-}
-
-.hud-mission-progress-row {
-    flex-direction: row;
-    align-items: center;
-    margin-bottom: var(--space-2);
-}
-
-.hud-mission-progress-label {
-    margin-right: var(--space-4);
-    min-width: 50px;
-}
-
-.hud-mission-progress-bar {
-    flex-grow: 1;
-    height: var(--space-8);
-    background-color: var(--surface-shelf-solid);
-    border-radius: var(--radius-sm);
-}
-
-.hud-mission-progress-fill {
-    height: var(--space-8);
-    border-radius: var(--radius-sm);
-    background-color: var(--accent-gold);
-}
-
-.hud-btn-action {
-    position: absolute;
-    /* Рецепт меню (mm-side-btn): тёмный сланец с яркой бирюзовой рамкой;
-       наведение — тонированная подложка, как у mm-user-pill. */
-    background-color: var(--surface-slate-dense);
-    border-color: var(--border-cyan);
-    border-width: var(--border-width-thin);
-    border-radius: var(--radius-md);
-    font-size: var(--size-sm);
-    -unity-font-style: bold;
-    color: var(--text-primary);
-    -unity-text-align: middle-center;
-    padding: 0;
-    /* Дефолтная тема Unity добавляет кнопкам margin - из-за него кнопки
-       съезжают относительно панели миникарты (обычного VisualElement). */
-    margin: 0;
-    height: var(--space-11);
-}
-
-.hud-btn-action:hover {
-    background-color: var(--accent-cyan-wash);
-    border-color: var(--accent-cyan);
-}
-
-.hud-toggle-btn {
-    position: absolute;
-    left: var(--space-5);
-    /* Выключенное автокопание — состояние «опасность»: кризисная
-       подложка и красная рамка; включённая — сланец с бирюзовой рамкой,
-       как у остальных кнопок колонки. */
-    background-color: var(--surface-crisis-dense);
-    border-color: var(--border-danger);
-}
-
-.hud-toggle-btn:hover {
-    background-color: var(--light-film);
-}
-
-.hud-toggle-btn-label {
-    font-size: var(--size-sm);
-    -unity-font-style: bold;
-    -unity-text-align: middle-center;
-    flex-grow: 1;
-    color: var(--state-danger);
-}
-
-.hud-toggle-btn.enabled {
-    background-color: var(--surface-slate-dense);
-    border-color: var(--border-cyan);
-}
-
-.hud-toggle-btn.enabled:hover {
-    background-color: var(--light-sheen);
-}
-
-.hud-toggle-btn-label.enabled {
-    color: var(--state-ok);
-}
-
-/* Включённая автокопка - текст цвета состояния «норма» (выключенная
-   остаётся красной). Класс enabled вешается на саму кнопку, поэтому
-   селектор потомственный. */
-.hud-toggle-btn.enabled .hud-toggle-btn-label {
-    color: var(--state-ok);
-}
-
-/* Колонка управления СТРОГО над мини-картой (как в старом клиенте): автокопа ->
-   программатор (имя активной программы) со встроенной кнопкой запуска/остановки.
-   left берётся из той же переменной --space-8, что и у панели миникарты.
-   Анимированный индикатор выполнения (running) намеренно не переносился. */
-.hud-toggle-auto-dig {
-    left: var(--space-8);
-    bottom: 262px;
-    width: 174px;
-    height: 36px;
-    margin: 0;
-}
-
-/* Кнопки верхнего ряда - иконки 32x32 без текста. Рамка и подложка темы
-   (.hud-btn-action) скрыты: поверх фона остаётся только сам спрайт. */
-.hud-btn-top-row {
-    position: absolute;
-    top: var(--space-5);
-    width: 32px;
-    height: 32px;
-    margin: 0;
-    padding: 0;
-    border-width: 0;
-    border-radius: 0;
-    background-color: rgba(0, 0, 0, 0);
+    margin-right: 12px;
     -unity-background-scale-mode: scale-to-fit;
 }
 
-/* Смещения и спрайты кнопок верхнего ряда. Порядок от правого верхнего угла
-   влево: Помощь -> Мои здания -> Респаун -> Серверная консоль. Шаг 38px =
-   32px спрайт + 6px зазор (--space-3), правый край ряда - --space-5.
-   Все иконки векторные: тип импорта SVG (VectorImage) рисуется USS-фоном
-   через UIRUtility.IsVectorImageBackground. */
-.hud-btn-top-row--faq {
-    right: var(--space-5);
-    background-image: url("project://database/Assets/Textures/UI/Commands/FAQ/FAQ.svg");
-}
-.hud-btn-top-row--buildings {
-    right: 48px;
-    background-image: url("project://database/Assets/Textures/UI/Commands/myBuildings/myBuildings.svg");
-}
-.hud-btn-top-row--respawn {
-    right: 86px;
-    background-image: url("project://database/Assets/Textures/UI/Commands/respawn/respawn.svg");
-}
-.hud-btn-top-row--mconsole {
-    right: 124px;
-    background-image: url("project://database/Assets/Textures/UI/Commands/console/console.svg");
+.mission-texts {
+    flex-grow: 1;
+    flex-shrink: 1;
+    min-width: 0;
+    flex-direction: column;
 }
 
-/* Hover-подложка темы перекрыла бы спрайт - на иконках её нет. */
-.hud-btn-top-row:hover { background-color: rgba(0, 0, 0, 0); }
+.mission-title {
+    -unity-font-definition: var(--face-display);
+    -unity-font-style: bold;
+    letter-spacing: 2px;
+    white-space: normal;
+    max-height: 42px;
+    overflow: hidden;
+}
 
-/* Кнопки чата в HUD больше нет: чат открывается по TAB (GlobalChatUI.Update),
-   панель - .gchat-panel в Chat.uss. */
+.mission-text {
+    font-size: var(--t-small);
+    color: var(--mist);
+    white-space: normal;
+    max-height: 55px;
+    overflow: hidden;
+}
 
-/* Колонка управления над мини-картой (как в старом клиенте): автокопа ->
-   программатор (имя активной программы) + кнопка запуска/остановки -> мини-карта.
-   Анимированный индикатор выполнения (running) слева от программатора
-   намеренно не переносился. */
-.hud-programmator-button {
+.mission-progress,
+.hud .mission-progress {
+    flex-shrink: 0;
+    margin-left: 12px;
+    -unity-font-definition: var(--face-mono);
+    -unity-font-style: bold; /* fw-semi макета: 600 нет — жирное */
+    letter-spacing: 2px;
+    color: var(--bone);
+}
+
+/* ── Миникарта (Minimap.uxml) — под рядом кнопок, справа: 264×264, координаты строкой сверху ── */
+.hud-minimap-panel {
     position: absolute;
-    left: var(--space-8);
-    bottom: 218px;
-    width: 174px;
-    height: 36px;
-    /* Текст (имя программы) центрируется правее встройки ▶/■. */
-    padding-left: 44px;
+    right: var(--margin);
+    top: 84px;
+    width: var(--col);
+    height: var(--col);
+    overflow: hidden;
 }
 
-/* Старт/стоп - плоская кликабельная зона в левой части кнопки программатора:
-   без фона и рамки (чтобы не выглядела кнопкой в кнопке), только цветной
-   символ - зелёный ▶ когда программа стоит, красный ■ когда выполняется. */
-.hud-program-run-btn {
+/* Панель миникарты — срез угла без уголков */
+.panel.hud-minimap-panel {
+    --panel-fill: rgba(17, 16, 24, 0.88);
+    --panel-tick: 0;
+}
+
+/* Карта — внутри рамки панели (макет: canvas в padding-box). Абсолютные отступы UI Toolkit считаются от внешнего
+   края, и при 0 картинка закрывала рамку, которую KernVector рисует фоном панели */
+.hud-minimap-container {
     position: absolute;
-    left: var(--space-8);
-    bottom: 218px;
-    width: 44px;
-    height: 36px;
-    background-color: rgba(0, 0, 0, 0);
-    border-width: 0;
-    border-radius: 0;
-    color: var(--state-ok);
-    font-size: var(--size-lg);
+    left: 1px;
+    top: 1px;
+    right: 1px;
+    bottom: 1px;
+}
+
+.hud-minimap-image {
+    width: 100%;
+    height: 100%;
+    -unity-background-scale-mode: stretch-to-fill;
+}
+
+/* Маркер робота рисует текстура миникарты; элемент — только точка привязки */
+.hud-minimap-player-marker {
+    display: none;
+}
+
+.hud-minimap-coords,
+.hud .hud-minimap-coords {
+    position: absolute;
+    left: 1px;
+    right: 1px;
+    top: 1px;
+    height: 18px;
+    padding: 0 14px 0 8px;
+    border-bottom-width: 1px;
+    border-color: var(--seam);
+    background-color: rgba(10, 9, 15, 0.82);
+    -unity-font-definition: var(--face-mono);
+    font-size: var(--t-2);
+    -unity-font-style: bold; /* fw-semi макета: 600 нет — жирное */
+    letter-spacing: 10px;
+    -unity-text-align: middle-right;
+    color: var(--bone);
+}
+
+/* ── Окно на HUD: затемнение и диалог (hud.css .dialog-layer, .dialog) ── */
+.dialog-layer {
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    align-items: center;
+    justify-content: center;
+    background-color: var(--scrim-strong);
+    --dots-color: rgba(216, 213, 238, 0.09);
+    --dots-step: 16;
+    --dots-size: 1;
+}
+
+.dialog {
+    width: 420px;
+    padding: 20px 20px 16px;
+    flex-direction: column;
+}
+
+/* Заголовок окна — Exo 2 22, заглавными (класс caps), вразрядку 0.04em */
+.dialog__title,
+.hud .dialog__title {
+    margin-bottom: 12px;
+    -unity-font-definition: var(--face-display);
+    font-size: var(--t-title);
+    -unity-font-style: bold;
+    letter-spacing: 4px;
+}
+
+.dialog__text,
+.hud .dialog__text {
+    margin-bottom: 12px;
+    white-space: normal;
+    color: var(--mist);
+}
+
+.dialog-actions {
+    flex-direction: row;
+    justify-content: flex-end;
+    margin-top: 2px;
+}
+
+.dialog-actions > .btn {
+    min-width: 120px;
+    margin-left: 8px;
+}
+
+/* ── Шапка окна (css/hud.css .srv-head, micro.css): заголовок Exo 2 заглавными, закрытие — квадрат в рамке ── */
+.srv-head {
+    height: 56px;
+    flex-shrink: 0;
+    padding: 0 8px 0 18px;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom-width: 1px;
+    border-color: var(--seam);
+}
+
+.srv-head__title,
+.hud .srv-head__title {
+    margin: 0;
     padding: 0;
-}
-.hud-program-run-btn:hover,
-.hud-program-run-btn--running:hover {
-    background-color: rgba(0, 0, 0, 0);
-}
-.hud-program-run-btn--running {
-    color: var(--state-danger);
-    font-size: var(--size-md);
+    -unity-font-definition: var(--face-display);
+    font-size: var(--t-12);
+    -unity-font-style: bold;
+    letter-spacing: 4px;
+    color: var(--bone);
 }
 
+/* Метка у заголовка окна (systems.css .head-tag, .map-coords): светлая плашка 18 px, моно 10 жирно, срез правого нижнего угла;
+   пустая — не видна */
+.head-tag,
+.hud .head-tag {
+    height: 18px;
+    margin: 0 auto 0 12px;
+    padding: 0 8px 0 6px;
+    flex-shrink: 0;
+    -unity-text-align: middle-left;
+    color: var(--void);
+    -unity-font-definition: var(--face-mono);
+    font-size: var(--t-2);
+    -unity-font-style: bold;
+    letter-spacing: 8px;
+    --shape-color: var(--bone);
+    --shape-notch: 5;
+    --shape-corner: bottom-right;
+}
+
+.head-tag.is-empty {
+    display: none;
+}
+
+.win-close,
+.hud .win-close {
+    width: 28px;
+    height: 28px;
+    margin-right: 10px;
+    border-width: 1px;
+    border-color: var(--seam-strong);
+}
+
+.win-close:hover {
+    border-color: var(--ash);
+    background-color: rgba(0, 0, 0, 0);
+}
+
+.win-close > .ico {
+    width: 14px;
+    height: 14px;
+}
+
+/* ── Карта мира: окно почти во весь экран, поле карты на точках сетки ── */
+/* Окно карты: экран минус 48 px с каждой стороны, не шире 1600 */
+.dialog-layer.map-layer {
+    padding: 48px;
+}
+
+.map-win {
+    width: 100%;
+    height: 100%;
+    max-width: 1600px;
+    flex-direction: column;
+    overflow: hidden;
+}
+
+.map-view {
+    flex-grow: 1;
+    min-height: 0;
+    overflow: hidden;
+    background-color: var(--void);
+    --dots-color: rgba(216, 213, 238, 0.09);
+    --dots-step: 16;
+    --dots-size: 1;
+}
+
+.map-image {
+    width: 100%;
+    height: 100%;
+}
+
+/* «Я» — точка кости в обводке пустоты */
+.map-me {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 16px;
+    height: 16px;
+    translate: -50% -50%;
+    border-width: 2px;
+    border-radius: 50%;
+    border-color: var(--void);
+    background-color: var(--bone);
+}
+
+/* Метка на карте (hud.css .pin, events.css .pin-dot--mark): точка в обводке колодца, подпись на ярлыке.
+   Левый край точки — 6 px левее клетки, по высоте — середина (transform: translate(-6px, -50%)) */
+.map-pin {
+    position: absolute;
+    left: 0;
+    top: 0;
+    flex-direction: row;
+    align-items: center;
+    translate: -6px -50%;
+}
+
+.map-pin__dot {
+    width: 12px;
+    height: 12px;
+    flex-shrink: 0;
+    border-width: 2px;
+    border-color: var(--well-solid);
+    border-radius: 50%;
+}
+
+/* Своя метка — капля: острый верхний левый угол */
+.map-pin__dot--mark {
+    border-top-left-radius: 0;
+    background-color: var(--mark-own);
+}
+
+.map-pin__name {
+    margin: 0 0 0 4px;
+    padding: 1px 6px;
+    background-color: var(--tag);
+    color: var(--bone);
+    -unity-font-definition: var(--face-mono);
+    font-size: var(--t-3);
+    -unity-font-style: bold;
+    white-space: nowrap;
+}
+
+/* Масштаб карты слева внизу (hud.css .map-scale): «×8» — пикселей экрана на клетку, моно на ярлыке */
+.map-scale,
+.hud .map-scale {
+    position: absolute;
+    left: 12px;
+    bottom: 12px;
+    padding: 2px 8px;
+    background-color: var(--tag);
+    color: var(--ash);
+    -unity-font-definition: var(--face-mono);
+    font-size: var(--t-3);
+}
+
+.map-tools {
+    position: absolute;
+    right: 12px;
+    bottom: 12px;
+    flex-direction: column;
+}
+
+.map-tool,
+.hud .map-tool {
+    margin-top: 2px;
+    border-width: 1px;
+    border-color: transparent;
+    background-color: rgba(0, 0, 0, 0);
+}
+
+.map-tool > .ico {
+    -unity-background-image-tint-color: var(--bone);
+}
+
+.map-tool:hover {
+    border-color: var(--seam-strong);
+    background-color: var(--plate);
+}
+
+/* Включённый инструмент (systems.css .map-tools .icon-btn[aria-pressed="true"]): рамка кости, поле кости 8 % */
+.map-tool.is-pressed {
+    border-color: var(--bone);
+    background-color: rgba(216, 213, 238, 0.08);
+}
+
+/* ── Сенсорное управление (раскладка — Touch.uss) ── */
 /* Native touch targets: keep the movement surface separate from the world
    and leave room for the minimap / existing mode controls on the left. */
 .hud-mobile-controls {
@@ -1024,7 +1374,8 @@
     align-items: flex-end;
 }
 
-.hud-mobile-action {
+.hud-mobile-action,
+.hud .hud-mobile-action {
     min-width: 62px;
     height: 42px;
     margin-top: var(--space-1);
@@ -1064,264 +1415,6 @@
 /* Видимость и раскладка сенсорного управления — Touch.uss
    (класс pointer--touch на корне панели). */
 
-/* ═══════════════════════════════════════════════════════════
-   Sci-Fi Player HUD Styles
-   ═══════════════════════════════════════════════════════════ */
-
-.hud-top-left {
-    position: absolute;
-    top: var(--space-8);
-    left: var(--space-8);
-    width: 280px;
-}
-
-.hud-title-row {
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-    margin-bottom: var(--space-4);
-}
-
-.hud-nickname {
-    -unity-font-definition: var(--face-display);
-    color: var(--text-primary);
-    font-size: var(--size-base);
-    -unity-font-style: bold;
-    letter-spacing: 0.5px;
-}
-
-.hud-clan-btn {
-    height: var(--space-10);
-    padding: 0 var(--space-4);
-    font-size: var(--size-2xs);
-}
-
-.hud-separator {
-    height: 1px;
-    background-color: var(--border-subtle);
-    margin-bottom: var(--space-4);
-}
-
-.hud-stat-group {
-    margin-bottom: var(--space-4);
-}
-
-.hud-stat-header {
-    flex-direction: row;
-    justify-content: space-between;
-    margin-bottom: var(--space-2);
-}
-
-.hud-stat-title {
-    -unity-font-definition: var(--face-body);
-    color: var(--text-secondary);
-    font-size: var(--size-xs);
-}
-
-.hud-stat-percent {
-    -unity-font-definition: var(--face-data);
-    color: var(--state-ok);
-    font-size: var(--size-xs);
-    -unity-font-style: bold;
-}
-
-.hud-bar-track {
-    height: var(--space-3);
-    margin-bottom: var(--space-3);
-}
-
-.hud-currency-row {
-    flex-direction: row;
-    justify-content: space-between;
-    margin-top: var(--space-2);
-}
-
-.hud-currency-item {
-    flex-direction: row;
-    align-items: center;
-}
-
-.hud-currency-icon {
-    font-size: var(--size-base);
-    color: var(--accent-cyan);
-    margin-right: var(--space-2);
-}
-
-.hud-currency-icon--gold {
-    color: var(--accent-gold);
-}
-
-.hud-currency-value {
-    -unity-font-definition: var(--face-data);
-    color: var(--text-primary);
-    font-size: var(--size-sm);
-    -unity-font-style: bold;
-}
-
-.hud-currency-value--gold {
-    color: var(--accent-gold-hover);
-}
-
-/* Корзина */
-.hud-basket-panel {
-    position: absolute;
-    top: 170px;
-    left: var(--space-8);
-    width: 140px;
-    padding: var(--space-4);
-}
-
-.hud-basket-grid {
-    flex-direction: row;
-    flex-wrap: wrap;
-    margin-top: var(--space-2);
-    margin-bottom: var(--space-2);
-}
-
-.hud-geology-text {
-    -unity-font-definition: var(--face-body);
-    color: var(--text-secondary);
-    font-size: var(--size-2xs);
-}
-
-/* Миссия */
-.hud-mission-panel {
-    position: absolute;
-    top: 50px;
-    left: var(--radius-pill);
-    translate: -50% 0;
-    width: 380px;
-    padding: var(--space-5) var(--space-7);
-}
-
-.hud-mission-header {
-    flex-direction: row;
-    align-items: center;
-    margin-bottom: var(--space-2);
-}
-
-.hud-mission-body {
-    flex-direction: row;
-    align-items: flex-start;
-}
-
-.hud-mission-image {
-    flex-shrink: 0;
-    margin-right: var(--space-3);
-    -unity-background-scale-mode: scale-and-crop;
-}
-
-.hud-mission-title {
-    -unity-font-definition: var(--face-display);
-    color: var(--text-primary);
-    font-size: var(--size-sm);
-    -unity-font-style: bold;
-    margin-left: var(--space-4);
-}
-
-.hud-mission-desc {
-    -unity-font-definition: var(--face-body);
-    color: var(--text-secondary);
-    font-size: var(--size-xs);
-    white-space: normal;
-    margin-bottom: var(--space-3);
-}
-
-.hud-mission-track {
-    height: var(--space-2);
-    margin-bottom: var(--space-2);
-}
-
-#MissionProgressFill {
-    width: 0%;
-}
-
-.hud-mission-progress-text {
-    -unity-font-definition: var(--face-data);
-    color: var(--accent-cyan);
-    font-size: var(--size-2xs);
-    align-self: flex-end;
-}
-
-/* Правая колонка действий */
-.hud-actions-column {
-    position: absolute;
-    top: var(--space-8);
-    right: var(--space-8);
-    width: 160px;
-}
-
-.hud-action-btn {
-    margin-bottom: var(--space-4);
-    width: 100%;
-}
-
-.hud-mode-led {
-    width: var(--space-3);
-    height: var(--space-3);
-    border-radius: var(--radius-sm);
-    background-color: var(--text-disabled);
-    margin-right: var(--space-4);
-}
-
-.hud-mode-led--active {
-    background-color: var(--accent-cyan-hover);
-}
-
-
-/* ─── Системная миникарта (UI Toolkit) ─── */
-
-.hud-minimap-panel {
-    position: absolute;
-    bottom: var(--space-8);
-    left: var(--space-8);
-    padding: var(--space-3);
-    background-color: var(--surface-slate-dense);
-    border-width: var(--border-width-thin);
-    border-color: var(--accent-cyan-fill);
-    border-radius: var(--radius-md);
-    flex-direction: column;
-    align-items: center;
-}
-
-.hud-minimap-container {
-    width: 160px;
-    height: 160px;
-    border-width: var(--border-width-thin);
-    border-color: var(--light-sheen);
-    border-radius: var(--radius-sharp);
-    background-color: var(--shadow-solid);
-}
-
-.hud-minimap-image {
-    width: 100%;
-    height: 100%;
-}
-
-.hud-minimap-player-marker {
-    position: absolute;
-    left: 80px;
-    top: 80px;
-    width: var(--space-3);
-    height: var(--space-3);
-    background-color: var(--state-danger);
-    border-color: var(--light-solid);
-    border-width: var(--border-width-thin);
-    border-radius: var(--radius-pill);
-    translate: -50% -50%;
-}
-
-.hud-minimap-coords {
-    font-size: var(--size-xs);
-    color: var(--accent-cyan-hover);
-    -unity-font-style: bold;
-    /* Фиксированная высота: панель миникарты получает детерминированную
-       высоту (194px), кнопка программатора стыкуется с ней без нахлёста. */
-    height: var(--space-8);
-    margin-bottom: var(--space-2);
-    -unity-text-align: middle-center;
-}
-
 /* ─── Кольцо навигации миссии ─── */
 
 .mission-ring-overlay {
@@ -1342,4 +1435,125 @@
 .mission-ring {
     position: absolute;
     background-color: var(--light-solid);
+}
+
+/* ── События поверх игры (css/events.css): связь, сообщение сервера ── */
+.net,
+.srv-modal {
+    width: 400px;
+    align-items: center;
+}
+
+.net > .dialog__title,
+.net > .dialog__text,
+.srv-modal > .dialog__title,
+.srv-modal > .dialog__text {
+    -unity-text-align: upper-center;
+}
+
+.net .dialog-actions,
+.srv-modal .dialog-actions {
+    align-self: stretch;
+    justify-content: center;
+}
+
+.net-ico {
+    width: var(--ctl-l);
+    height: var(--ctl-l);
+    margin-bottom: 12px;
+}
+
+/* Причина от сервера — плашкой в лунке */
+.net-reason {
+    align-self: stretch;
+    margin: 0 0 12px 0;
+    padding: 8px 12px;
+    background-color: var(--well);
+    color: var(--bone);
+    font-size: var(--t-small);
+    white-space: normal;
+    -unity-text-align: middle-center;
+}
+
+.srv-modal-icon {
+    width: var(--ctl-xxl);
+    height: var(--ctl-xxl);
+    margin-bottom: 12px;
+    -unity-background-scale-mode: scale-to-fit;
+}
+
+/* Ссылка от сервера (events.css .link-url): адрес целиком в лунке, домен — моно светлым */
+.link-url {
+    flex-direction: row;
+    align-items: flex-start;
+    margin-bottom: 12px;
+    padding: 10px 12px;
+    border-width: 1px;
+    border-color: var(--seam);
+    background-color: var(--well);
+}
+
+.link-url__ico {
+    width: 16px;
+    height: 16px;
+    margin: 1px 10px 0 0;
+}
+
+.link-url__addr {
+    flex-grow: 1;
+    flex-shrink: 1;
+    flex-direction: row;
+    flex-wrap: wrap;
+}
+
+.link-url__host,
+.link-url__path,
+.hud .link-url__host,
+.hud .link-url__path {
+    margin: 0;
+    padding: 0;
+    font-size: var(--t-small);
+    white-space: normal;
+}
+
+.link-url__host,
+.hud .link-url__host {
+    -unity-font-definition: var(--face-mono);
+    -unity-font-style: bold;
+    color: var(--bone);
+}
+
+.link-url__path,
+.hud .link-url__path {
+    flex-shrink: 1;
+    color: var(--ash);
+}
+
+/* Строка источника над содержимым: «Сервер ····» во всю ширину окна */
+.src-rail {
+    align-self: stretch;
+    height: 22px;
+    margin: -20px -20px 12px;
+    padding: 0 20px;
+    flex-direction: row;
+    align-items: center;
+    border-bottom-width: 1px;
+    border-color: var(--seam);
+}
+
+.src-rail__label {
+    margin: 0 8px 0 0;
+    padding: 0;
+    -unity-font-definition: var(--face-mono);
+    font-size: 7px;
+    -unity-font-style: bold;
+    letter-spacing: 14px;
+    color: var(--dim);
+}
+
+.src-rail__line {
+    flex-grow: 1;
+    height: 1px;
+    --rules-color: var(--seam-strong);
+    --rules-step: 3;
 }

@@ -21,21 +21,6 @@
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "UI/Menu/Icons/Navigation/mm_icon_update.png",
-      "Published": "Visual/UI/mm_icon_update.png",
-      "Delivery": "Embedded"
-    },
-    {
-      "Source": "UI/Menu/Branding/mm_space_bg.png",
-      "Published": "Visual/UI/mm_space_bg.png",
-      "Delivery": "Embedded"
-    },
-    {
-      "Source": "UI/Menu/Icons/Social/mm_icon_vk.png",
-      "Published": "Visual/UI/mm_icon_vk.png",
-      "Delivery": "Embedded"
-    },
-    {
       "Source": "UI/Commands/respawn/respawn.svg",
       "Published": "Visual/UI/respawn.svg",
       "Delivery": "Embedded"
@@ -61,21 +46,6 @@
       "Delivery": "Embedded"
     },
     {
-      "Source": "UI/Menu/Icons/Social/mm_icon_discord.png",
-      "Published": "Visual/UI/mm_icon_discord.png",
-      "Delivery": "Embedded"
-    },
-    {
-      "Source": "UI/Menu/Icons/Navigation/mm_icon_settings.png",
-      "Published": "Visual/UI/mm_icon_settings.png",
-      "Delivery": "Embedded"
-    },
-    {
-      "Source": "UI/Menu/Branding/mm_logo.png",
-      "Published": "Visual/UI/mm_logo.png",
-      "Delivery": "Embedded"
-    },
-    {
       "Source": "UI/Controls/Toggle/States/deselected.png",
       "Published": "Visual/UI/deselected.png",
       "Delivery": "Embedded"
@@ -86,38 +56,13 @@
       "Delivery": "Embedded"
     },
     {
-      "Source": "UI/Menu/Icons/Social/mm_icon_telegram.png",
-      "Published": "Visual/UI/mm_icon_telegram.png",
-      "Delivery": "Embedded"
-    },
-    {
       "Source": "UI/Controls/Toggle/States/unchecked.png",
       "Published": "Visual/UI/unchecked.png",
       "Delivery": "Embedded"
     },
     {
-      "Source": "UI/Menu/Branding/mm_shade.png",
-      "Published": "Visual/UI/mm_shade.png",
-      "Delivery": "Embedded"
-    },
-    {
       "Source": "UI/Commands/console/console.svg",
       "Published": "Visual/UI/console.svg",
-      "Delivery": "Embedded"
-    },
-    {
-      "Source": "UI/Menu/Icons/Navigation/mm_icon_chronicle.png",
-      "Published": "Visual/UI/mm_icon_chronicle.png",
-      "Delivery": "Embedded"
-    },
-    {
-      "Source": "UI/Menu/Icons/Navigation/mm_icon_exit.png",
-      "Published": "Visual/UI/mm_icon_exit.png",
-      "Delivery": "Embedded"
-    },
-    {
-      "Source": "UI/Menu/Icons/Navigation/mm_icon_repair.png",
-      "Published": "Visual/UI/mm_icon_repair.png",
       "Delivery": "Embedded"
     },
     {
@@ -541,8 +486,33 @@
       "Delivery": "Embedded"
     },
     {
-      "Source": "Tail/default/default.png",
-      "Published": "Visual/Tail/default.png",
+      "Source": "Tail/Default/Default.png",
+      "Published": "Visual/Tail/Default.png",
+      "Delivery": "DummyWorld"
+    },
+    {
+      "Source": "Tail/Red/Red.png",
+      "Published": "Visual/Tail/Red.png",
+      "Delivery": "DummyWorld"
+    },
+    {
+      "Source": "Tail/Blue/Blue.png",
+      "Published": "Visual/Tail/Blue.png",
+      "Delivery": "DummyWorld"
+    },
+    {
+      "Source": "Tail/Green/Green.png",
+      "Published": "Visual/Tail/Green.png",
+      "Delivery": "DummyWorld"
+    },
+    {
+      "Source": "Tail/Violet/Violet.png",
+      "Published": "Visual/Tail/Violet.png",
+      "Delivery": "DummyWorld"
+    },
+    {
+      "Source": "Tail/Gold/Gold.png",
+      "Published": "Visual/Tail/Gold.png",
       "Delivery": "DummyWorld"
     },
     {
@@ -996,23 +966,23 @@
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Skin/greenSkin/greenSkin.png",
-      "Published": "Visual/Skin/greenSkin.png",
+      "Source": "Skin/GreenSkin/GreenSkin.png",
+      "Published": "Visual/Skin/GreenSkin.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Skin/orangeSkin/orangeSkin.png",
-      "Published": "Visual/Skin/orangeSkin.png",
+      "Source": "Skin/OrangeSkin/OrangeSkin.png",
+      "Published": "Visual/Skin/OrangeSkin.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Skin/purpleSkin/purpleSkin.png",
-      "Published": "Visual/Skin/purpleSkin.png",
+      "Source": "Skin/PurpleSkin/PurpleSkin.png",
+      "Published": "Visual/Skin/PurpleSkin.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Skin/redSkin/redSkin.png",
-      "Published": "Visual/Skin/redSkin.png",
+      "Source": "Skin/RedSkin/RedSkin.png",
+      "Published": "Visual/Skin/RedSkin.png",
       "Delivery": "DummyWorld"
     },
     {

@@ -19,13 +19,13 @@ using UnityEngine;
 // Оракул — нарисованные вручную сетки и выписанные заранее шаги.
 // Сетка в серверных координатах: строка — y (0 сверху), столбец — x.
 // '.' пусто, '=' дорога (быстрее), '#' порода, '?' не получено, '@' робот.
-// Направления — в осях Unity: Up = (0, 1) — это строка выше.
+// Направления — в осях Unity: s_up = (0, 1) — это строка выше.
 [TestFixture]
 public class PlayerStepSelectorTests
 {
-    private static readonly Vector2Int Up = new(0, 1);
-    private static readonly Vector2Int Left = new(-1, 0);
-    private static readonly Vector2Int Right = new(1, 0);
+    private static readonly Vector2Int s_up = new(0, 1);
+    private static readonly Vector2Int s_left = new(-1, 0);
+    private static readonly Vector2Int s_right = new(1, 0);
 
     // Удержание дольше задержки включения обхода.
     private const float HeldTime = 10f;
@@ -34,7 +34,7 @@ public class PlayerStepSelectorTests
     public void InputToIntent_KeyboardCardinal_IsSingleAxis()
     {
         MovementIntent intent = PlayerDirectionMapping.InputToIntent(new Vector2(1f, 0f));
-        Assert.That(intent.Primary, Is.EqualTo(Right));
+        Assert.That(intent.Primary, Is.EqualTo(s_right));
         Assert.That(intent.IsDiagonal, Is.False);
     }
 
@@ -42,8 +42,8 @@ public class PlayerStepSelectorTests
     public void InputToIntent_KeyboardWPlusA_IsDiagonalUpThenLeft()
     {
         MovementIntent intent = PlayerDirectionMapping.InputToIntent(new Vector2(-0.70710677f, 0.70710677f));
-        Assert.That(intent.Primary, Is.EqualTo(Up));
-        Assert.That(intent.Secondary, Is.EqualTo(Left));
+        Assert.That(intent.Primary, Is.EqualTo(s_up));
+        Assert.That(intent.Secondary, Is.EqualTo(s_left));
     }
 
     [Test]
@@ -51,7 +51,7 @@ public class PlayerStepSelectorTests
     {
         // 18° от оси X — сектор «вправо» (до 22.5°).
         MovementIntent intent = PlayerDirectionMapping.InputToIntent(new Vector2(0.95f, 0.31f));
-        Assert.That(intent.Primary, Is.EqualTo(Right));
+        Assert.That(intent.Primary, Is.EqualTo(s_right));
         Assert.That(intent.IsDiagonal, Is.False);
     }
 
@@ -60,8 +60,8 @@ public class PlayerStepSelectorTests
     {
         // 37° — диагональный сектор, X отклонён сильнее.
         MovementIntent intent = PlayerDirectionMapping.InputToIntent(new Vector2(0.8f, 0.6f));
-        Assert.That(intent.Primary, Is.EqualTo(Right));
-        Assert.That(intent.Secondary, Is.EqualTo(Up));
+        Assert.That(intent.Primary, Is.EqualTo(s_right));
+        Assert.That(intent.Secondary, Is.EqualTo(s_up));
     }
 
     [Test]
@@ -79,9 +79,9 @@ public class PlayerStepSelectorTests
             ".......",
             "...@...");
 
-        List<Vector2Int> steps = world.Walk(Diagonal(Up, Left), 4, autoDig: false, assist: true);
+        List<Vector2Int> steps = world.Walk(Diagonal(s_up, s_left), 4, autoDig: false, assist: true);
 
-        Assert.That(steps, Is.EqualTo(new[] { Up, Left, Up, Left }));
+        Assert.That(steps, Is.EqualTo(new[] { s_up, s_left, s_up, s_left }));
     }
 
     [Test]
@@ -93,15 +93,15 @@ public class PlayerStepSelectorTests
             "...@...");
         var state = new PlayerStepSelectorState();
 
-        Vector2Int first = world.SelectHeld(state, Diagonal(Up, Left), autoDig: false, assist: true);
-        Assert.That(first, Is.EqualTo(Up));
+        Vector2Int first = world.SelectHeld(state, Diagonal(s_up, s_left), autoDig: false, assist: true);
+        Assert.That(first, Is.EqualTo(s_up));
         PlayerStepSelector.NoteStep(state, first);
 
         // Соседняя коррекция сервера не должна начинать змейку с Primary заново.
         PlayerStepSelector.Resync(state);
 
-        Vector2Int second = world.SelectHeld(state, Diagonal(Up, Left), autoDig: false, assist: true);
-        Assert.That(second, Is.EqualTo(Left));
+        Vector2Int second = world.SelectHeld(state, Diagonal(s_up, s_left), autoDig: false, assist: true);
+        Assert.That(second, Is.EqualTo(s_left));
     }
 
     [Test]
@@ -112,9 +112,9 @@ public class PlayerStepSelectorTests
             "#######",
             "....@..");
 
-        List<Vector2Int> steps = world.Walk(Diagonal(Up, Left), 3, autoDig: false, assist: true);
+        List<Vector2Int> steps = world.Walk(Diagonal(s_up, s_left), 3, autoDig: false, assist: true);
 
-        Assert.That(steps, Is.EqualTo(new[] { Left, Left, Left }));
+        Assert.That(steps, Is.EqualTo(new[] { s_left, s_left, s_left }));
     }
 
     [Test]
@@ -126,9 +126,61 @@ public class PlayerStepSelectorTests
             "..@..");
         var state = new PlayerStepSelectorState();
 
-        Vector2Int step = world.SelectHeld(state, Diagonal(Up, Left), autoDig: true, assist: true);
+        Vector2Int step = world.SelectHeld(state, Diagonal(s_up, s_left), autoDig: true, assist: true);
 
-        Assert.That(step, Is.EqualTo(Up), "With auto-dig the robot digs the next zigzag cell.");
+        Assert.That(step, Is.EqualTo(s_up), "With auto-dig the robot digs the next zigzag cell.");
+    }
+
+    [Test]
+    public void Diagonal_AutoDig_DiggingKeepsTheAxisUntilTheRobotSteps()
+    {
+        var world = new GridWorld(
+            ".....",
+            "#####",
+            "..@..");
+        var state = new PlayerStepSelectorState();
+
+        // Бур не двигает робота: ось змейки не меняется, пока он не шагнёт
+        // в открытую клетку. Иначе вторая ось вскрывается заранее, и вместо
+        // лесенки получается тоннель шириной в две клетки.
+        Vector2Int firstDig = world.SelectHeld(state, Diagonal(s_up, s_left), autoDig: true, assist: false);
+        Vector2Int secondDig = world.SelectHeld(state, Diagonal(s_up, s_left), autoDig: true, assist: false);
+
+        Assert.That(firstDig, Is.EqualTo(s_up));
+        Assert.That(secondDig, Is.EqualTo(s_up), "Digging must not advance the diagonal phase.");
+
+        // Клетка вскрыта - шаг в неё переключает ось.
+        PlayerStepSelector.NoteStep(state, firstDig);
+        Vector2Int afterStep = world.SelectHeld(state, Diagonal(s_up, s_left), autoDig: true, assist: false);
+
+        Assert.That(afterStep, Is.EqualTo(s_left));
+    }
+
+    [Test]
+    public void Resync_KeepsMovementAssistArmed()
+    {
+        var world = new GridWorld(
+            ".......",
+            "...#...",
+            "...@...");
+        var state = new PlayerStepSelectorState();
+
+        // Короткий тап только поворачивает к породе.
+        Assert.That(world.Select(state, Straight(s_up), autoDig: false, assist: true, time: 0f),
+            Is.EqualTo(s_up));
+
+        // Удержание взводит обход.
+        Vector2Int held = world.Select(
+            state, Straight(s_up), autoDig: false, assist: true, time: HeldTime);
+        Assert.That(held.x, Is.Not.EqualTo(0), "Held input walks around the rock.");
+
+        // Соседняя коррекция сервера не должна снова требовать задержку.
+        PlayerStepSelector.Resync(state);
+        Vector2Int afterResync = world.Select(
+            state, Straight(s_up), autoDig: false, assist: true, time: HeldTime + 0.01f);
+
+        Assert.That(afterResync.x, Is.Not.EqualTo(0),
+            "A server correction must not disarm the held movement assist.");
     }
 
     [Test]
@@ -139,9 +191,9 @@ public class PlayerStepSelectorTests
             ".......");
         var state = new PlayerStepSelectorState();
 
-        Vector2Int step = world.SelectHeld(state, Diagonal(Up, Left), autoDig: true, assist: false);
+        Vector2Int step = world.SelectHeld(state, Diagonal(s_up, s_left), autoDig: true, assist: false);
 
-        Assert.That(step, Is.EqualTo(Left));
+        Assert.That(step, Is.EqualTo(s_left));
     }
 
     [Test]
@@ -154,11 +206,11 @@ public class PlayerStepSelectorTests
             "....@....",
             ".........");
 
-        List<Vector2Int> steps = world.Walk(Straight(Up), 3, autoDig: false, assist: true);
+        List<Vector2Int> steps = world.Walk(Straight(s_up), 3, autoDig: false, assist: true);
 
         Assert.That(steps[0].x, Is.Not.EqualTo(0), "The first step goes around the rock.");
-        Assert.That(steps[1], Is.EqualTo(Up));
-        Assert.That(steps[2], Is.EqualTo(Up));
+        Assert.That(steps[1], Is.EqualTo(s_up));
+        Assert.That(steps[2], Is.EqualTo(s_up));
     }
 
     [Test]
@@ -171,9 +223,9 @@ public class PlayerStepSelectorTests
             "..@......",
             ".........");
 
-        List<Vector2Int> steps = world.Walk(Straight(Up), 3, autoDig: false, assist: true);
+        List<Vector2Int> steps = world.Walk(Straight(s_up), 3, autoDig: false, assist: true);
 
-        Assert.That(steps, Is.EqualTo(new[] { Left, Left, Up }));
+        Assert.That(steps, Is.EqualTo(new[] { s_left, s_left, s_up }));
     }
 
     [Test]
@@ -186,9 +238,9 @@ public class PlayerStepSelectorTests
             "...=@....",
             ".........");
 
-        List<Vector2Int> steps = world.Walk(Straight(Up), 2, autoDig: false, assist: true);
+        List<Vector2Int> steps = world.Walk(Straight(s_up), 2, autoDig: false, assist: true);
 
-        Assert.That(steps, Is.EqualTo(new[] { Left, Up }));
+        Assert.That(steps, Is.EqualTo(new[] { s_left, s_up }));
     }
 
     [Test]
@@ -200,9 +252,9 @@ public class PlayerStepSelectorTests
             ".......@.......");
         var state = new PlayerStepSelectorState();
 
-        Vector2Int step = world.SelectHeld(state, Straight(Up), autoDig: false, assist: true);
+        Vector2Int step = world.SelectHeld(state, Straight(s_up), autoDig: false, assist: true);
 
-        Assert.That(step, Is.EqualTo(Up));
+        Assert.That(step, Is.EqualTo(s_up));
     }
 
     [Test]
@@ -215,9 +267,9 @@ public class PlayerStepSelectorTests
             ".......");
         var state = new PlayerStepSelectorState();
 
-        Vector2Int step = world.SelectHeld(state, Straight(Up), autoDig: false, assist: true);
+        Vector2Int step = world.SelectHeld(state, Straight(s_up), autoDig: false, assist: true);
 
-        Assert.That(step, Is.EqualTo(Up));
+        Assert.That(step, Is.EqualTo(s_up));
     }
 
     [Test]
@@ -229,9 +281,9 @@ public class PlayerStepSelectorTests
             "??@??");
         var state = new PlayerStepSelectorState();
 
-        Vector2Int step = world.SelectHeld(state, Straight(Up), autoDig: false, assist: true);
+        Vector2Int step = world.SelectHeld(state, Straight(s_up), autoDig: false, assist: true);
 
-        Assert.That(step, Is.EqualTo(Up));
+        Assert.That(step, Is.EqualTo(s_up));
     }
 
     [Test]
@@ -243,9 +295,9 @@ public class PlayerStepSelectorTests
             "..@..");
         var state = new PlayerStepSelectorState();
 
-        Vector2Int step = world.SelectHeld(state, Straight(Up), autoDig: false, assist: true);
+        Vector2Int step = world.SelectHeld(state, Straight(s_up), autoDig: false, assist: true);
 
-        Assert.That(step, Is.EqualTo(Up));
+        Assert.That(step, Is.EqualTo(s_up));
     }
 
     [TestCase(false, false, TestName = "Straight_AssistOff_FacesTheRock")]
@@ -258,9 +310,9 @@ public class PlayerStepSelectorTests
             "..@..");
         var state = new PlayerStepSelectorState();
 
-        Vector2Int step = world.SelectHeld(state, Straight(Up), autoDig, assist);
+        Vector2Int step = world.SelectHeld(state, Straight(s_up), autoDig, assist);
 
-        Assert.That(step, Is.EqualTo(Up));
+        Assert.That(step, Is.EqualTo(s_up));
     }
 
     [Test]
@@ -272,11 +324,11 @@ public class PlayerStepSelectorTests
             "..@..");
         var state = new PlayerStepSelectorState();
 
-        Vector2Int tap = world.Select(state, Straight(Up), autoDig: false, assist: true, time: 0f);
+        Vector2Int tap = world.Select(state, Straight(s_up), autoDig: false, assist: true, time: 0f);
         Vector2Int held = world.Select(
-            state, Straight(Up), autoDig: false, assist: true, time: PlayerStepSelector.AssistHoldDelay + 0.01f);
+            state, Straight(s_up), autoDig: false, assist: true, time: PlayerStepSelector.AssistHoldDelay + 0.01f);
 
-        Assert.That(tap, Is.EqualTo(Up), "A tap turns the robot to the rock for manual digging.");
+        Assert.That(tap, Is.EqualTo(s_up), "A tap turns the robot to the rock for manual digging.");
         Assert.That(held.x, Is.Not.EqualTo(0), "Holding the key walks around the rock.");
     }
 
@@ -315,7 +367,7 @@ public class PlayerStepSelectorTests
             "........");
         Vector2Int start = world.Robot;
 
-        world.Walk(Diagonal(Up, Left), 8, autoDig: false, assist: true);
+        world.Walk(Diagonal(s_up, s_left), 8, autoDig: false, assist: true);
 
         Vector2Int moved = world.Robot - start;
         int progress = -moved.y + -moved.x;   // вверх (y−) плюс влево (x−)

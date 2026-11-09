@@ -78,7 +78,7 @@ module isn't installed" rather than as a bad snippet.
 ### Applying the settings
 
 Most of the writes in this skill are a single batch, and
-[resources/WebOptimizer.cs](resources/WebOptimizer.cs) already is that batch. It declares a class
+[resources/WebOptimizer.cs](../resources/WebOptimizer.cs) already is that batch. It declares a class
 with a `[MenuItem]`, so it is a **project file, not `eval` input** — a class declaration cannot be
 flattened into a statement block. Save it under `Assets/Editor/`, let Unity compile, then invoke it
 in one line:
@@ -131,7 +131,7 @@ level, a frame-rate flip — an inline `eval` statement is fine.
 
 ### IMPORTANT: One-click optimization script
 
-**Always offer to generate this script for the user.** Unity's official web optimization docs provide a single editor menu script that applies all recommended release settings at once. Place in `Assets/Editor/WebOptimizer.cs` — see [resources/WebOptimizer.cs](resources/WebOptimizer.cs) for the template.
+**Always offer to generate this script for the user.** Unity's official web optimization docs provide a single editor menu script that applies all recommended release settings at once. Place in `Assets/Editor/WebOptimizer.cs` — see [resources/WebOptimizer.cs](../resources/WebOptimizer.cs) for the template.
 
 Adapt the script to the user's project needs (e.g. keep exceptions if they use `try/catch`, switch Brotli to Gzip for HTTP hosting). This script is the single most impactful action for a new web project — it prevents settings from being missed.
 
@@ -236,7 +236,7 @@ KTX2 with Basis Universal supercompression ships a single texture file that tran
 | **Memory** | Transcoded textures are standard GPU textures; memory cost equals the target format, not the KTX2 file size |
 | **Orientation** | Always include `--lower_left_maps_to_s0t0` to match Unity's UV convention |
 
-**`toktx` CLI examples:** See [resources/toktx-examples.sh](resources/toktx-examples.sh) for commands covering albedo (ETC1S), normals/detail (UASTC), ICC profile errors, and linear data.
+**`toktx` CLI examples:** See [resources/toktx-examples.sh](../resources/toktx-examples.sh) for commands covering albedo (ETC1S), normals/detail (UASTC), ICC profile errors, and linear data.
 
 ### Streaming on Web
 

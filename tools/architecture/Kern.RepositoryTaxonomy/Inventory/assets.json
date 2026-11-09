@@ -3158,7 +3158,7 @@
   },
   {
     "old": "Assets/Textures/Tail/default.png",
-    "path": "Assets/Textures/Tail/default/default.png",
+    "path": "Assets/Textures/Tail/Default/Default.png",
     "sha256": "34f67861e5e9bc6d03823c125b66a7a60bea0c1a6be1130934018d3e3abef9bb",
     "meta_sha256": "232c616fb394c345404e2d5d6c2483dbe145581bb30b8321e9cb827b5e3a3992",
     "guid": "eb922ad181ddefa4eaf0950661e7a4bf"

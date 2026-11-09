@@ -8,7 +8,6 @@ using System.Linq;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using Kern.Core.Interfaces;
-using Kern.World;
 using UnityEngine;
 using VContainer;
 

@@ -22,7 +22,7 @@ const SCENES_ALL = [
   'calib=hdr', 'calib=hdr&calibstep=1', 'calib=hdr&calibstep=2', 'calib=hdr&calibstep=3', 'calib=sdr',
   'screen=boot', 'screen=auth', 'screen=auth&forgot=1', 'screen=auth&autherr=1', 'screen=auth&auth=register', 'screen=auth&auth=register&autherr=1',
   'screen=onboarding', 'screen=onboarding&onbstep=1', 'screen=onboarding&onbstep=2', 'screen=menu', 'screen=menu&update=1', 'screen=menu&skills=2',
-  'screen=menu&updwin=1', 'screen=menu&health=1', 'screen=descent',
+  'screen=menu&updwin=1', 'screen=descent',
   // Образцы компонентов дизайн-кода (specimen.html) — те же правила, что у игры; проверяются один раз, без устройства
   ...['panel', 'btn', 'keycap', 'input', 'toggle', 'meters', 'tabs', 'net'].map(c => 'specimen=' + c),
 ];
@@ -32,7 +32,7 @@ const SCENES = new URLSearchParams(location.search).get('scene') ? [new URLSearc
 const DEVICES = new URLSearchParams(location.search).get('dev') ? [new URLSearchParams(location.search).get('dev')] : DEVICES_ALL;
 const NEW = /\/(micro|systems|srvgui)\.css$/;
 // Оранжевый разрешён: главное действие, тревога, непрочитанное, новое, ссылка, фокус поля ввода, бонус, стенд
-const SIGNAL_OK = '.btn--primary, .is-primary, .btn--signal, .bonus, .badge, .chat-badge, .is-unread, .is-unread *, .link, .menu-news small, .chat-input, .input, .tbtn--dig, #touchDig, .dig, .prog-run, .act--dig, .mission-progress, .online em, .brand img, .wordmark, .pd-rt, .pd-rt *, .mark-dot, .keycap.is-listening, [class*="pad-"] , .is-running';
+const SIGNAL_OK = '.btn--primary, .is-primary, .btn--signal, .bonus, .badge, .chat-badge, .is-unread, .is-unread *, .link, .chat-input, .input, .tbtn--dig, #touchDig, .dig, .prog-run, .act--dig, .mission-progress, .online em, .brand img, .wordmark, .pd-rt, .pd-rt *, .mark-dot, .keycap.is-listening, [class*="pad-"] , .is-running';
 const FONTS = /Exo 2|Onest|JetBrains Mono|PingFang|Hiragino|Noto Sans SC|Microsoft YaHei|system-ui|monospace|sans-serif/;
 const q = new URLSearchParams(location.search), only = q.get('only'), why = q.get('why');   // ?why=селектор — какие правила рисуют элемент
 const wait = ms => new Promise(r => setTimeout(r, ms));

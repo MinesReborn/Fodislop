@@ -41,10 +41,6 @@ namespace Kern.Networking.Processing
 
         public bool IsConnectionSubscriptionEstablished => _connectionSubscribed;
 
-        protected void Awake()
-        {
-        }
-
         protected void OnEnable()
         {
             EnsureConnectionSubscription();

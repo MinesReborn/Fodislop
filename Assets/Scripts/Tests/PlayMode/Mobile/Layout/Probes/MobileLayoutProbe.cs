@@ -10,6 +10,7 @@ using Kern.UI;
 using UnityEngine;
 using UnityEngine.UIElements;
 
+using Kern.Diagnostics.Artifacts;
 using Kern.UI.Screens;
 
 namespace Kern.Tests.PlayMode.Mobile;
@@ -20,7 +21,7 @@ namespace Kern.Tests.PlayMode.Mobile;
 // подменяются только экран — UIScreen получает снимок устройства и сам
 // выставляет масштаб, классы формы и безопасную область, — и цель вывода:
 // панель рисуется в RenderTexture размера экрана устройства. PNG кладётся
-// в Logs/Diagnostics/MobileLayout для просмотра глазами.
+// в общем каталоге диагностических артефактов для просмотра глазами.
 //
 // Аудит — независимый оракул: безопасная область пересчитывается из
 // паспортных данных устройства, а не берётся у UISafeArea.
@@ -50,8 +51,7 @@ internal sealed class MobileLayoutProbe : IDisposable
 
     public UIDocument Document { get; }
 
-    public static string OutputRoot =>
-        Path.GetFullPath(Path.Combine(Application.dataPath, "../Logs/Diagnostics/MobileLayout"));
+    public static string OutputRoot => DiagnosticArtifactPaths.GetDirectory("MobileLayout");
 
     public IEnumerator Show(MobileDevice device)
     {

@@ -9,6 +9,8 @@ using System.Threading;
 using System.Threading.Tasks;
 using UnityEngine;
 
+using Kern.Diagnostics.Artifacts;
+
 namespace Kern.Diagnostics.Logging;
 
 // Кольцевой буфер того, что Unity пишет в консоль. Подписка ставится до загрузки
@@ -87,9 +89,7 @@ public static class RuntimeLogCapture
     private static void Install()
     {
 #if (UNITY_ANDROID || UNITY_IOS) && !UNITY_EDITOR
-        s_persistentLogPath = Path.Combine(
-            Application.persistentDataPath,
-            "Diagnostics/mobile_runtime.log");
+        s_persistentLogPath = Path.Combine(DiagnosticArtifactPaths.RootDirectory, "mobile_runtime.log");
         Enable();
 #endif
 
@@ -161,7 +161,15 @@ public static class RuntimeLogCapture
 
             while (s_entries.Count >= Capacity)
             {
-                s_entries.Dequeue();
+                Entry removed = s_entries.Dequeue();
+                if (removed.Kind is LogKind.Error or LogKind.Exception)
+                {
+                    s_errorCount--;
+                }
+                else if (removed.Kind is LogKind.Warning)
+                {
+                    s_warningCount--;
+                }
             }
 
             s_entries.Enqueue(entry);

@@ -70,13 +70,6 @@
     "assembly_before": "Kern.Presentation"
   },
   {
-    "old": "Assets/Scripts/Rendering/WorldRenderGridBinding.cs",
-    "path": "Assets/Scripts/Rendering/WorldGrid/Cameras/WorldRenderGridBinding.cs",
-    "meta_sha256": "8cabe45a731acfcccef0d8bf6647642ad5240a989fa3b4f831776de6d097c734",
-    "guid": "a6c96179f6ec4826ac0b5018d8ea8f46",
-    "assembly_before": "Kern.Presentation"
-  },
-  {
     "old": "Assets/Scripts/Editor/AssemblyInfo.cs",
     "path": "Assets/Scripts/Editor/Assembly/Metadata/AssemblyInfo.cs",
     "meta_sha256": "cd28f0921a30b66863178cba1c855804e5dad775b69f7b681fc48fefc325d4b4",
@@ -3417,7 +3410,7 @@
   },
   {
     "old": "Assets/Scripts/Tests/Editor/Player/CellInteractionRulesTests.cs",
-    "path": "Assets/Scripts/Tests/Editor/Networking/Offline/Gameplay/Mining/CellInteractionRulesTests.cs",
+    "path": "Assets/Scripts/Tests/Editor/Networking/Dummy/Gameplay/Mining/CellInteractionRulesTests.cs",
     "meta_sha256": "43adc1598c2c9a249373ca1f5c2b53d7a187125ca184a4277ab1986801c9c302",
     "guid": "ef95eb8f9fab43ed9dcfc8e24b32a538",
     "assembly_before": "Kern.Tests.Editor"
@@ -4026,91 +4019,91 @@
   },
   {
     "old": "Assets/Scripts/Tests/Editor/Networking/Dummy/DummyScenarioDeterminismTests.cs",
-    "path": "Assets/Scripts/Tests/Editor/Networking/Offline/Verification/DummyScenarioDeterminismTests.cs",
+    "path": "Assets/Scripts/Tests/Editor/Networking/Dummy/Verification/DummyScenarioDeterminismTests.cs",
     "meta_sha256": "739f1dbb5292a7c1d82ec607a2527e6ca95ae6caa9ca532b0c0a5c491efce7a6",
     "guid": "967701f8e05784bab92dd961bba1a499",
     "assembly_before": "Kern.Tests.Editor"
   },
   {
     "old": "Assets/Scripts/Tests/Editor/Networking/Dummy/DummyConnectionSessionTests.cs",
-    "path": "Assets/Scripts/Tests/Editor/Networking/Offline/Connection/Session/DummyConnectionSessionTests.cs",
+    "path": "Assets/Scripts/Tests/Editor/Networking/Dummy/Connection/Session/DummyConnectionSessionTests.cs",
     "meta_sha256": "3372ea1c29a8ceb16a127840fafd7f79b6825722a0358dc9f0a5d3d77f8d5d9c",
     "guid": "1353283ac1cd45979eef9ecdbbd17d49",
     "assembly_before": "Kern.Tests.Editor"
   },
   {
     "old": "Assets/Scripts/Tests/Editor/Networking/Dummy/DummyResponderDecompositionContractTests.cs",
-    "path": "Assets/Scripts/Tests/Editor/Networking/Offline/Verification/DummyResponderDecompositionContractTests.cs",
+    "path": "Assets/Scripts/Tests/Editor/Networking/Dummy/Verification/DummyResponderDecompositionContractTests.cs",
     "meta_sha256": "d3a84c19ec60e2f15bad73dcceff0ed8ba1d4b2ed431d9a279ce3be221cd1ac6",
     "guid": "aaab54b227424704ba583572671c49aa",
     "assembly_before": "Kern.Tests.Editor"
   },
   {
     "old": "Assets/Scripts/Tests/Editor/Networking/Dummy/DummyWorldMapArchiveTests.cs",
-    "path": "Assets/Scripts/Tests/Editor/Networking/Offline/World/Maps/Archives/DummyWorldMapArchiveTests.cs",
+    "path": "Assets/Scripts/Tests/Editor/Networking/Dummy/World/Maps/Archives/DummyWorldMapArchiveTests.cs",
     "meta_sha256": "8a74e93805238da5d6ca0c39766f0fc1e1f7dc371ae867e5fba38f5d6ddeb158",
     "guid": "6031e238794d5481e913e29478e49183",
     "assembly_before": "Kern.Tests.Editor"
   },
   {
     "old": "Assets/Scripts/Tests/Editor/Networking/Dummy/DummyMovementResponderTests.cs",
-    "path": "Assets/Scripts/Tests/Editor/Networking/Offline/Protocol/Movement/DummyMovementResponderTests.cs",
+    "path": "Assets/Scripts/Tests/Editor/Networking/Dummy/Protocol/Movement/DummyMovementResponderTests.cs",
     "meta_sha256": "74e0337142df3f9fc101bfe4653d9949e493209fa62fc308135edcaddcd02af9",
     "guid": "d377b82364fb4c4e9cb793366e256506",
     "assembly_before": "Kern.Tests.Editor"
   },
   {
     "old": "Assets/Scripts/Tests/Editor/Networking/Dummy/DummyInventoryResponderTests.cs",
-    "path": "Assets/Scripts/Tests/Editor/Networking/Offline/Protocol/Inventory/DummyInventoryResponderTests.cs",
+    "path": "Assets/Scripts/Tests/Editor/Networking/Dummy/Protocol/Inventory/DummyInventoryResponderTests.cs",
     "meta_sha256": "e323822f04a3a11357cd4eea685395379bad725716aaa05bed71d770f34b0694",
     "guid": "0bc07a334fdd43818b24eefdb8959989",
     "assembly_before": "Kern.Tests.Editor"
   },
   {
     "old": "Assets/Scripts/Tests/Editor/Networking/Dummy/VirtualDummyClockTests.cs",
-    "path": "Assets/Scripts/Tests/Editor/Networking/Offline/Verification/VirtualDummyClockTests.cs",
+    "path": "Assets/Scripts/Tests/Editor/Networking/Dummy/Verification/VirtualDummyClockTests.cs",
     "meta_sha256": "6c3337d66ecfb346f93d6c67f74b35a457810728cff81b1d1357625cf3361f3a",
     "guid": "2b3c9e29a4075424286642382f76286a",
     "assembly_before": "Kern.Tests.Editor"
   },
   {
     "old": "Assets/Scripts/Tests/Editor/Networking/Dummy/DummyClockContractTests.cs",
-    "path": "Assets/Scripts/Tests/Editor/Networking/Offline/Scheduling/Clock/DummyClockContractTests.cs",
+    "path": "Assets/Scripts/Tests/Editor/Networking/Dummy/Scheduling/Clock/DummyClockContractTests.cs",
     "meta_sha256": "5ee323ec0f14b0c1f9a50d8c41eaef5cbed6e7750a34a93984dd7e453ae6485a",
     "guid": "79dbc9f57aa0c4e87a048909084462ab",
     "assembly_before": "Kern.Tests.Editor"
   },
   {
     "old": "Assets/Scripts/Tests/Editor/Networking/Dummy/DummyWorldSimulationStateTests.cs",
-    "path": "Assets/Scripts/Tests/Editor/Networking/Offline/World/State/DummyWorldSimulationStateTests.cs",
+    "path": "Assets/Scripts/Tests/Editor/Networking/Dummy/World/State/DummyWorldSimulationStateTests.cs",
     "meta_sha256": "64eeab569692475872fe29c221340d81e05d1674baca957c1ff47869b7edc9e7",
     "guid": "c72af58d91834522b56ccbcd8bc6a3c0",
     "assembly_before": "Kern.Tests.Editor"
   },
   {
     "old": "Assets/Scripts/Tests/Editor/Networking/Dummy/DummyChatResponderTests.cs",
-    "path": "Assets/Scripts/Tests/Editor/Networking/Offline/Protocol/Chat/DummyChatResponderTests.cs",
+    "path": "Assets/Scripts/Tests/Editor/Networking/Dummy/Protocol/Chat/DummyChatResponderTests.cs",
     "meta_sha256": "c89c0d199217d07d37c99af5b8c8b17584547a3a0d34014870fe2151054b74da",
     "guid": "1a553cc1e0e74688a6a5d67008cdb966",
     "assembly_before": "Kern.Tests.Editor"
   },
   {
     "old": "Assets/Scripts/Tests/Editor/Networking/Dummy/DummyPlayerSimulationStateTests.cs",
-    "path": "Assets/Scripts/Tests/Editor/Networking/Offline/Player/State/DummyPlayerSimulationStateTests.cs",
+    "path": "Assets/Scripts/Tests/Editor/Networking/Dummy/Player/State/DummyPlayerSimulationStateTests.cs",
     "meta_sha256": "43b13a453658f495f6bbef35315669daf97a84f05a299ee3d431b63121b4515f",
     "guid": "57b8cf5d74294aa39cde02b198d030f5",
     "assembly_before": "Kern.Tests.Editor"
   },
   {
     "old": "Assets/Scripts/Tests/Editor/Networking/Dummy/DummyGameplayActionResponderTests.cs",
-    "path": "Assets/Scripts/Tests/Editor/Networking/Offline/Protocol/GameplayAction/DummyGameplayActionResponderTests.cs",
+    "path": "Assets/Scripts/Tests/Editor/Networking/Dummy/Protocol/GameplayAction/DummyGameplayActionResponderTests.cs",
     "meta_sha256": "0f2bfb3a2a07468a40d04ba09ade45fc40e60cd9c6666ca4eaf58229d2952865",
     "guid": "ed01c8fa6ed54684aa61e277f96c7288",
     "assembly_before": "Kern.Tests.Editor"
   },
   {
     "old": "Assets/Scripts/Tests/Editor/Networking/Dummy/DummyConnectionSessionFuzzTests.cs",
-    "path": "Assets/Scripts/Tests/Editor/Networking/Offline/Connection/Session/DummyConnectionSessionFuzzTests.cs",
+    "path": "Assets/Scripts/Tests/Editor/Networking/Dummy/Connection/Session/DummyConnectionSessionFuzzTests.cs",
     "meta_sha256": "7ee4b3f1ed03eaddf19801ac17f6d697d8f75728a3422bacb77445fb47977acd",
     "guid": "852d95b0602da4ffeb5ea629f14f582b",
     "assembly_before": "Kern.Tests.Editor"
@@ -4348,7 +4341,7 @@
   },
   {
     "old": "Assets/Scripts/Networking/Connection/WorldEntryPreparation.cs",
-    "path": "Assets/Scripts/Networking/WorldEntry/Preparation/WorldEntryPreparation.cs",
+    "path": "Assets/Scripts/Networking/Dummy/WorldEntry/Preparation/WorldEntryPreparation.cs",
     "meta_sha256": "c29ad98803e8575150a613d4d03a088f5f615a3851f1c3583e9bf373361abe14",
     "guid": "c3e1001f677194c49b2e17571f8db428",
     "assembly_before": "Kern.Networking"
@@ -4551,364 +4544,364 @@
   },
   {
     "old": "Assets/Scripts/Networking/Connection/Client/DummyConnectionSession.cs",
-    "path": "Assets/Scripts/Networking/Offline/Connection/Session/DummyConnectionSession.cs",
+    "path": "Assets/Scripts/Networking/Dummy/Connection/Session/DummyConnectionSession.cs",
     "meta_sha256": "16908c53828a237455c950d2263666ac2639dbec951e42c3899c04d20ff7c591",
     "guid": "a8f7706ebca44f30958023afc8388ddc",
     "assembly_before": "Kern.Networking"
   },
   {
     "old": "Assets/Scripts/Networking/Connection/Client/DummyAuthSession.cs",
-    "path": "Assets/Scripts/Networking/Offline/Connection/Authentication/DummyAuthSession.cs",
+    "path": "Assets/Scripts/Networking/Dummy/Connection/Authentication/DummyAuthSession.cs",
     "meta_sha256": "ca3dbd39279ab4d5cc522a0441aaacfcec8871aa56e82e000242164f7f1fde46",
     "guid": "a3e5ec170c16442bb32d91f8f673840f",
     "assembly_before": "Kern.Networking"
   },
   {
     "old": "Assets/Scripts/Networking/Connection/Client/DummyConnection.cs",
-    "path": "Assets/Scripts/Networking/Offline/Connection/Session/DummyConnection.cs",
+    "path": "Assets/Scripts/Networking/Dummy/Connection/Session/DummyConnection.cs",
     "meta_sha256": "ef0ade437d860b1ea680e117e0424508475635b82214f73dbfefd50ec0229d37",
     "guid": "9380a932d5b9ead47bd0f2465b2d208f",
     "assembly_before": "Kern.Networking"
   },
   {
     "old": "Assets/Scripts/Networking/Connection/Client/DummyScenarioController.cs",
-    "path": "Assets/Scripts/Networking/Offline/Connection/Scenarios/DummyScenarioController.cs",
+    "path": "Assets/Scripts/Networking/Dummy/Connection/Scenarios/DummyScenarioController.cs",
     "meta_sha256": "465a147b0fbbd556bf4d2d0a9cb779a26e9577e02bcd2ebf680158d6c397d926",
     "guid": "fd7fc571525c4c7e80e5c8e6fc7777f1",
     "assembly_before": "Kern.Networking"
   },
   {
     "old": "Assets/Scripts/Networking/Connection/Client/Responders/DummyChatResponder.cs",
-    "path": "Assets/Scripts/Networking/Offline/Protocol/Chat/DummyChatResponder.cs",
+    "path": "Assets/Scripts/Networking/Dummy/Protocol/Chat/DummyChatResponder.cs",
     "meta_sha256": "1f73986aa8a3971bed32e5c1ae3a2509f48443977a69688d02b29e50dd20d1e0",
     "guid": "488c26e1cb694b0593e942124f52613a",
     "assembly_before": "Kern.Networking"
   },
   {
     "old": "Assets/Scripts/Networking/Connection/Client/Responders/DummyGameplayActionResponder.cs",
-    "path": "Assets/Scripts/Networking/Offline/Protocol/GameplayAction/DummyGameplayActionResponder.cs",
+    "path": "Assets/Scripts/Networking/Dummy/Protocol/GameplayAction/DummyGameplayActionResponder.cs",
     "meta_sha256": "7f2e115fabd60ead1761b6c1e8fa1c8fb6cd8a5dd445ba61a20cfa31155d5fea",
     "guid": "0af18eef99de4398b7cafb0f479b032a",
     "assembly_before": "Kern.Networking"
   },
   {
     "old": "Assets/Scripts/Networking/Connection/Client/Responders/DummyWorldStartupResponder.cs",
-    "path": "Assets/Scripts/Networking/Offline/Protocol/WorldStartup/DummyWorldStartupResponder.cs",
+    "path": "Assets/Scripts/Networking/Dummy/Protocol/WorldStartup/DummyWorldStartupResponder.cs",
     "meta_sha256": "c70e80b77e6eed5ad6e24ecba3d5bd6e6f6009ec7c2cc30ce44e2f29be094702",
     "guid": "4a5c9ca91bf840aa9b55946b755e9c6f",
     "assembly_before": "Kern.Networking"
   },
   {
     "old": "Assets/Scripts/Networking/Connection/Client/Responders/DummyProgrammatorResponder.cs",
-    "path": "Assets/Scripts/Networking/Offline/Protocol/Programmator/DummyProgrammatorResponder.cs",
+    "path": "Assets/Scripts/Networking/Dummy/Protocol/Programmator/DummyProgrammatorResponder.cs",
     "meta_sha256": "66f59199d523add8541f36347c49ccfdd55ec9b5059fd315d5df3dcd7c3f3179",
     "guid": "1b3d55a4d5c84b5c8a1d4c7e2f9a6301",
     "assembly_before": "Kern.Networking"
   },
   {
     "old": "Assets/Scripts/Networking/Connection/Client/Responders/DummyAssetResponder.cs",
-    "path": "Assets/Scripts/Networking/Offline/Protocol/Asset/DummyAssetResponder.cs",
+    "path": "Assets/Scripts/Networking/Dummy/Protocol/Asset/DummyAssetResponder.cs",
     "meta_sha256": "7a4bbf4a56789c17142d68f33aee6f38694d4fd908fc846d41f17875a3a1b5df",
     "guid": "3e64ef003388466e9f18265acf2b54e8",
     "assembly_before": "Kern.Networking"
   },
   {
     "old": "Assets/Scripts/Networking/Connection/Client/Responders/DummyInventoryResponder.cs",
-    "path": "Assets/Scripts/Networking/Offline/Protocol/Inventory/DummyInventoryResponder.cs",
+    "path": "Assets/Scripts/Networking/Dummy/Protocol/Inventory/DummyInventoryResponder.cs",
     "meta_sha256": "2d3b38613b39d82a51ef2b990eb450061535a1a7c1f53722e7924de762a097bb",
     "guid": "777fcb1864c749bab45f4ae1368a4c65",
     "assembly_before": "Kern.Networking"
   },
   {
     "old": "Assets/Scripts/Networking/Connection/Client/Responders/DummyMovementResponder.cs",
-    "path": "Assets/Scripts/Networking/Offline/Protocol/Movement/DummyMovementResponder.cs",
+    "path": "Assets/Scripts/Networking/Dummy/Protocol/Movement/DummyMovementResponder.cs",
     "meta_sha256": "d5d264cca27c6bae7d9bf6f57898d6765bb14c0637e112e09d4186a21e3d10b3",
     "guid": "0d01bdb11d8f4d4aa7291dc8371500b8",
     "assembly_before": "Kern.Networking"
   },
   {
     "old": "Assets/Scripts/Networking/Connection/Client/Responders/DummyWindowResponder.cs",
-    "path": "Assets/Scripts/Networking/Offline/Protocol/Window/DummyWindowResponder.cs",
+    "path": "Assets/Scripts/Networking/Dummy/Protocol/Window/DummyWindowResponder.cs",
     "meta_sha256": "f84ba857ca127bff21fb7fc85b22a2bf3bbdf859cf4c5ec8c7bbdc4fbaeacf4f",
     "guid": "d218ea6335d7411987de5e3737a12413",
     "assembly_before": "Kern.Networking"
   },
   {
     "old": "Assets/Scripts/Networking/Connection/Client/Buildings/Market.cs",
-    "path": "Assets/Scripts/Networking/Offline/Buildings/Market/Market.cs",
+    "path": "Assets/Scripts/Networking/Dummy/Buildings/Market/Market.cs",
     "meta_sha256": "ffeab3a2d3759decf9000acd7d9c2c2f6367c6b6ccb1a94e0d792bf74820ceae",
     "guid": "c4045f28342b1744085867f943816327",
     "assembly_before": "Kern.Networking"
   },
   {
     "old": "Assets/Scripts/Networking/Connection/Client/Buildings/PackBuilding.cs",
-    "path": "Assets/Scripts/Networking/Offline/Buildings/PackBuilding/PackBuilding.cs",
+    "path": "Assets/Scripts/Networking/Dummy/Buildings/PackBuilding/PackBuilding.cs",
     "meta_sha256": "f090da2a4ad274de1795df2bd7ac000a63e453174af8b1e4f819ed5eb3ead35e",
     "guid": "fecf66aa7a15f1f4081b2b2debc8310b",
     "assembly_before": "Kern.Networking"
   },
   {
     "old": "Assets/Scripts/Networking/Connection/Client/Buildings/UpgradeStation.cs",
-    "path": "Assets/Scripts/Networking/Offline/Buildings/UpgradeStation/UpgradeStation.cs",
+    "path": "Assets/Scripts/Networking/Dummy/Buildings/UpgradeStation/UpgradeStation.cs",
     "meta_sha256": "3de186f7efb409fb24a52292ad5d9f1ec62a250a8d0eb45b91d2b7f02375304d",
     "guid": "281f13134af825d4c9a62d8219b1fd90",
     "assembly_before": "Kern.Networking"
   },
   {
     "old": "Assets/Scripts/Networking/Connection/Client/Buildings/BuildingShop.cs",
-    "path": "Assets/Scripts/Networking/Offline/Buildings/BuildingShop/BuildingShop.cs",
+    "path": "Assets/Scripts/Networking/Dummy/Buildings/BuildingShop/BuildingShop.cs",
     "meta_sha256": "fee12e2629389f108221f9cd24d5a8846445ceac097e9948cd3abcb93b5cf614",
     "guid": "0d76de60875458341a0c5cac06d0b9bc",
     "assembly_before": "Kern.Networking"
   },
   {
     "old": "Assets/Scripts/Networking/Connection/Client/Buildings/Crafter.cs",
-    "path": "Assets/Scripts/Networking/Offline/Buildings/Crafter/Crafter.cs",
+    "path": "Assets/Scripts/Networking/Dummy/Buildings/Crafter/Crafter.cs",
     "meta_sha256": "70d52c728857fb3a2ba2aadcdbc7738a5d7d4973baf77c79c5d62d36bd83c0bf",
     "guid": "518e6fe59d2c7264f8c592fa5bfc63d0",
     "assembly_before": "Kern.Networking"
   },
   {
     "old": "Assets/Scripts/Networking/Connection/Client/Buildings/Gun.cs",
-    "path": "Assets/Scripts/Networking/Offline/Buildings/Gun/Gun.cs",
+    "path": "Assets/Scripts/Networking/Dummy/Buildings/Gun/Gun.cs",
     "meta_sha256": "264872299ffbc60d17f54a466101e9a5fd539d91b522c7ef3e20e9f032a5c223",
     "guid": "5fce2bb1dac230f43b1fb26d56555a69",
     "assembly_before": "Kern.Networking"
   },
   {
     "old": "Assets/Scripts/Networking/Connection/Client/Buildings/Teleport.cs",
-    "path": "Assets/Scripts/Networking/Offline/Buildings/Teleport/Teleport.cs",
+    "path": "Assets/Scripts/Networking/Dummy/Buildings/Teleport/Teleport.cs",
     "meta_sha256": "61f7f4f5352325abe0484d64f796d20c200c7079ecb8d66a21e335c4c7947e5a",
     "guid": "5423eaf36e9bbaa49be2e1c16ea4ae41",
     "assembly_before": "Kern.Networking"
   },
   {
     "old": "Assets/Scripts/Networking/Connection/Client/Buildings/NC.cs",
-    "path": "Assets/Scripts/Networking/Offline/Buildings/NC/NC.cs",
+    "path": "Assets/Scripts/Networking/Dummy/Buildings/NC/NC.cs",
     "meta_sha256": "d134230d2bb424c9d9571069d6c7afa0014ced375ae9319564c6d368cc4fcb0b",
     "guid": "2f4ec82492148d94cb8e281c085b1904",
     "assembly_before": "Kern.Networking"
   },
   {
     "old": "Assets/Scripts/Networking/Connection/Client/Buildings/ClansPack.cs",
-    "path": "Assets/Scripts/Networking/Offline/Buildings/ClansPack/ClansPack.cs",
+    "path": "Assets/Scripts/Networking/Dummy/Buildings/ClansPack/ClansPack.cs",
     "meta_sha256": "5be7dbd8ded418121e2eeb24fde63c3b80fd50ddbf7c2c99054faf4b6b4b2944",
     "guid": "7e5792dc95799954a851d3998e9ebd23",
     "assembly_before": "Kern.Networking"
   },
   {
     "old": "Assets/Scripts/Networking/Connection/Client/Buildings/RespawnStation.cs",
-    "path": "Assets/Scripts/Networking/Offline/Buildings/RespawnStation/RespawnStation.cs",
+    "path": "Assets/Scripts/Networking/Dummy/Buildings/RespawnStation/RespawnStation.cs",
     "meta_sha256": "fdc5046e3ca922cd583efdb7c92b5c5d465d5ce5f85a64e7034c2c407541c825",
     "guid": "30726bc18fb9fcb4da2cb257e751f8c5",
     "assembly_before": "Kern.Networking"
   },
   {
     "old": "Assets/Scripts/Networking/Connection/Client/Buildings/Storage.cs",
-    "path": "Assets/Scripts/Networking/Offline/Buildings/Storage/Storage.cs",
+    "path": "Assets/Scripts/Networking/Dummy/Buildings/Storage/Storage.cs",
     "meta_sha256": "9af3b1ec07b4c362099fffa62d76f8ae4d96356a2201f3cb9e862c30d4e8d86a",
     "guid": "5c3ce566f6979c34f9425a97bc83f96c",
     "assembly_before": "Kern.Networking"
   },
   {
     "old": "Assets/Scripts/Networking/Connection/Client/Buildings/BuildingTemplates.cs",
-    "path": "Assets/Scripts/Networking/Offline/Buildings/BuildingTemplates/BuildingTemplates.cs",
+    "path": "Assets/Scripts/Networking/Dummy/Buildings/BuildingTemplates/BuildingTemplates.cs",
     "meta_sha256": "5eeb55a121cb03a070a31409c761baa1307ecc12d220cae87ed5701cd1a91f2c",
     "guid": "1415e0894be74274e99edf8cc5041ecf",
     "assembly_before": "Kern.Networking"
   },
   {
     "old": "Assets/Scripts/Networking/Connection/Client/Simulation/DummyClock.cs",
-    "path": "Assets/Scripts/Networking/Offline/Scheduling/Clock/DummyClock.cs",
+    "path": "Assets/Scripts/Networking/Dummy/Scheduling/Clock/DummyClock.cs",
     "meta_sha256": "d9cdd5b4fd8d96a93719626dbd0f9c30cc766d0bb3d5fef6e19623cf5023be81",
     "guid": "0099baa32fe8c4282b8abde016f517d7",
     "assembly_before": "Kern.Networking"
   },
   {
     "old": "Assets/Scripts/Networking/Connection/Client/Simulation/DummyRequestCoordinator.cs",
-    "path": "Assets/Scripts/Networking/Offline/Scheduling/Requests/DummyRequestCoordinator.cs",
+    "path": "Assets/Scripts/Networking/Dummy/Scheduling/Requests/DummyRequestCoordinator.cs",
     "meta_sha256": "4bcb5f7bd981f61db4d8633da43848c49ea4e7e70d7cee87c86fc35025e97a6c",
     "guid": "f1a2b3c4d5e6789012345678abcdef01",
     "assembly_before": "Kern.Networking"
   },
   {
     "old": "Assets/Scripts/Networking/Connection/Client/Simulation/DummyWorldMapLoader.cs",
-    "path": "Assets/Scripts/Networking/Offline/World/Maps/Loading/DummyWorldMapLoader.cs",
+    "path": "Assets/Scripts/Networking/Dummy/World/Maps/Loading/DummyWorldMapLoader.cs",
     "meta_sha256": "bc6edbe70f2ce81d0b618e5e494562182e3a5b845d6098ee2cb9f7c0025f5c37",
     "guid": "a1e2d3c4b5f60718293a4b5c6d7e8f90",
     "assembly_before": "Kern.Networking"
   },
   {
     "old": "Assets/Scripts/Networking/Connection/Client/Simulation/DummyWorldDescriptor.cs",
-    "path": "Assets/Scripts/Networking/Offline/World/Configuration/DummyWorldDescriptor.cs",
+    "path": "Assets/Scripts/Networking/Dummy/World/Configuration/DummyWorldDescriptor.cs",
     "meta_sha256": "f7824e537b379df2c846579828150bfc2069824d8a0b874ec545b8815d6c77c7",
     "guid": "68d18471b6984e1db87bf0d5fa957261",
     "assembly_before": "Kern.Networking"
   },
   {
     "old": "Assets/Scripts/Networking/Connection/Client/Simulation/DummyPlayerSimulationState.cs",
-    "path": "Assets/Scripts/Networking/Offline/Player/State/DummyPlayerSimulationState.cs",
+    "path": "Assets/Scripts/Networking/Dummy/Player/State/DummyPlayerSimulationState.cs",
     "meta_sha256": "4eb08949d2d38b702b0db627afb9c9c1e9848ed7448f0285edef253f7145d4f3",
     "guid": "717919a369dc4df9bd9240957287a835",
     "assembly_before": "Kern.Networking"
   },
   {
     "old": "Assets/Scripts/Networking/Connection/Client/Simulation/DummyMapColors.cs",
-    "path": "Assets/Scripts/Networking/Offline/World/Configuration/DummyMapColors.cs",
+    "path": "Assets/Scripts/Networking/Dummy/World/Configuration/DummyMapColors.cs",
     "meta_sha256": "4efdc1edfa4a5e2d25b92992f0d47ffc6e5de600769409697d6b04e12d787a52",
     "guid": "de644ac0851344774bb64732f9b563b9",
     "assembly_before": "Kern.Networking"
   },
   {
     "old": "Assets/Scripts/Networking/Connection/Client/Simulation/DummyWorldMapSource.cs",
-    "path": "Assets/Scripts/Networking/Offline/World/Maps/Loading/DummyWorldMapSource.cs",
+    "path": "Assets/Scripts/Networking/Dummy/World/Maps/Loading/DummyWorldMapSource.cs",
     "meta_sha256": "ccb3fbe297a1f8fac0de165e81a4e1b47a33d00b222bc312671a59f38d3e90aa",
     "guid": "d74d1f33bee4d4e9b9f39483b2a97158",
     "assembly_before": "Kern.Networking"
   },
   {
     "old": "Assets/Scripts/Networking/Connection/Client/Simulation/DummyWorldStreamingCoordinator.cs",
-    "path": "Assets/Scripts/Networking/Offline/World/Streaming/Coordination/DummyWorldStreamingCoordinator.cs",
+    "path": "Assets/Scripts/Networking/Dummy/World/Streaming/Coordination/DummyWorldStreamingCoordinator.cs",
     "meta_sha256": "1b90b0dd31fc5677e175d28367abbf672fc4f0c9d260b464eb5bfc4193a95f9b",
     "guid": "f2b3c4d5e6789012345678abcdef0123",
     "assembly_before": "Kern.Networking"
   },
   {
     "old": "Assets/Scripts/Networking/Connection/Client/Simulation/DummyWorldMapDiagnostics.cs",
-    "path": "Assets/Scripts/Networking/Offline/World/Maps/Diagnostics/DummyWorldMapDiagnostics.cs",
+    "path": "Assets/Scripts/Networking/Dummy/World/Maps/Diagnostics/DummyWorldMapDiagnostics.cs",
     "meta_sha256": "e7a94300b7dd4a5c08f2c6774a67cc82d711ff3b4e7e929560e681002fe9b540",
     "guid": "c0eb00886622d4d4599df5824ad01665",
     "assembly_before": "Kern.Networking"
   },
   {
     "old": "Assets/Scripts/Networking/Connection/Client/Simulation/DummyCellConfigurationUtilities.cs",
-    "path": "Assets/Scripts/Networking/Offline/World/Configuration/DummyCellConfigurationFactory.cs",
+    "path": "Assets/Scripts/Networking/Dummy/World/Configuration/DummyCellConfigurationFactory.cs",
     "meta_sha256": "b299bc52853ffea3c6ee025e8425ed0bb8d791299fc5aa881be5b6fce761c5d5",
     "guid": "2fca2d44a58d4fa5902d8f6536c4ac61",
     "assembly_before": "Kern.Networking"
   },
   {
     "old": "Assets/Scripts/Networking/Connection/Client/Simulation/DummyWorldSimulationState.cs",
-    "path": "Assets/Scripts/Networking/Offline/World/State/DummyWorldSimulationState.cs",
+    "path": "Assets/Scripts/Networking/Dummy/World/State/DummyWorldSimulationState.cs",
     "meta_sha256": "b3fec4f0c228ddf5240be1475b9dfa335108a8670b273d6a9bcd77c3948671cf",
     "guid": "d1ef89c65721408aa277b8127bcf6f4f",
     "assembly_before": "Kern.Networking"
   },
   {
     "old": "Assets/Scripts/Networking/Connection/Client/Simulation/LayerLease.cs",
-    "path": "Assets/Scripts/Networking/Offline/World/Streaming/Lifetime/LayerLease.cs",
+    "path": "Assets/Scripts/Networking/Dummy/World/Streaming/Lifetime/LayerLease.cs",
     "meta_sha256": "0c874c2e1aa0e160f9d93384d8205cf3c249dc35b5edcf1b5c67045cda9fe47c",
     "guid": "e5f6a7b8c9d012345678abcdef012345",
     "assembly_before": "Kern.Networking"
   },
   {
     "old": "Assets/Scripts/Networking/Connection/Client/Simulation/DummyTokenStore.cs",
-    "path": "Assets/Scripts/Networking/Offline/Connection/Authentication/DummyTokenStore.cs",
+    "path": "Assets/Scripts/Networking/Dummy/Connection/Authentication/DummyTokenStore.cs",
     "meta_sha256": "a48e485987baf6e121d2c0b7af9180d5ca723952de71d76ee5fb269708f0acc2",
     "guid": "958454edd964040939e69d64db688e51",
     "assembly_before": "Kern.Networking"
   },
   {
     "old": "Assets/Scripts/Networking/Connection/Client/Simulation/DummyWorldMapArchive.cs",
-    "path": "Assets/Scripts/Networking/Offline/World/Maps/Archives/DummyWorldMapArchive.cs",
+    "path": "Assets/Scripts/Networking/Dummy/World/Maps/Archives/DummyWorldMapArchive.cs",
     "meta_sha256": "2fa3cbaae7ce96b726faec1a0cc1090dc3be75899f0040de964e8666a08d13c1",
     "guid": "9a7f4db8f8f14f3ba7dfb3a85d6d92ac",
     "assembly_before": "Kern.Networking"
   },
   {
     "old": "Assets/Scripts/Networking/Connection/Client/Systems/DummyChatSimulator.cs",
-    "path": "Assets/Scripts/Networking/Offline/Gameplay/Chat/DummyChatSimulator.cs",
+    "path": "Assets/Scripts/Networking/Dummy/Gameplay/Chat/DummyChatSimulator.cs",
     "meta_sha256": "85e6b17fd6070dcd87fc64bec0b50696e1ea4359ea33320ca753c2cfd086fa73",
     "guid": "33b0fb98b78624ee4930eeac9d8d802c",
     "assembly_before": "Kern.Networking"
   },
   {
     "old": "Assets/Scripts/Networking/Connection/Client/Systems/DummyAdminCommands.cs",
-    "path": "Assets/Scripts/Networking/Offline/Gameplay/Administration/DummyAdminCommands.cs",
+    "path": "Assets/Scripts/Networking/Dummy/Gameplay/Administration/DummyAdminCommands.cs",
     "meta_sha256": "e10e68c9d36855ac54e8de90be829fb8542d2d7aafe1abf12ddfe1a843397ebc",
     "guid": "2be7e9e90458f489cb753fe0972e93a7",
     "assembly_before": "Kern.Networking"
   },
   {
     "old": "Assets/Scripts/Networking/Connection/Client/Systems/DummyBlockSpawner.cs",
-    "path": "Assets/Scripts/Networking/Offline/Gameplay/Cells/Spawning/DummyBlockSpawner.cs",
+    "path": "Assets/Scripts/Networking/Dummy/Gameplay/Cells/Spawning/DummyBlockSpawner.cs",
     "meta_sha256": "037c0da6dd52d8b9b503dfbbb8e7db9c17700b22b66680945e3d6b2b2c83e746",
     "guid": "03034de101ae4ff4b3c8d6636f21724b",
     "assembly_before": "Kern.Networking"
   },
   {
     "old": "Assets/Scripts/Networking/Connection/Client/Systems/DummyTeleportManager.cs",
-    "path": "Assets/Scripts/Networking/Offline/Gameplay/Teleportation/DummyTeleportManager.cs",
+    "path": "Assets/Scripts/Networking/Dummy/Gameplay/Teleportation/DummyTeleportManager.cs",
     "meta_sha256": "69180876a411f9be362302e75cb03b4fcdecd5e694310e55b35146bcaaa901b7",
     "guid": "dfc64052f9a02451786a868657fbb842",
     "assembly_before": "Kern.Networking"
   },
   {
     "old": "Assets/Scripts/Networking/Connection/Client/Systems/DummyWindowBuilder.cs",
-    "path": "Assets/Scripts/Networking/Offline/Gameplay/Windows/Building/DummyWindowBuilder.cs",
+    "path": "Assets/Scripts/Networking/Dummy/Gameplay/Windows/Building/DummyWindowBuilder.cs",
     "meta_sha256": "bd3145bc8943beccfc4f11fe04b93702df6d3665782cc5f9de4aca4db9d69def",
     "guid": "db51087f874fd4f5bb64e8117b641352",
     "assembly_before": "Kern.Networking"
   },
   {
     "old": "Assets/Scripts/Networking/Connection/Client/Systems/DummyBuffManager.cs",
-    "path": "Assets/Scripts/Networking/Offline/Gameplay/Rewards/DummyBuffManager.cs",
+    "path": "Assets/Scripts/Networking/Dummy/Gameplay/Rewards/DummyBuffManager.cs",
     "meta_sha256": "bb7f342eb028ce1718137e30d63e742b24fcea12803ee3a8f4f3a4d15de1d6bc",
     "guid": "e5c18886ac74340f89873db0c9e02469",
     "assembly_before": "Kern.Networking"
   },
   {
     "old": "Assets/Scripts/Networking/Connection/Client/Systems/DummyBuildHandler.cs",
-    "path": "Assets/Scripts/Networking/Offline/Gameplay/Buildings/Construction/DummyBuildHandler.cs",
+    "path": "Assets/Scripts/Networking/Dummy/Gameplay/Buildings/Construction/DummyBuildHandler.cs",
     "meta_sha256": "9daec268d5f44614728d29f2045ce16757f462e10778a6f424ca651be27ed4ac",
     "guid": "b4d0f90391aa249f4a27511d2a34fb91",
     "assembly_before": "Kern.Networking"
   },
   {
     "old": "Assets/Scripts/Networking/Connection/Client/Systems/DummyMapStreamer.cs",
-    "path": "Assets/Scripts/Networking/Offline/World/Streaming/Regions/DummyMapStreamer.cs",
+    "path": "Assets/Scripts/Networking/Dummy/World/Streaming/Regions/DummyMapStreamer.cs",
     "meta_sha256": "bbeeb29c9bd0407deebddb226804d612e5b2dd47aa6830c811cbbde96146c08e",
     "guid": "ebc9a5ff74d864eeeb1ec7896545919b",
     "assembly_before": "Kern.Networking"
   },
   {
     "old": "Assets/Scripts/Networking/Connection/Client/Systems/DummyClanManager.cs",
-    "path": "Assets/Scripts/Networking/Offline/Gameplay/Clans/DummyClanManager.cs",
+    "path": "Assets/Scripts/Networking/Dummy/Gameplay/Clans/DummyClanManager.cs",
     "meta_sha256": "0306f1eac1194308b023e57571dc758e51f8d5660f6a5cf109ce98b58ba55052",
     "guid": "c14ac87192a714bf4bf138f743ddc7a1",
     "assembly_before": "Kern.Networking"
   },
   {
     "old": "Assets/Scripts/Networking/Connection/Client/Systems/DummyItemHandler.cs",
-    "path": "Assets/Scripts/Networking/Offline/Gameplay/Inventory/DummyItemHandler.cs",
+    "path": "Assets/Scripts/Networking/Dummy/Gameplay/Inventory/DummyItemHandler.cs",
     "meta_sha256": "b2993274395e6044b61d261d599a7bad11afa895327be9b656fa74a93cbda1d2",
     "guid": "49865fc1749af49f79d5b15ef29c89d9",
     "assembly_before": "Kern.Networking"
   },
   {
     "old": "Assets/Scripts/Networking/Connection/Client/Systems/DummyMissionRunner.cs",
-    "path": "Assets/Scripts/Networking/Offline/Gameplay/Missions/DummyMissionRunner.cs",
+    "path": "Assets/Scripts/Networking/Dummy/Gameplay/Missions/DummyMissionRunner.cs",
     "meta_sha256": "b47860528c882cec0ae11fc38fc408e5dbfa89fa1cc7e56cfdfb85444d6a9f97",
     "guid": "5bb14875b66744885844cd238d1e5712",
     "assembly_before": "Kern.Networking"
   },
   {
     "old": "Assets/Scripts/Networking/Connection/Client/Systems/DummyBotRunner.cs",
-    "path": "Assets/Scripts/Networking/Offline/Gameplay/Robots/DummyBotRunner.cs",
+    "path": "Assets/Scripts/Networking/Dummy/Gameplay/Robots/DummyBotRunner.cs",
     "meta_sha256": "681a08e6bed953d68be63fa083b50edfe02321746eee879deafbce3492288cdd",
     "guid": "3bed38fadc686496c8e7bd8097f9b74b",
     "assembly_before": "Kern.Networking"
   },
   {
     "old": "Assets/Scripts/Networking/Connection/Client/Systems/DummyWindowElements.cs",
-    "path": "Assets/Scripts/Networking/Offline/Gameplay/Windows/Building/DummyWindowElements.cs",
+    "path": "Assets/Scripts/Networking/Dummy/Gameplay/Windows/Building/DummyWindowElements.cs",
     "meta_sha256": "e384c43a0865ca24dcdd08441aa882bd00670574bd611222c3c4c5934974b552",
     "guid": "68c931bdd7aa4b728ea41c1d08cbb8a0",
     "assembly_before": "Kern.Networking"
   },
   {
     "old": "Assets/Scripts/Networking/Connection/Client/Systems/DummyPathFinder.cs",
-    "path": "Assets/Scripts/Networking/Offline/Gameplay/Movement/Pathfinding/DummyPathFinder.cs",
+    "path": "Assets/Scripts/Networking/Dummy/Gameplay/Movement/Pathfinding/DummyPathFinder.cs",
     "meta_sha256": "f7aa90d01a3e9544d6f4c46be1038a215547050efb27da11565b0047e8cbdcb6",
     "guid": "3dc4b86461ac94d94b3f67056e7383fa",
     "assembly_before": "Kern.Networking"
@@ -5482,7 +5475,7 @@
   },
   {
     "old": "Assets/Scripts/Core/Interfaces/Contracts/Player/CellInteractionRules.cs",
-    "path": "Assets/Scripts/Networking/Offline/Gameplay/Mining/CellInteractionRules.cs",
+    "path": "Assets/Scripts/Networking/Dummy/Gameplay/Mining/CellInteractionRules.cs",
     "meta_sha256": "bac266f31b67e92e771a3e6203b752f55c608b294ac6e1210e4afa96099d6fd0",
     "guid": "77c0ca52f80144508767b3ae4ebf9f92",
     "assembly_before": "Kern.Contracts"

@@ -104,7 +104,7 @@ namespace Kern.Core.Configuration
             {
                 Config.Connection.UseDummyConnection = true;
                 SaveDeferred();
-                Debug.Log("[ClientConfigManager] Android build forces DummyConnection for offline world access.");
+                Debug.Log("[ClientConfigManager] Android build forces DummyConnection for dummy world access.");
             }
 #endif
             Debug.Log(

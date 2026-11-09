@@ -16,7 +16,7 @@ internal static class DesignSystemPaths
                     return directory.FullName;
                 }
 
-                string visualRoot = Path.Combine(directory.FullName, "visual/kern-ui-lab");
+                string visualRoot = Path.Combine(directory.FullName, "visual/kern-ui");
                 if (File.Exists(Path.Combine(visualRoot, "css/tokens.css")) &&
                     File.Exists(Path.Combine(visualRoot, "index.html")))
                 {
@@ -27,6 +27,6 @@ internal static class DesignSystemPaths
             }
         }
 
-        throw new DirectoryNotFoundException("Could not locate visual/kern-ui-lab with its CSS tokens and index.html.");
+        throw new DirectoryNotFoundException("Could not locate visual/kern-ui with its CSS tokens and index.html.");
     }
 }

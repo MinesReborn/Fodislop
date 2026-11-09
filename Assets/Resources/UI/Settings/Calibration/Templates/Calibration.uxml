@@ -1,0 +1,66 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <!-- Калибровка дисплея — макет visual/kern-ui (#calib, css/screens.css .calib): шаг — узор во весь экран и один ползунок.
+         Узор рисует проход вывода (PostProcess.compute) под интерфейсом; рамки CalibPeakTile / CalibMark* / CalibPaperSheet —
+         его места, сами они прозрачны. HDR: пик → чёрный → белая точка; SDR: яркость. -->
+    <ui:VisualElement name="CalibLayer" class="calib" picking-mode="Position">
+        <ui:VisualElement class="calib-top">
+            <ui:Label name="CalibKicker" class="calib-kicker caps" />
+            <ui:VisualElement name="CalibSteps" class="calib-steps" picking-mode="Ignore" />
+            <ui:Button name="CalibCancel" class="icon-btn calib-cancel">
+                <ui:VisualElement class="ico ico--close" picking-mode="Ignore" />
+            </ui:Button>
+        </ui:VisualElement>
+        <ui:VisualElement name="CalibStage" class="calib-stage" picking-mode="Ignore">
+            <ui:VisualElement name="CalibPeak" class="calib-pattern" picking-mode="Ignore">
+                <ui:VisualElement name="CalibPeakTile" class="calib-tile" picking-mode="Ignore" />
+            </ui:VisualElement>
+            <ui:VisualElement name="CalibBlack" class="calib-pattern calib-trio" picking-mode="Ignore">
+                <ui:VisualElement class="calib-figure" picking-mode="Ignore">
+                    <ui:VisualElement name="CalibMark0" class="calib-tile" picking-mode="Ignore" />
+                    <ui:Label name="CalibCaption0" class="calib-caption caps" picking-mode="Ignore" />
+                </ui:VisualElement>
+                <ui:VisualElement class="calib-figure" picking-mode="Ignore">
+                    <ui:VisualElement name="CalibMark1" class="calib-tile" picking-mode="Ignore" />
+                    <ui:Label name="CalibCaption1" class="calib-caption caps" picking-mode="Ignore" />
+                </ui:VisualElement>
+                <ui:VisualElement class="calib-figure" picking-mode="Ignore">
+                    <ui:VisualElement name="CalibMark2" class="calib-tile" picking-mode="Ignore" />
+                    <ui:Label name="CalibCaption2" class="calib-caption caps" picking-mode="Ignore" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+            <ui:VisualElement name="CalibPaper" class="calib-pattern" picking-mode="Ignore">
+                <ui:VisualElement name="CalibScene" class="calib-scene" picking-mode="Ignore">
+                    <ui:VisualElement class="calib-world" picking-mode="Ignore" />
+                    <ui:VisualElement class="calib-side" picking-mode="Ignore">
+                        <ui:VisualElement class="calib-card-row" picking-mode="Ignore">
+                            <ui:VisualElement class="calib-card" picking-mode="Ignore">
+                                <ui:Label name="CalibCardName" class="calib-card__name" picking-mode="Ignore" />
+                                <ui:VisualElement name="CalibCardHp" class="calib-hp" picking-mode="Ignore" />
+                                <ui:Label name="CalibCardMoney" class="calib-card__money" picking-mode="Ignore" />
+                            </ui:VisualElement>
+                        </ui:VisualElement>
+                        <ui:VisualElement name="CalibPaperSheet" class="calib-paper" picking-mode="Ignore" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+            </ui:VisualElement>
+        </ui:VisualElement>
+        <ui:VisualElement class="calib-foot">
+            <ui:Label name="CalibTitle" class="calib-title" />
+            <ui:Label name="CalibText" class="calib-text" />
+            <ui:VisualElement class="calib-slider">
+                <ui:Button name="CalibMinus" class="icon-btn calib-step" text="−" />
+                <ui:Slider name="CalibRange" class="range__slider calib-range" fill="true" />
+                <ui:Button name="CalibPlus" class="icon-btn calib-step" text="+" />
+                <ui:Label name="CalibValue" class="calib-value" />
+            </ui:VisualElement>
+            <ui:VisualElement class="calib-actions">
+                <ui:Button name="CalibReset" class="btn calib-reset" />
+                <ui:VisualElement class="calib-spacer" picking-mode="Ignore" />
+                <ui:Button name="CalibBack" class="btn" />
+                <ui:Button name="CalibNext" class="btn btn--primary">
+                    <ui:VisualElement class="ico ico--arrows btn__arrows" picking-mode="Ignore" />
+                </ui:Button>
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

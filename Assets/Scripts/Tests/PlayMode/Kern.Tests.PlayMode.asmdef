@@ -12,6 +12,7 @@
         "Kern.Bootstrap",
         "Kern.UI",
         "Kern.Contracts",
+        "Kern.Dummy",
         "Kern.Networking",
         "Kern.AssetPipeline",
         "Kern.Tests.Shared",

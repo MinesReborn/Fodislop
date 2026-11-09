@@ -26,12 +26,6 @@ namespace Kern.UI.ServerWindows;
 
 public sealed class ServerWindowPresenter : IDisposable
 {
-    /// <summary>
-    /// Пол авто-высоты каркаса: страница без контента (подтверждение «Да/Нет»)
-    /// не должна схлопываться в узкую полоску — окно остаётся читаемым.
-    /// </summary>
-    private const float AutoHeightFloor = 240f;
-
     private readonly ILocalizationService _localization;
     private readonly IAssetLoader _assetLoader;
     private readonly IAsyncOperationSupervisor _operations;
@@ -41,15 +35,11 @@ public sealed class ServerWindowPresenter : IDisposable
     private readonly UIDocument _document;
     private readonly WindowCommandStream _commands;
     private readonly ModalWindowHandler _modalWindowHandler;
+    private readonly LinkDialogHandler _linkDialog;
     private readonly IWorldPresentationState _presentationState;
-    private readonly IGameplayCamera _gameplayCamera;
     private readonly List<ServerWindowState> _openWindows = [];
-    private ulong _pendingTeleportTransitionId;
-    private OpenWindowPacket _pendingOpenWindow;
-    private CloseWindowPacket _pendingCloseWindow;
-    private ModalWindowPacket _pendingModalWindow;
-    private byte _pendingWindowCommand;
-    private bool _hasPendingModalWindow;
+    private readonly Queue<Action> _pendingWindowCommands = new();
+    private bool _isFlushingWindowCommands;
 
     public ServerWindowPresenter(
         ILocalizationService localization,
@@ -60,8 +50,7 @@ public sealed class ServerWindowPresenter : IDisposable
         WindowCommandStream commands,
         IAsyncOperationSupervisor operations,
         IWebAssetLoader webAssetLoader,
-        IWorldPresentationState presentationState,
-        IGameplayCamera gameplayCamera)
+        IWorldPresentationState presentationState)
     {
         _localization = localization;
         _assetLoader = assetLoader;
@@ -72,23 +61,21 @@ public sealed class ServerWindowPresenter : IDisposable
         _document = document;
         _commands = commands;
         _presentationState = presentationState;
-        _gameplayCamera = gameplayCamera;
-        _modalWindowHandler = new ModalWindowHandler(document, uiInputManager);
+        _modalWindowHandler = new ModalWindowHandler(document, uiInputManager, assetLoader, webAssetLoader, operations);
         _commands.OpenRequested += Open;
         _commands.CloseRequested += Close;
         _commands.ModalRequested += ShowModal;
+        _linkDialog = new LinkDialogHandler(document, uiInputManager, localization);
+        _commands.LinkRequested += ShowLink;
         _presentationState.Changed += OnPresentationStateChanged;
 
-        // Первое окно не платит за разовую инициализацию движка шаблонов
-        // (репорт: первое открытие маркета — 3.2 с в биндинге, далее 1 мс).
-        WindowBinding.WarmUpInBackground(operations);
     }
 
     public bool HasOpenWindows => _openWindows.Count > 0;
 
     public string? TopWindowTag => _openWindows.Count > 0 ? _openWindows[^1].Tag : null;
 
-    public bool IsModalShowing => _modalWindowHandler.IsShowing;
+    public bool IsModalShowing => _modalWindowHandler.IsShowing || _linkDialog.IsShowing;
 
     /// <summary>
     /// ESC отправляет обычный ElementClickPacket по элементу, явно помеченному
@@ -107,7 +94,7 @@ public sealed class ServerWindowPresenter : IDisposable
         {
             if (TextPacketBuilder.IsCloseAction(state.ClickableOrder[index]))
             {
-                _networkService.Send(new ElementClickPacket(state.Tag, index, []));
+                InvokeServerAction(state, index);
                 return true;
             }
         }
@@ -120,24 +107,29 @@ public sealed class ServerWindowPresenter : IDisposable
     /// фазе Update, и модалка должна гаситься там же — иначе нажатие
     /// открывало паузу поверх заблокированного ввода, а окно оставалось.
     /// </summary>
-    public void DismissModal() => _modalWindowHandler.Hide();
+    public void DismissModal()
+    {
+        _modalWindowHandler.Hide();
+        _linkDialog.Hide();
+    }
 
     public void Dispose()
     {
         _commands.OpenRequested -= Open;
         _commands.CloseRequested -= Close;
         _commands.ModalRequested -= ShowModal;
+        _commands.LinkRequested -= ShowLink;
         _presentationState.Changed -= OnPresentationStateChanged;
-        CancelPendingTeleportRequest();
+        _pendingWindowCommands.Clear();
 
         // Оверлей тоже убирается. Панель документа переживает сцену, и оставшийся
         // элемент копился между входами в игру: новый обработчик создавал второй,
         // а поиск по классу отдавал старый, скрытый. Плюс Dispose снимает
         // подписку на планировщик.
         _modalWindowHandler.Dispose();
+        _linkDialog.Dispose();
         foreach (ServerWindowState state in _openWindows)
         {
-            state.Binding.Dispose();
             state.Overlay.RemoveFromHierarchy();
         }
 
@@ -147,19 +139,12 @@ public sealed class ServerWindowPresenter : IDisposable
 
     private void Open(OpenWindowPacket packet)
     {
-        if (_presentationState.IsTeleportAwaitingDestination)
-        {
-            CancelPendingTeleportRequest();
-        }
-
         if (ShouldHoldWindowUpdates())
         {
-            _pendingOpenWindow = packet;
-            _pendingWindowCommand = 1;
+            _pendingWindowCommands.Enqueue(() => Open(packet));
             return;
         }
 
-        CancelPendingTeleportRequest();
         try
         {
             OpenCore(packet);
@@ -189,23 +174,7 @@ public sealed class ServerWindowPresenter : IDisposable
         frame.AddToClassList("packet-window-frame");
         frame.style.width = packet.Width;
 
-        // Высота каркаса по содержимому (мост ставит PacketUI.AutoSizeHeight
-        // на корень каждого протокольного окна): точную высоту рендера знает только
-        // клиент — шрифты, переносы, размеры иконок. Каркас обнимает контент
-        // в границах: пол (AutoHeightFloor) не даёт крошечным страницам
-        // («Да/Нет» подтверждения) схлопываться, потолок — Height из пакета
-        // и 96% экрана (max-height в .packet-window-frame); за потолком
-        // начинается прокрутка.
-        if (AttachedProperties.Has(packet.Content, "PacketUI.AutoSizeHeight"))
-        {
-            frame.style.height = StyleKeyword.Auto;
-            frame.style.minHeight = AutoHeightFloor;
-            frame.style.maxHeight = packet.Height;
-        }
-        else
-        {
-            frame.style.height = packet.Height;
-        }
+        frame.style.height = packet.Height;
 
         element.Add(frame);
         var state = new ServerWindowState
@@ -213,13 +182,12 @@ public sealed class ServerWindowPresenter : IDisposable
             Tag = packet.WindowTag,
             Overlay = element,
             Frame = frame,
-            Binding = new WindowBinding(),
             Tree = packet.Content,
         };
 
         // Временный замер этапов (репорт: маркет сильно лагает при заходе).
         // Лог показывает, какой именно этап съедает время: сборка дерева,
-        // биндинг живых шаблонов или регистрация кликабельных.
+        // регистрация кликабельных.
         var openWatch = System.Diagnostics.Stopwatch.StartNew();
         BuildWindowContent(state);
         long buildMs = openWatch.ElapsedMilliseconds;
@@ -243,7 +211,6 @@ public sealed class ServerWindowPresenter : IDisposable
         // (репорт: маркет сильно лагает при заходе).
         foreach (ServerWindowState old in _openWindows)
         {
-            old.Binding.Dispose();
             _uiInputManager.PopModal(old.Overlay);
             old.Overlay.RemoveFromHierarchy();
         }
@@ -254,11 +221,11 @@ public sealed class ServerWindowPresenter : IDisposable
         _openWindows.Add(state);
         _commands.SetServerWindowVisibility(true);
         Debug.Log($"[PacketUI] Открыто окно '{packet.WindowTag}' ({packet.Width}x{packet.Height}): " +
-            $"элементов {elementCount}; сборка и биндинг {buildMs} мс.");
+            $"элементов {elementCount}; сборка {buildMs} мс.");
     }
 
     /// <summary>
-    /// Контент окна: сборка дерева из пакета, биндинг живых шаблонов,
+    /// Контент окна: сборка дерева из пакета,
     /// регистрация кликабельных, крестик. Окно строится с нуля из дерева
     /// пакета, так что индексы кликабельных и обработчики остаются
     /// согласованными между собой.
@@ -267,26 +234,18 @@ public sealed class ServerWindowPresenter : IDisposable
     {
         state.Frame.Clear();
         VisualElement packetRoot = new PacketUIBuilder(_assetLoader, _operations, _webAssetLoader).Build(state.Tree);
-        PacketCloseActionCaption.Apply(packetRoot, _localization);
         packetRoot.AddToClassList("packet-window-content");
         state.Frame.Add(packetRoot);
-        state.Binding.Bind(packetRoot);
         state.ClickableOrder = ClickableElementOrder.Collect(state.Tree);
         RegisterClickableElements(packetRoot, packetRoot, state);
-        AddExitCloseButton(state.Frame, state.Tag, state.ClickableOrder);
+        AddExitCloseButton(state);
     }
 
     private void Close(CloseWindowPacket packet)
     {
-        // Cancel a pending destination request before holding window commands.
-        // Otherwise a close click during AwaitingDestination is queued, while
-        // the state that would release the queue is never left.
-        CancelPendingTeleportRequest();
-
         if (ShouldHoldWindowUpdates())
         {
-            _pendingCloseWindow = packet;
-            _pendingWindowCommand = 2;
+            _pendingWindowCommands.Enqueue(() => Close(packet));
             return;
         }
 
@@ -296,19 +255,28 @@ public sealed class ServerWindowPresenter : IDisposable
         }
 
         ServerWindowState state = _openWindows[^1];
-        state.Binding.Dispose();
         _uiInputManager.PopModal(state.Overlay);
         state.Overlay.RemoveFromHierarchy();
         _openWindows.RemoveAt(_openWindows.Count - 1);
         _commands.SetServerWindowVisibility(HasOpenWindows);
     }
 
+    private void ShowLink(string url)
+    {
+        if (ShouldHoldWindowUpdates())
+        {
+            _pendingWindowCommands.Enqueue(() => ShowLink(url));
+            return;
+        }
+
+        _linkDialog.Show(url);
+    }
+
     private void ShowModal(ModalWindowPacket packet)
     {
         if (ShouldHoldWindowUpdates())
         {
-            _pendingModalWindow = packet;
-            _hasPendingModalWindow = true;
+            _pendingWindowCommands.Enqueue(() => ShowModal(packet));
             return;
         }
 
@@ -346,11 +314,10 @@ public sealed class ServerWindowPresenter : IDisposable
     /// The frame close button sends an ElementClickPacket for the component
     /// marked as the close action, using this window's tag and shared preorder index.
     /// </summary>
-    private void AddExitCloseButton(
-        VisualElement frame,
-        string windowTag,
-        IReadOnlyList<IGUIComponentPacket> clickableOrder)
+    private void AddExitCloseButton(ServerWindowState state)
     {
+        VisualElement frame = state.Frame;
+        IReadOnlyList<IGUIComponentPacket> clickableOrder = state.ClickableOrder;
         for (int elementIndex = 0; elementIndex < clickableOrder.Count; elementIndex++)
         {
             if (!TextPacketBuilder.IsCloseAction(clickableOrder[elementIndex]))
@@ -373,11 +340,43 @@ public sealed class ServerWindowPresenter : IDisposable
             closeBarB.AddToClassList("packet-window-close-bar--b");
             closeButton.Add(closeBarB);
 
-            closeButton.clicked += () => _networkService.Send(
-                new ElementClickPacket(windowTag, elementIndex, []));
+            int closeIndex = elementIndex;
+            closeButton.clicked += () => InvokeServerAction(state, closeIndex);
             frame.Add(closeButton);
             return;
         }
+    }
+
+    private void InvokeServerAction(ServerWindowState state, int elementIndex)
+    {
+        IGUIComponentPacket packet = state.ClickableOrder[elementIndex];
+        VisualElement? element = FindPacketElement(state.Frame, packet);
+        VisualElement? root = FindPacketElement(state.Frame, state.Tree);
+        if (element == null || root == null)
+        {
+            throw new InvalidOperationException($"[PacketUI] Missing action {elementIndex} in window '{state.Tag}'.");
+        }
+
+        HandleElementClick(element, root, elementIndex, state);
+    }
+
+    private static VisualElement? FindPacketElement(VisualElement element, IGUIComponentPacket packet)
+    {
+        if (ReferenceEquals(element.userData, packet))
+        {
+            return element;
+        }
+
+        foreach (VisualElement child in element.Children())
+        {
+            VisualElement? found = FindPacketElement(child, packet);
+            if (found != null)
+            {
+                return found;
+            }
+        }
+
+        return null;
     }
 
     private void HandleElementClick(
@@ -414,38 +413,12 @@ public sealed class ServerWindowPresenter : IDisposable
         }
 
         StringPairPacket[] inputValues = ClickContextResolver.CollectInputValues(inputRoot);
-        bool startsTeleport = string.Equals(state.Tag, "teleport", StringComparison.Ordinal) &&
-            !TextPacketBuilder.IsCloseAction(componentPacket);
-        if (startsTeleport)
-        {
-            if (!_presentationState.TryBeginTeleportRequest(
-                _gameplayCamera.Camera.transform.position,
-                out _pendingTeleportTransitionId))
-            {
-                return;
-            }
-        }
 
-        try
-        {
-            _networkService.Send(new ElementClickPacket(state.Tag, elementIndex, inputValues));
-        }
-        catch
-        {
-            CancelPendingTeleportRequest();
-            throw;
-        }
+        _networkService.Send(new ElementClickPacket(state.Tag, elementIndex, inputValues));
     }
 
     private void OnPresentationStateChanged(WorldPresentationSnapshot snapshot)
     {
-        if (_pendingTeleportTransitionId != 0 &&
-            snapshot.TransitionId == _pendingTeleportTransitionId &&
-            snapshot.Phase != WorldPresentationPhase.AwaitingDestination)
-        {
-            _pendingTeleportTransitionId = 0;
-        }
-
         if (!ShouldHoldWindowUpdates())
         {
             FlushPendingWindowUpdates();
@@ -458,31 +431,22 @@ public sealed class ServerWindowPresenter : IDisposable
 
     private void FlushPendingWindowUpdates()
     {
-        byte command = _pendingWindowCommand;
-        _pendingWindowCommand = 0;
-        if (command == 1)
+        if (_isFlushingWindowCommands)
         {
-            Open(_pendingOpenWindow);
-        }
-        else if (command == 2)
-        {
-            Close(_pendingCloseWindow);
+            return;
         }
 
-        if (_hasPendingModalWindow)
+        _isFlushingWindowCommands = true;
+        try
         {
-            _hasPendingModalWindow = false;
-            ShowModal(_pendingModalWindow);
+            while (_pendingWindowCommands.Count > 0 && !ShouldHoldWindowUpdates())
+            {
+                _pendingWindowCommands.Dequeue().Invoke();
+            }
         }
-    }
-
-    private void CancelPendingTeleportRequest()
-    {
-        ulong transitionId = _pendingTeleportTransitionId;
-        _pendingTeleportTransitionId = 0;
-        if (transitionId != 0)
+        finally
         {
-            _presentationState.CancelTeleportRequest(transitionId);
+            _isFlushingWindowCommands = false;
         }
     }
 }

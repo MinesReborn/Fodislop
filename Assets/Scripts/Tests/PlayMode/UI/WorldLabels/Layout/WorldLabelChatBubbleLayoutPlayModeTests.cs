@@ -13,24 +13,21 @@ using Kern.Bootstrap.Scenes;
 namespace Kern.Tests.PlayMode;
 
 /// <summary>
-/// Раскладка настоящего пузыря локального чата.
+/// Раскладка настоящего облака локального чата — макет visual/kern-ui (.wl-chat):
+/// рамка 1 px, поля 2/6, строка высотой 16, хвост 1×6 в 5 px от левого края.
 ///
 /// Меряет элемент, созданный через IWorldLabels, а не собранный вручную из USS:
-/// тон и границы 9-slice ставит код, и при ручной сборке они не применяются, а
 /// тест обязан видеть то, что видит игрок.
-///
-/// Оба дефекта, которые снимок игрока выдал как «не прозрачный» и «текст внизу»,
-/// проверяются числами, а не картинкой.
 /// </summary>
 [TestFixture]
 public sealed class WorldLabelChatBubbleLayoutPlayModeTests
 {
-    // Альфа тона рамки: LocalChat.prefab, m_Color a=0.6156863 (157/255).
-    private const float ExpectedTintAlpha = 0.6156863f;
-
-    // Тело спрайта — верхние 18 px из 32, хвост занимает остальные 14 px снизу.
-    private const float SpriteBodyPx = 18f;
-    private const float SpriteHeightPx = 32f;
+    private const float BorderPx = 1f;
+    private const float PaddingTopPx = 2f;
+    private const float PaddingSidePx = 6f;
+    private const float LinePx = 16f;
+    private const float TailLeftPx = 5f;
+    private const float TailHeightPx = 6f;
 
     private IWorldLabels _labels = null!;
     private IWorldLabel? _label;
@@ -40,7 +37,7 @@ public sealed class WorldLabelChatBubbleLayoutPlayModeTests
     [UnitySetUp]
     public IEnumerator SetUp()
     {
-        yield return PlayModeHarness.StartAtGateway();
+        yield return PlayModeHarness.StartAtMainMenu();
         BootstrapLifetimeScope bootstrap = PlayModeHarness.FindBootstrap()!;
         yield return PlayModeHarness.EnterMainGame(bootstrap);
         _labels = PlayModeHarness.RequireInGame<IWorldLabels>();
@@ -51,98 +48,68 @@ public sealed class WorldLabelChatBubbleLayoutPlayModeTests
     }
 
     [UnityTest]
-    public IEnumerator BubbleFrame_IsSemiTransparentAndSlicedFromTheSprite()
+    public IEnumerator BubbleFrame_IsTheMockupFrame()
     {
         yield return ShowBubble("привет");
-        VisualElement frame = Frame();
+        IResolvedStyle style = Frame().resolvedStyle;
+        Debug.Log($"[Bubble] border={style.borderLeftWidth} color={style.borderLeftColor} " +
+                  $"padding={style.paddingTop}/{style.paddingLeft} bg={style.backgroundColor}");
 
-        Sprite sprite = frame.resolvedStyle.backgroundImage.sprite;
-        Assert.That(sprite, Is.Not.Null, "The bubble frame has no sprite background.");
-        Assert.That(sprite!.name, Is.EqualTo("LocalChatBubble"));
-
-        // Прозрачность: рамка обязана быть полупрозрачной, как в оригинале.
-        // Задаётся кодом рядом со спрайтом, потому что правило тона в USS не
-        // разрешается при background-image из кода.
-        Color tint = frame.resolvedStyle.unityBackgroundImageTintColor;
-        Debug.Log($"[Bubble] tint={tint} slices L={frame.resolvedStyle.unitySliceLeft} " +
-                  $"R={frame.resolvedStyle.unitySliceRight} T={frame.resolvedStyle.unitySliceTop} " +
-                  $"B={frame.resolvedStyle.unitySliceBottom} bgSize={frame.resolvedStyle.backgroundSize.sizeType}");
-        Assert.That(
-            tint.a,
-            Is.EqualTo(ExpectedTintAlpha).Within(0.01f),
-            "The bubble frame must keep the original client's alpha of 157/255.");
-
-        // 9-slice: границы обязаны прийти из ассета, иначе спрайт растягивается
-        // целиком и рамка вырождается в эллипс.
-        Assert.That(frame.resolvedStyle.unitySliceLeft, Is.EqualTo(sprite.border.x));
-        Assert.That(frame.resolvedStyle.unitySliceRight, Is.EqualTo(sprite.border.z));
-        Assert.That(frame.resolvedStyle.unitySliceTop, Is.EqualTo(sprite.border.w));
-        Assert.That(frame.resolvedStyle.unitySliceBottom, Is.EqualTo(sprite.border.y));
-        Assert.That(
-            frame.resolvedStyle.backgroundSize.sizeType,
-            Is.EqualTo(BackgroundSizeType.Length),
-            "The 9-slice background needs an explicit size.");
+        Assert.That(style.borderLeftWidth, Is.EqualTo(BorderPx).Within(0.01f));
+        Assert.That(style.borderBottomWidth, Is.EqualTo(BorderPx).Within(0.01f));
+        Assert.That(style.paddingTop, Is.EqualTo(PaddingTopPx).Within(0.01f));
+        Assert.That(style.paddingLeft, Is.EqualTo(PaddingSidePx).Within(0.01f));
+        Assert.That(style.backgroundColor.a, Is.GreaterThan(0.85f), "The bubble must sit on dense graphite.");
+        Assert.That(style.backgroundImage.sprite, Is.Null, "The bubble frame is drawn by styles, not a sprite.");
+        Assert.That(style.backgroundImage.texture, Is.Null, "The bubble frame is drawn by styles, not a texture.");
     }
 
     [UnityTest]
-    public IEnumerator BubbleText_SitsInTheBodyNotUnderTheTail()
+    public IEnumerator BubbleText_StartsInsideThePadding()
     {
         yield return ShowBubble("привет");
-        VisualElement frame = Frame();
         Label text = FindText();
+        float scale = scaleOf();
+        float offsetTop = (text.worldBound.y - Frame().worldBound.y) / scale;
 
-        // Смещение считается по worldBound: resolvedStyle.top у статичного
-        // flex-ребёнка показывает раскладку, а не то, что видно на экране.
-        float scale = GameplayCameraDefaults.ReferenceOrthographicSize / _camera.orthographicSize;
-        Rect frameBox = frame.worldBound;
-        Rect textBox = text.worldBound;
-        float offsetTop = (textBox.y - frameBox.y) / scale;
-
-        Debug.Log(
-            $"[BubbleText] frame h={frameBox.height} text h={textBox.height} offsetTop={offsetTop} " +
-            $"marginT={text.resolvedStyle.marginTop} marginB={text.resolvedStyle.marginBottom} scale={scale}");
-
-        // Базовая тема задаёт Label поля; без их обнуления текст центрировался по
-        // боксу целиком и уезжал под хвост (замерено marginTop 4.27 px).
-        Assert.That(
-            text.resolvedStyle.marginTop,
-            Is.EqualTo(0f).Within(0.01f),
+        Assert.That(text.resolvedStyle.marginTop, Is.EqualTo(0f).Within(0.01f),
             "The base theme's Label margin-top must be reset.");
-        Assert.That(text.resolvedStyle.marginBottom, Is.EqualTo(0f).Within(0.01f));
-
-        // Текст начинается у верхней грани тела и в него помещается.
-        Assert.That(
-            offsetTop,
-            Is.EqualTo(0f).Within(1f),
-            "The text must start at the top of the frame, not below the centre.");
-        Assert.That(
-            (textBox.height / scale),
-            Is.LessThanOrEqualTo(SpriteBodyPx + 0.5f),
-            "The text box must fit the sprite body so it cannot reach the tail.");
+        Assert.That(offsetTop, Is.EqualTo(BorderPx + PaddingTopPx).Within(1f));
+        Assert.That(text.worldBound.height / scale, Is.EqualTo(LinePx).Within(0.5f));
     }
 
     [UnityTest]
-    public IEnumerator BubbleFrame_KeepsSpriteHeightAndTextOverflowsWidthOnly()
+    public IEnumerator BubbleFrame_StaysOneLineForALongMessage()
     {
         yield return ShowBubble("привет");
         VisualElement frame = Frame();
         float height = frame.resolvedStyle.height;
 
-        // Высота обязана остаться постоянной при любой длине текста: она равна
-        // высоте спрайта, и вертикальный 9-slice при ней не растягивается.
         _label!.SetText(
             "Очень длинное сообщение локального чата, которое обязано быть обрезано по ширине, "
-            + "а не перенесено на вторую строку, иначе вторая строка ушла бы под хвост");
+            + "а не перенесено на вторую строку");
         yield return Frames(3);
 
-        Assert.That(
-            frame.resolvedStyle.height,
-            Is.EqualTo(height).Within(0.5f),
+        Assert.That(frame.resolvedStyle.height, Is.EqualTo(height).Within(0.5f),
             "The bubble height must not depend on the message.");
-        Assert.That(
-            frame.resolvedStyle.height / scaleOf(),
-            Is.EqualTo(SpriteHeightPx).Within(0.5f),
-            "The bubble height is the sprite height, which is what keeps the tail undistorted.");
+        Assert.That(height, Is.EqualTo(LinePx + (2f * (PaddingTopPx + BorderPx))).Within(0.5f));
+    }
+
+    [UnityTest]
+    public IEnumerator BubbleTail_HangsUnderTheFrameNearItsLeftEdge()
+    {
+        yield return ShowBubble("привет");
+        VisualElement frame = Frame();
+        VisualElement tail = frame.Q<VisualElement>(className: "world-label-chat__tail")
+            ?? throw new AssertionException("The chat bubble has no tail.");
+        float scale = scaleOf();
+        Rect f = frame.worldBound;
+        Rect t = tail.worldBound;
+
+        Assert.That((t.x - f.x) / scale, Is.EqualTo(TailLeftPx).Within(0.5f));
+        Assert.That(t.width / scale, Is.EqualTo(1f).Within(0.1f));
+        Assert.That(t.height / scale, Is.EqualTo(TailHeightPx).Within(0.1f));
+        Assert.That(t.yMax, Is.GreaterThan(f.yMax), "The tail must reach below the frame.");
     }
 
     private float scaleOf() =>

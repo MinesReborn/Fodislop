@@ -75,7 +75,6 @@ public static class FrameProbeCatalog
         var probes = new List<FrameProbe>
         {
         new("Цикл игры", "PlayerLoop"),
-        new("Цикл редактора", "EditorLoop"),
         new("Фаза Initialization", "Initialization"),
         new("Фаза EarlyUpdate", "EarlyUpdate"),
         new("Фаза FixedUpdate", "FixedUpdate"),
@@ -109,7 +108,8 @@ public static class FrameProbeCatalog
         return probes;
     }
 
-    // В редакторе эти маркеры суммируют и перерисовку окон самого редактора.
+    // Общесистемные UI/IMGUI маркеры; для стоимости отдельных инструментов
+    // используется локальный секундомер ToolWindow.
     public static List<FrameProbe> CreateInterfaceProbes() => new()
     {
         new("UI Toolkit — отрисовка панелей", "UIR.DrawChain"),

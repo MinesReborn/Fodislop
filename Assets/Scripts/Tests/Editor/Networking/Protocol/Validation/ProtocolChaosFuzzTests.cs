@@ -23,7 +23,7 @@ using Random = System.Random;
 
 using Kern.Bootstrap.Scenes;
 using Kern.Networking.Gateways;
-using Kern.Networking.Offline;
+using Kern.Networking.Dummy;
 
 namespace Kern.Tests.Networking;
 

@@ -128,7 +128,7 @@ public sealed class InstallUpgradeTests
     [TestCase(44)]
     [TestCase(45)]
     [TestCase(46)]
-    public void PreFisheyeConfig_MigratesMissingScaleAndPreservesVolume(int schema)
+    public void PreFisheyeConfig_MigratesAndPreservesDepthAndVolume(int schema)
     {
         ClientConfig legacy = ClientConfigDefaults.Create(_profile);
         legacy.SchemaVersion = schema;
@@ -136,39 +136,19 @@ public sealed class InstallUpgradeTests
         legacy.Terrain.DepthDarkening = 0.18f;
         legacy.Audio.MasterVolume = 0.37f;
         Directory.CreateDirectory(Path.GetDirectoryName(ConfigPath)!);
-        string original = Regex.Replace(
-            JsonUtility.ToJson(legacy, prettyPrint: true),
-            """\s*"FisheyeScale"\s*:\s*[^,}]+,""", "");
+        string original = JsonUtility.ToJson(legacy, prettyPrint: true);
         File.WriteAllText(ConfigPath, original);
 
         ClientConfigLoader.Result result = LoadConfig();
 
         Assert.That(result.Outcome, Is.EqualTo(ClientConfigLoader.Outcome.Migrated));
         Assert.That(result.Config.SchemaVersion, Is.EqualTo(ClientConfig.CurrentSchemaVersion));
-        Assert.That(result.Config.Effects.FisheyeScale, Is.EqualTo(1f));
         Assert.That(result.Config.Terrain.DepthPixels, Is.Zero);
         Assert.That(result.Config.Terrain.DepthDarkening, Is.EqualTo(0.18f));
         Assert.That(result.Config.Audio.MasterVolume, Is.EqualTo(0.37f));
         Assert.That(File.ReadAllText(ConfigPath + ".backup"), Is.EqualTo(original));
-        Assert.That(new ClientConfigRepository(ConfigPath).Load().Config.Effects.FisheyeScale, Is.EqualTo(1f));
+        Assert.That(new ClientConfigRepository(ConfigPath).Load().Config.Audio.MasterVolume, Is.EqualTo(0.37f));
         Assert.That(LoadConfig().Outcome, Is.EqualTo(ClientConfigLoader.Outcome.Loaded));
-    }
-
-    [TestCase(0f)]
-    [TestCase(2.5f)]
-    public void Schema46WithSavedFisheyeScale_PreservesExplicitValue(float scale)
-    {
-        ClientConfig legacy = ClientConfigDefaults.Create(_profile);
-        legacy.SchemaVersion = 46;
-        legacy.Effects.FisheyeScale = scale;
-        Directory.CreateDirectory(Path.GetDirectoryName(ConfigPath)!);
-        File.WriteAllText(ConfigPath, JsonUtility.ToJson(legacy, prettyPrint: true));
-
-        ClientConfigLoader.Result result = LoadConfig();
-
-        Assert.That(result.Outcome, Is.EqualTo(ClientConfigLoader.Outcome.Migrated));
-        Assert.That(result.Config.Effects.FisheyeScale, Is.EqualTo(scale));
-        Assert.That(new ClientConfigRepository(ConfigPath).Load().Config.Effects.FisheyeScale, Is.EqualTo(scale));
     }
 
     [TestCase(45)]
@@ -180,7 +160,6 @@ public sealed class InstallUpgradeTests
         legacy.SchemaVersion = schema;
         legacy.Interface.UIScale = 1.2f;
         legacy.Interface.KeyDig = "W";
-        legacy.Effects.FisheyeScale = 0f;
         string original = JsonUtility.ToJson(legacy, prettyPrint: true);
         foreach (string field in new[] { "TextScale", "KeyMoveUp", "KeyMoveDown", "KeyMoveLeft", "KeyMoveRight",
             "KeyMoveUpAlternate", "KeyMoveDownAlternate", "KeyMoveLeftAlternate", "KeyMoveRightAlternate",
@@ -200,32 +179,25 @@ public sealed class InstallUpgradeTests
         Assert.That(result.Config.Interface.KeyMoveUp, Is.EqualTo("None"));
         Assert.That(result.Config.Interface.KeyMoveUpAlternate, Is.EqualTo("UpArrow"));
         Assert.That(result.Config.Interface.KeyTurnOnly, Is.EqualTo("LeftShift"));
-        Assert.That(result.Config.Effects.FisheyeScale, Is.Zero);
         Assert.That(File.ReadAllText(ConfigPath + ".backup"), Is.EqualTo(original));
         Assert.That(LoadConfig().Outcome, Is.EqualTo(ClientConfigLoader.Outcome.Loaded));
     }
 
     [Test]
-    public void Schema48_DisablesNewPresentationSwitchesWithoutLosingStrengths()
+    public void Schema48_DisablesDepthSwitchWithoutLosingStrengths()
     {
         ClientConfig legacy = ClientConfigDefaults.Create(_profile);
         legacy.SchemaVersion = 48;
-        legacy.Effects.FisheyeScale = 2.5f;
         legacy.Terrain.DepthPixels = 12f;
         legacy.Terrain.DepthDarkening = 0.42f;
         string original = JsonUtility.ToJson(legacy, prettyPrint: true);
-        foreach (string field in new[] { "FisheyeEnabled", "DepthEnabled" })
-        {
-            original = Regex.Replace(original, "\\s*\"" + field + "\"\\s*:\\s*[^,}]+,", "");
-        }
+        original = Regex.Replace(original, "\\s*\"DepthEnabled\"\\s*:\\s*[^,}]+,", "");
         Directory.CreateDirectory(Path.GetDirectoryName(ConfigPath)!);
         File.WriteAllText(ConfigPath, original);
 
         ClientConfigLoader.Result result = LoadConfig();
 
-        Assert.That(result.Config.Effects.FisheyeEnabled, Is.False);
         Assert.That(result.Config.Terrain.DepthEnabled, Is.False);
-        Assert.That(result.Config.Effects.FisheyeScale, Is.EqualTo(2.5f));
         Assert.That(result.Config.Terrain.DepthPixels, Is.EqualTo(12f));
         Assert.That(result.Config.Terrain.DepthDarkening, Is.EqualTo(0.42f));
         Assert.That(result.Config.SchemaVersion, Is.EqualTo(ClientConfig.CurrentSchemaVersion));
@@ -469,48 +441,15 @@ public sealed class InstallUpgradeTests
         Assert.That(File.ReadAllText(ConfigPath + ".backup"), Is.EqualTo(legacyJson));
     }
 
-    [Test]
-    public void Schema41WithoutChatWindowLayout_MigratesAndKeepsDefaults()
-    {
-        ClientConfig legacy = ClientConfigDefaults.Create(_profile);
-        legacy.SchemaVersion = 41;
-        string sourceJson = JsonUtility.ToJson(legacy, prettyPrint: true);
-        string legacyJson = Regex.Replace(
-            sourceJson,
-            @",?\r?\n[ \t]*""(?:HasChatWindowLayout|ChatWindow(?:X|Y|Width|Height))""[ \t]*:[ \t]*(?:true|false|[-0-9.]+)",
-            string.Empty);
-        Assert.That(legacyJson, Does.Not.Contain("ChatWindow"));
-        Assert.That(legacyJson, Does.Not.Contain("HasChatWindowLayout"));
-        Directory.CreateDirectory(Path.GetDirectoryName(ConfigPath)!);
-        File.WriteAllText(ConfigPath, legacyJson);
-
-        ClientConfigLoader.Result result = LoadConfig();
-
-        Assert.That(result.Outcome, Is.EqualTo(ClientConfigLoader.Outcome.Migrated));
-        Assert.That(result.SourceSchemaVersion, Is.EqualTo(41));
-        Assert.That(result.Config.SchemaVersion, Is.EqualTo(ClientConfig.CurrentSchemaVersion));
-        Assert.That(result.Config.Interface.HasChatWindowLayout, Is.False);
-        Assert.That(result.Config.Interface.ChatWindowX, Is.EqualTo(0f));
-        Assert.That(result.Config.Interface.ChatWindowY, Is.EqualTo(0f));
-        Assert.That(result.Config.Interface.ChatWindowWidth, Is.EqualTo(0f));
-        Assert.That(result.Config.Interface.ChatWindowHeight, Is.EqualTo(0f));
-        Assert.That(File.ReadAllText(ConfigPath + ".backup"), Is.EqualTo(legacyJson));
-    }
-
     [TestCase(41)]
     [TestCase(42)]
     [TestCase(43)]
     [TestCase(44)]
-    public void DivergedSchema_PreservesPortChatLayoutAndDesktopScale(int schema)
+    public void DivergedSchema_PreservesPortAndDesktopScale(int schema)
     {
         ClientConfig legacy = ClientConfigDefaults.Create(_profile);
         legacy.SchemaVersion = schema;
         legacy.Connection.ApiPort = 6123;
-        legacy.Interface.HasChatWindowLayout = true;
-        legacy.Interface.ChatWindowX = 123f;
-        legacy.Interface.ChatWindowY = 45f;
-        legacy.Interface.ChatWindowWidth = 640f;
-        legacy.Interface.ChatWindowHeight = 360f;
         legacy.Interface.UIScale = 1.2f;
         string json = JsonUtility.ToJson(legacy, prettyPrint: true);
         Directory.CreateDirectory(Path.GetDirectoryName(ConfigPath)!);
@@ -520,22 +459,17 @@ public sealed class InstallUpgradeTests
 
         Assert.That(result.Config.SchemaVersion, Is.EqualTo(ClientConfig.CurrentSchemaVersion));
         Assert.That(result.Config.Connection.ApiPort, Is.EqualTo(6123));
-        Assert.That(result.Config.Interface.HasChatWindowLayout, Is.True);
-        Assert.That(result.Config.Interface.ChatWindowX, Is.EqualTo(123f));
-        Assert.That(result.Config.Interface.ChatWindowY, Is.EqualTo(45f));
-        Assert.That(result.Config.Interface.ChatWindowWidth, Is.EqualTo(640f));
-        Assert.That(result.Config.Interface.ChatWindowHeight, Is.EqualTo(360f));
         Assert.That(result.Config.Interface.UIScale, Is.EqualTo(1.2f));
         Assert.That(File.ReadAllText(ConfigPath + ".backup"), Is.EqualTo(json));
     }
 
     [Test]
-    public void LocalSchema44WithoutUpstreamFields_GainsApiPortAndChatDefaults()
+    public void LocalSchema44WithoutUpstreamFields_GainsApiPort()
     {
         ClientConfig legacy = ClientConfigDefaults.Create(_profile);
         legacy.SchemaVersion = 44;
         string json = Regex.Replace(JsonUtility.ToJson(legacy, prettyPrint: true),
-            @",?\r?\n[ \t]*""(?:ApiPort|HasChatWindowLayout|ChatWindow(?:X|Y|Width|Height))""[ \t]*:[ \t]*(?:true|false|[-0-9.]+)",
+            @",?\r?\n[ \t]*""ApiPort""[ \t]*:[ \t]*[-0-9.]+",
             string.Empty);
         Directory.CreateDirectory(Path.GetDirectoryName(ConfigPath)!);
         File.WriteAllText(ConfigPath, json);
@@ -544,7 +478,6 @@ public sealed class InstallUpgradeTests
 
         Assert.That(result.Config.Connection.ApiPort,
             Is.EqualTo(ClientConfigurationDefaults.DefaultApiPort));
-        Assert.That(result.Config.Interface.HasChatWindowLayout, Is.False);
         Assert.That(result.Config.SchemaVersion, Is.EqualTo(ClientConfig.CurrentSchemaVersion));
         Assert.That(File.ReadAllText(ConfigPath + ".backup"), Is.EqualTo(json));
     }

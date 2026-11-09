@@ -31,7 +31,9 @@ namespace Kern.Game.Rendering
         private const int VERTS_PER_TENTACLE = TentacleGeometry.VerticesPerTentacle;
         private const int INDICES_PER_TENTACLE = TentacleGeometry.IndicesPerTentacle;
         private const int INITIAL_CAPACITY = 64;
-        private const int BATCH_SORTING_ORDER = -1;
+        // Роботы, хвосты и прочие сущности — над фоном террейна, но под его
+        // блоками (стенки и передний план вынесены в отдельный рендерер).
+        private const int BATCH_SORTING_ORDER = WorldRenderLayers.WorldEntitySortingOrder;
         private const int OVERLAY_BATCH_SORTING_ORDER = 600;
         private const int TENTACLE_SORTING_ORDER = -1;
         private static readonly float s_visibilityPrefetchMargin =
@@ -48,6 +50,9 @@ namespace Kern.Game.Rendering
 
         private static readonly int s_glowFieldThresholdId =
             Shader.PropertyToID("_GlowFieldThreshold");
+
+        private static readonly int s_entityGlowEmissionId =
+            Shader.PropertyToID("_EntityGlowEmission");
 
         private static bool s_tuningGlobalsApplied;
 
@@ -310,6 +315,9 @@ namespace Kern.Game.Rendering
             Shader.SetGlobalFloat(
                 s_glowFieldThresholdId,
                 WorldRenderConfigHolder.GlowFieldThreshold);
+            Shader.SetGlobalFloat(
+                s_entityGlowEmissionId,
+                WorldRenderConfigHolder.EntityGlowEmission);
             s_tuningGlobalsApplied = true;
         }
 

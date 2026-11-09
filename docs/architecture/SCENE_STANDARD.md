@@ -1,6 +1,6 @@
 # Стандарт сцен и сервисов Kern
 
-Обязателен для всех сцен: `Bootstrap`, `Gateway`, `MainMenu`, `MainGame`. Код — источник истины; если документ расходится с кодом, правится одно из двух в том же изменении.
+Обязателен для всех сцен: `Bootstrap`, `MainMenu`, `MainGame` (вход и онбординг — слой меню `MenuGate`, не сцена). Код — источник истины; если документ расходится с кодом, правится одно из двух в том же изменении.
 
 ## 1. Что может быть GameObject'ом
 
@@ -28,7 +28,7 @@ GameObject — только то, у чего есть **место в мире 
 
 ## 3. Кадр
 
-- Порядок кадра задаётся явно: тики контейнера (`ITickable` в порядке регистрации), а не порядком скриптов на объектах и не `DefaultExecutionOrder`, где можно без него.
+- Порядок кадровых сервисов задаётся явно порядком регистрации VContainer-тиков (`ITickable`). Между scene-компонентами порядок задаётся только там, где production path от него зависит: например, `TerrainRenderer` (`DefaultExecutionOrder(100)`) публикует committed frame до `LightingEngine` (`DefaultExecutionOrder(200)`). Не полагайся на случайный порядок компонентов на GameObject.
 - Никакого опроса «не изменилось ли что» в `Update`, если есть событие или `VisualElement.schedule`.
 - В тике — ноль аллокаций на установившемся режиме: без LINQ, строковой интерполяции, лямбд с захватом, `new` коллекций.
 
@@ -40,23 +40,40 @@ GameObject — только то, у чего есть **место в мире 
 
 ## 5. Как переносить сервис
 
-1. Удалить объект сервиса со сцены и **сразу сохранить сцену**.
+Этот workflow с изменением сцены применим только когда текущая задача явно
+разрешает нужную Unity Editor/API операцию. Сам рефакторинг C# такого разрешения
+не подразумевает.
+
+1. В разрешённом Editor/API workflow удалить объект сервиса со сцены и сохранить сцену.
 2. Переписать класс по §1, заменить `RegisterManager<T>` на `Register`/`RegisterEntryPoint`.
-3. `Kern/Architecture/Populate Manager Contract` — привязки собираются из вызовов `RegisterManager<T>` в коде, поэтому после шага 2. Меню правит уже открытую сцену и сохраняет её.
-4. Перекомпилировать, проверить консоль и **файл сцены на диске**: GUID удалённого скрипта не должен встречаться в `.unity`. Если класс перестал быть `MonoBehaviour`, а объект остался в файле, Unity пишет «missing the class attribute 'ExtensionOfNativeClass'» и «references runtime script in scene file. Fixing!».
-5. Сцены и префабы — только через Unity Editor, никогда текстом.
+3. `Kern/Architecture/Populate Manager Contract` собирает привязки из вызовов
+   `RegisterManager<T>` в коде. После шага 2 мигратор обновляет открытую сцену;
+   сохранить результат через Unity API.
+4. Unity-компиляцию и проверку консоли выполнять только в рамках явно
+   разрешённой Unity-операции. Проверить, что GUID удалённого скрипта не
+   остался в сцене: если класс перестал быть `MonoBehaviour`, но объект остался,
+   Unity сообщает о missing `ExtensionOfNativeClass` и ссылке на runtime script.
+5. Сцены и префабы изменять только через Unity Editor/API, никогда текстом.
+   Если Unity-операция не разрешена, ограничиться исходным кодом и отметить
+   проверку сцены/runtime как невыполненную.
 
-## 6. Статус переноса MainGame
+## 6. Текущая регистрация сценовых сервисов
 
-| Сервис | Статус |
+`GameLifetimeScope.RegisterManager<T>` ограничен `MonoBehaviour`: он получает
+компонент из сериализованной группы через `SceneBindings.ResolveTypedBinding<T>`
+и регистрирует уже существующий компонент. Группы `World`, `Rendering`, `Audio`
+и `UI` — часть контракта сцены, а не список сервисов, ожидающих переноса в
+обычный C#.
+
+| Регистрация в `MainGame` | Примеры текущих владельцев |
 | --- | --- |
-| `ServerConfig` | перенесён: `Register<ServerConfig>` |
-| `UIInputManager` | перенесён: `Register<UIInputManager>` |
-| `PacketHandler` | перенесён: `RegisterEntryPoint`, `IStartable` + `IDisposable`, без `partial` |
-| `DisplayManager` | перенесён: `RegisterEntryPoint`, `IStartable` |
-| `BuildingManager`, `RobotManager` | перенесены: `Register`, сущности через `ISceneObjectFactory` |
-| `GameManager` | перенесён: `RegisterEntryPoint`, `ITickable` + `IDisposable` |
-| `MapManager` | в очереди: гизмо и превью для редактора выносятся отдельно, `Update` → `ITickable`, пауза/выход → `IDisposable` + хук приложения |
-| `WorldTextureManager` | в очереди: сериализованные ссылки на ассеты → настройки через `ScriptableObject` или `RegisterInstance` |
-| `WorldBackgroundSetup`, `TerrainRenderer`, `SurfaceRenderer`, `WorldEntityBatchRenderer`, `CameraFollow`, `LightingEngine`, `VFXPool` | остаются компонентами (рендер/камера), тик — к явному порядку §3 |
-| UI-контроллеры (`PlayerHUDView`, `InventoryView`, `PauseMenu`, …) | в очереди: презентеры поверх одного `UIDocument` |
+| Сценовые компоненты через `RegisterManager<T>` | `MapManager`, `WorldTextureManager`, `TerrainRenderer`, `WorldBackgroundSetup`, `WorldEntityBatchRenderer`, `VisualEffectPool`, `LightingEngine`, `SurfaceRenderer`, `CameraFollow`, `PlayerHUDView`, `InventoryView`, `PauseMenu`, `MinimapController`, `WorldMapController`, `WorldMapRenderer` |
+| Обычные singleton-сервисы через `Register<T>` | `ServerConfig`, `UIInputManager`, `BuildingManager`, `RobotManager`, модели, реестры и инфраструктурные сервисы |
+| Entry points через `RegisterEntryPoint<T>` | `PacketHandler`, `GameManager`, `GameBootstrap`, кадровые и стартовые адаптеры |
+
+`DisplayManager` в игровом scope подключается через
+`GameUIServiceRegistration`; `MainMenuLifetimeScope` регистрирует собственный
+экземпляр как singleton. Состав регистраций — текущий срез реализации, не план
+переноса: lifecycle и авторство каждого компонента сверяй по его владельцу и
+сценовому binding. Переходы между `Bootstrap`, `MainMenu` и `MainGame` описаны в
+[`project-context.md`](../../.agents/project-context.md#2-scenes-and-startup).

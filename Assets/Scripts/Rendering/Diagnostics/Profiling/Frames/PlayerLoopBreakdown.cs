@@ -11,7 +11,7 @@ namespace Kern.Rendering.Diagnostics.Profiling;
 // Список систем берётся из текущего PlayerLoop, маркер каждой системы
 // называется «Фаза.Система». Системы одного уровня не вложены друг в друга,
 // но наличие типа не гарантирует покрытие соответствующим маркером.
-// Сумма найденных маркеров не позволяет приписать остаток редактору.
+// Сумма найденных маркеров не является полным временем PlayerLoop.
 public sealed class PlayerLoopBreakdown : IDisposable
 {
     private readonly List<FrameProbe> _systems = new();
@@ -74,7 +74,7 @@ public sealed class PlayerLoopBreakdown : IDisposable
         foreach (FrameProbe probe in _systems)
         {
             probe.Sample();
-            if (!probe.Available)
+            if (!probe.Available || !probe.HasSamples)
             {
                 missing++;
                 continue;

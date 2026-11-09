@@ -414,6 +414,7 @@ namespace Kern.Game.Player.Movement
             IsGameplayVisible = false;
             CancelClickPath();
             PlayerStepSelector.Reset(_stepState);
+            ResetDirection();
             foreach (SpriteRenderer renderer in _playerRenderers)
             {
                 renderer.enabled = false;
@@ -422,8 +423,8 @@ namespace Kern.Game.Player.Movement
             _robot?.SetBatchedBodyVisible(false);
         }
 
-        public void UpdateServerPosition(Vector2Int position, bool teleport = false) =>
-            _serverPositionUpdater.UpdateServerPosition(this, position, teleport);
+        public void UpdateServerPosition(Vector2Int position, bool teleport = false, Direction? rotation = null) =>
+            _serverPositionUpdater.UpdateServerPosition(this, position, teleport, rotation);
 
         public void SetGameplayVisible()
         {
@@ -455,18 +456,6 @@ namespace Kern.Game.Player.Movement
             direction = default;
             return _actionDispatcher != null && _actionDispatcher.TryGetDigDirection(x, y, out direction);
         }
-
-
-
-        // Rotate-in-place and committed step turns share this sender. Track the
-        // last direction actually sent as RotatePacket separately from the
-        // optimistic direction of a MovePacket, which carries no direction.
-
-
-        // Один тик клик-маршрута: та же механика, что у ручного движения -
-        // поворот (тратит такт), затем шаг MovePacket или бур BzPacket
-        // сплошной клетки. Вызывается из ApplyMovement при нулевом вводе.
-
 
         public void ResetDirection()
         {

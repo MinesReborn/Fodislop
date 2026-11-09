@@ -26,14 +26,16 @@ public class ClientConfig
     // 45: объединение веток схемы: ApiPort и сохранённая геометрия чата.
     // Поля аддитивные; существующие значения сохраняются.
     // 46: TerrainSettings.DepthPixels и DepthDarkening для стенок тоннелей.
-    // 47: EffectSettings.FisheyeScale — сохраняемая сила рыбьего глаза.
+    // 47: EffectSettings.FisheyeScale — сила рыбьего глаза (эффект позже удалён, поле убрано).
     // 48: независимый масштаб текста и полные клавиатурные привязки.
-    // 49: отдельные тумблеры рыбьего глаза и глубины, изначально выключены.
+    // 49: отдельные тумблеры рыбьего глаза и глубины, изначально выключены (рыбий глаз позже удалён).
     // Схемы 31–48 мигрируются штатным загрузчиком с созданием backup.
     // 50: replace the old default slow-movement Ctrl binding.
     // 51: move the default slow-movement binding to LeftAlt.
     // 52: помощь в движении (обход препятствий), изначально включена.
-    public const int CurrentSchemaVersion = 52;
+    // 53: режим для дальтоников (EffectSettings.ColorVision), изначально выключен.
+    // 54: уровень чёрного и яркость SDR (DisplaySettings.BlackLevel, Brightness), изначально нейтральные.
+    public const int CurrentSchemaVersion = 54;
 
     public int SchemaVersion;
     public AudioSettings Audio = new();

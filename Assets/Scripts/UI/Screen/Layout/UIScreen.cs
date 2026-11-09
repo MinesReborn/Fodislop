@@ -107,6 +107,9 @@ public static class UIScreen
 
         VisualElement root = document.rootVisualElement;
         s_boundDocuments[document] = root;
+
+        // Микрографика макета (рамки, шкалы ступенями, пунктир, точки, штриховка) — векторно, по свойствам USS
+        KernVector.Attach(root);
         if (!s_safeAreaRoots.Contains(root))
         {
             s_safeAreaRoots.Add(root);

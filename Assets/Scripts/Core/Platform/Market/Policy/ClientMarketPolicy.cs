@@ -22,9 +22,10 @@ public static class ClientMarketPolicy
         }
     }
 
-    public static bool IsVkAvailable =>
+    // Язык по умолчанию — русский для России и Беларуси, иначе английский
+    public static string DefaultLanguageCode =>
         string.Equals(SystemCountryCode, "RU", StringComparison.OrdinalIgnoreCase) ||
-        string.Equals(SystemCountryCode, "BY", StringComparison.OrdinalIgnoreCase);
-
-    public static string DefaultLanguageCode => IsVkAvailable ? "ru" : "en";
+        string.Equals(SystemCountryCode, "BY", StringComparison.OrdinalIgnoreCase)
+            ? "ru"
+            : "en";
 }

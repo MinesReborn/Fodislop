@@ -127,7 +127,9 @@ public sealed class MarkerSearch : IDisposable
 
     // Время выше счётчиков: в поиске чаще ищут, что тормозит.
     private static double Weight(FrameProbe probe) =>
-        !probe.Available ? double.MinValue : probe.IsTime ? 1e12 + probe.Average : probe.Average;
+        !probe.Available || !probe.HasSamples
+            ? double.MinValue
+            : probe.IsTime ? 1e12 + probe.Average : probe.Average;
 
     public void Stop()
     {

@@ -30,7 +30,7 @@ public sealed class TerrainRuntimeQuantizationPlayModeTests
     public IEnumerator SetUp()
     {
         _authentication = DummyAuthenticationScope.Seed(TestDummyToken);
-        yield return PlayModeHarness.StartAtGateway();
+        yield return PlayModeHarness.StartAtMainMenu();
         BootstrapLifetimeScope bootstrap = PlayModeHarness.FindBootstrap()!;
         yield return PlayModeHarness.EnterMainGame(bootstrap);
     }
@@ -54,21 +54,36 @@ public sealed class TerrainRuntimeQuantizationPlayModeTests
             PlayModeHarness.WorldTimeoutSeconds,
             "The live TerrainRenderer never became ready.");
 
+        yield return PlayModeHarness.WaitUntil(
+            () => terrain.transform.Find("TerrainBlockOverlay") != null,
+            PlayModeHarness.WorldTimeoutSeconds,
+            "The terrain block overlay renderer was never created.");
+
         MeshFilter meshFilter = terrain.GetComponent<MeshFilter>();
         MeshRenderer meshRenderer = terrain.GetComponent<MeshRenderer>();
         Assert.That(meshFilter.sharedMesh, Is.Not.Null);
         Assert.That(meshFilter.sharedMesh!.name, Is.EqualTo("TerrainVolumeMesh"),
             "Gameplay must use the address mesh consumed by TerrainCellData.hlsl.");
-        Assert.That(meshRenderer.sharedMaterials, Has.Length.EqualTo(3));
-        Assert.That(meshFilter.sharedMesh.subMeshCount, Is.EqualTo(3));
+        Assert.That(meshRenderer.sharedMaterials, Has.Length.EqualTo(1),
+            "The visible background is a single layer; blocks are drawn by their own renderer.");
+        Assert.That(meshFilter.sharedMesh.subMeshCount, Is.EqualTo(1));
         Assert.That(meshFilter.sharedMesh.GetVertexAttributeFormat(VertexAttribute.Position),
             Is.EqualTo(VertexAttributeFormat.Float32));
         Assert.That(meshFilter.sharedMesh.GetVertexAttributeDimension(VertexAttribute.Position), Is.EqualTo(4));
         Assert.That(meshFilter.sharedMesh.HasVertexAttribute(VertexAttribute.TexCoord0), Is.False);
-        Assert.That(meshFilter.sharedMesh.GetIndexCount(1), Is.GreaterThan(0),
+
+        Transform blockOverlay = terrain.transform.Find("TerrainBlockOverlay");
+        MeshFilter blockFilter = blockOverlay.GetComponent<MeshFilter>();
+        MeshRenderer blockRenderer = blockOverlay.GetComponent<MeshRenderer>();
+        Assert.That(blockFilter.sharedMesh, Is.Not.Null);
+        Assert.That(blockFilter.sharedMesh!.name, Is.EqualTo("TerrainBlockMesh"));
+        Assert.That(blockFilter.sharedMesh.subMeshCount, Is.EqualTo(2),
+            "Walls and foreground faces share one block renderer.");
+        Assert.That(blockFilter.sharedMesh.GetIndexCount(0), Is.GreaterThan(0),
             "The production mesh must contain actual side triangles.");
-        Assert.That(meshRenderer.sharedMaterials[1], Is.SameAs(meshRenderer.sharedMaterials[0]));
-        Assert.That(meshRenderer.sharedMaterials[2], Is.SameAs(meshRenderer.sharedMaterials[0]));
+        Assert.That(blockRenderer.sortingOrder, Is.GreaterThan(WorldRenderLayers.WorldEntitySortingOrder),
+            "Blocks must cover robots and tails, not sit under them.");
+        Assert.That(blockRenderer.sharedMaterial, Is.SameAs(meshRenderer.sharedMaterial));
 
         Material cellMaterial = meshRenderer.sharedMaterials[0];
         Assert.That(cellMaterial, Is.Not.Null);
@@ -81,7 +96,7 @@ public sealed class TerrainRuntimeQuantizationPlayModeTests
     }
 
     [UnityTest]
-    public IEnumerator MainGame_DepthChangesProductionCameraImageWithFisheye()
+    public IEnumerator MainGame_DepthChangesProductionCameraImage()
     {
         TerrainRenderer terrain = PlayModeHarness.FindComponentInScene<TerrainRenderer>(
             PlayModeHarness.Scene(SceneNames.MainGame))
@@ -89,18 +104,14 @@ public sealed class TerrainRuntimeQuantizationPlayModeTests
         yield return PlayModeHarness.WaitUntil(
             () => terrain.IsReadyForGameplay, PlayModeHarness.WorldTimeoutSeconds,
             "Terrain never became ready for depth capture.");
-        Assert.That(PostProcessLook.Fisheye.Strength, Is.Not.Zero,
-            "This capture must include the production fisheye.");
         Camera camera = PlayModeHarness.RequireInGame<IGameplayCamera>().Camera;
         Material material = terrain.GetComponent<MeshRenderer>().sharedMaterials[0];
         Vector3 originalPosition = camera.transform.position;
         float originalZoom = camera.orthographicSize;
-        float originalFisheyeScale = PostProcessRuntimeState.FisheyeScale;
         float originalDepth = material.GetFloat("_TerrainDepthPixels");
         float originalDarkening = material.GetFloat("_TerrainDepthDarkening");
         try
         {
-            PostProcessRuntimeState.FisheyeScale = 1f;
             // Render requests are synchronous: the scene, lighting, texture
             // animation and camera inputs stay identical within each comparison.
             foreach (float zoomScale in new[] { 0.75f, 1f })
@@ -141,7 +152,6 @@ public sealed class TerrainRuntimeQuantizationPlayModeTests
         }
         finally
         {
-            PostProcessRuntimeState.FisheyeScale = originalFisheyeScale;
             material.SetFloat("_TerrainDepthPixels", originalDepth);
             material.SetFloat("_TerrainDepthDarkening", originalDarkening);
             camera.transform.position = originalPosition;

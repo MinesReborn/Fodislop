@@ -7,6 +7,29 @@ using UnityEngine.UIElements;
 namespace Kern.UI.Localization;
 public static class UILocalizer
 {
+    public const string CapsClass = "caps";
+
+    // Высота строки многострочного текста (line-height макета): в USS свойства нет, TextCore понимает тег <line-height>.
+    // Класс задаёт шаг строк в долях кегля; первая строка остаётся по метрикам шрифта — её добирают отступы в USS
+    private static readonly (string Class, string Tag)[] s_lineHeights =
+    {
+        ("lh-100", "<line-height=1em>"),
+        ("lh-145", "<line-height=1.45em>"),
+        ("lh-150", "<line-height=1.5em>"),
+    };
+
+    // Текст, который код ставит сам после локализации, теряет тег высоты строки: класс lh-* ставит его снова
+    public static void ApplyLineHeight(TextElement text)
+    {
+        foreach ((string cls, string tag) in s_lineHeights)
+        {
+            if (text.ClassListContains(cls) && !text.text.StartsWith(tag, System.StringComparison.Ordinal))
+            {
+                text.text = tag + text.text;
+            }
+        }
+    }
+
     public static void Apply(VisualElement root, ILocalizationService loc)
     {
         if (root == null || loc == null)
@@ -28,6 +51,27 @@ public static class UILocalizer
             {
                 button.text = loc.Get(button.text);
             }
+        }
+
+        // Подсказка пустого поля (placeholder-text="gateway.auth.login_field") — тоже ключ
+        foreach (var field in root.Query<TextField>().Build())
+        {
+            string placeholder = field.textEdition.placeholder;
+            if (!string.IsNullOrEmpty(placeholder) && loc.HasKey(placeholder))
+            {
+                field.textEdition.placeholder = loc.Get(placeholder);
+            }
+        }
+
+        // Заглавные (text-transform: uppercase макета): в USS свойства нет — класс caps поднимает регистр текста
+        foreach (var text in root.Query<TextElement>(className: CapsClass).Build())
+        {
+            text.text = text.text.ToUpperInvariant();
+        }
+
+        foreach (var text in root.Query<TextElement>().Build())
+        {
+            ApplyLineHeight(text);
         }
 
         // Tooltip-атрибуты тоже могут нести ключи (tooltip="hud.tooltip.clan");

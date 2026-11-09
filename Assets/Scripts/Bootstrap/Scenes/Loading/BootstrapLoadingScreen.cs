@@ -28,6 +28,8 @@ namespace Kern.Bootstrap.Scenes
 
         private VisualElement? _overlay;
         private Label? _phase;
+        private VisualElement? _meter;
+        private VisualElement? _fill;
         private bool _initialized;
 
         private void OnEnable()
@@ -91,6 +93,8 @@ namespace Kern.Bootstrap.Scenes
             UILocalizer.Apply(tree, _localization);
             _overlay = tree.Q<VisualElement>("BootstrapLoadingOverlay");
             _phase = tree.Q<Label>("BootstrapLoadingPhase");
+            _meter = tree.Q<VisualElement>("BootstrapLoadingMeter");
+            _fill = tree.Q<VisualElement>("BootstrapLoadingFill");
         }
 
         public void ApplyLocalizedText()
@@ -159,8 +163,11 @@ namespace Kern.Bootstrap.Scenes
             EnsureVisualElements();
             if (_phase != null)
             {
-                _phase.text = $"{_localization.Get("network.connecting")} {sceneName}";
+                // Имя сцены игроку не показывается: это внутреннее устройство клиента
+                _phase.text = _localization.Get("assetload.resources");
             }
+
+            ClearProgress();
 
             UIState.Show(_overlay);
             if (_overlay != null)
@@ -190,6 +197,26 @@ namespace Kern.Bootstrap.Scenes
             if (_overlay != null)
             {
                 _overlay.pickingMode = PickingMode.Position;
+            }
+        }
+
+        // Доля готовности 0…1: шкала ступенями (meter-quant). Пока доля не известна — шкалы нет, только фаза
+        public void SetProgress(float progress)
+        {
+            EnsureVisualElements();
+            _meter?.RemoveFromClassList("is-idle");
+            if (_fill != null)
+            {
+                _fill.style.width = Length.Percent(Mathf.Clamp01(progress) * 100f);
+            }
+        }
+
+        private void ClearProgress()
+        {
+            _meter?.AddToClassList("is-idle");
+            if (_fill != null)
+            {
+                _fill.style.width = Length.Percent(0f);
             }
         }
 

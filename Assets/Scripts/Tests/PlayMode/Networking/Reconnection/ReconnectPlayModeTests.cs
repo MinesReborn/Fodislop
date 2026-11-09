@@ -30,7 +30,7 @@ public sealed class ReconnectPlayModeTests
     public IEnumerator SetUp()
     {
         _authentication = DummyAuthenticationScope.Seed(TestDummyToken);
-        yield return PlayModeHarness.StartAtGateway();
+        yield return PlayModeHarness.StartAtMainMenu();
         _bootstrap = PlayModeHarness.FindBootstrap()!;
         _connection = _bootstrap.Container.Resolve<IConnectionService>();
         _scenario = _bootstrap.Container.Resolve<IDummyScenarioSettings>();
@@ -111,7 +111,7 @@ public sealed class ReconnectPlayModeTests
     }
 
     [UnityTest]
-    public IEnumerator ReconnectAfterDroppedHandshake_ReusesTheOfflineServer()
+    public IEnumerator ReconnectAfterDroppedHandshake_ReusesTheDummyServer()
     {
         GameManager game = PlayModeHarness.RequireInGame<GameManager>();
         _connection.Disconnect();
@@ -128,7 +128,7 @@ public sealed class ReconnectPlayModeTests
         // Dispose у синглтона DummyConnection и ломал его мир навсегда.
         _scenario.Scenario = DummyScenario.HappyPath;
         _connection.Connect();
-        yield return WaitForWorldReload(game, "The offline server did not serve a world after a dropped handshake.");
+        yield return WaitForWorldReload(game, "The dummy server did not serve a world after a dropped handshake.");
     }
 
     [UnityTest]

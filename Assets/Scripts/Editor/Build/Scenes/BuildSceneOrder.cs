@@ -9,8 +9,8 @@ using Kern.UI.Menu;
 
 namespace Kern.Editor;
 
-// Порядок production-сцен в Build Settings: Bootstrap первой, дальше Gateway,
-// MainMenu, MainGame. Проверяется перед сборкой; правится руками в Build
+// Порядок production-сцен в Build Settings: Bootstrap первой, дальше MainMenu
+// (вход и онбординг — его слой), MainGame. Проверяется перед сборкой; правится руками в Build
 // Settings, а не молча чинится кодом.
 public static class BuildSceneOrder
 {
@@ -18,7 +18,6 @@ public static class BuildSceneOrder
     new[] {
 
         ScenePath(SceneNames.Bootstrap),
-        ScenePath(SceneNames.Gateway),
         ScenePath(SceneNames.MainMenu),
         ScenePath(SceneNames.MainGame),
 

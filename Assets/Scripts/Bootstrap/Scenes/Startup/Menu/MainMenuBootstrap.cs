@@ -42,9 +42,9 @@ public sealed class MainMenuBootstrap : IStartable
         try
         {
             await _ticket.WaitForActivationAsync();
-            _controller.InitializeScene(_scope.Starfield, _scope.Scenery);
+            _controller.InitializeScene();
             _ticket.MarkStartupReady();
-            // Гарантируем, что текстура планеты и звёздное небо готовы ДО показа меню пользователю.
+            // Меню показывается игроку только собранным.
             await _controller.WaitUntilReadyAsync(_scope.destroyCancellationToken);
             _ticket.MarkPresentationReady();
         }

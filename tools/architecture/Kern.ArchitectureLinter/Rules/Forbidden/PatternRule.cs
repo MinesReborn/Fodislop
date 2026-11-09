@@ -74,12 +74,10 @@ public sealed class PatternRule : IRule
         (new Regex(@"\bTime\.timeScale\s*="), "unowned Time.timeScale mutation", @"^(Assets/Scripts/UI/Settings/Navigation/PauseMenu\.cs|Assets/Scripts/Game/Session/Orchestration/GameManager\.cs|Assets/Scripts/Tests/)", null),
         (new Regex(@"new\s+(WebClient|HttpClient)\s*\("), "ad-hoc HTTP client (use ClientAssetLoader or UnityWebRequest)", @"^(Assets/Editor/|Assets/Scripts/Tests/)", null),
         (new Regex(@"Shader\.WarmupAllShaders"), "Shader.WarmupAllShaders in URP (throws keyword space assert)", null, null),
-        (new Regex(@"_starfieldMaterial\.(?:SetFloat|SetVector|SetColor|SetTexture|SetInt|SetMatrix)\s*\("), "mutation of the serialized Starfield material asset (use the HideAndDontSave runtime clone)", null, null),
         (new Regex(@"\.sharedMaterial\.(?:SetFloat|SetVector|SetColor|SetTexture|SetInt|SetMatrix)\s*\("), "mutation through Renderer.sharedMaterial (clone the material or use MaterialPropertyBlock)", null, null),
         (new Regex(@"GameStartupServices"), "deleted GameStartupServices aggregate (inject startup dependencies directly into GameBootstrap)", @"^Assets/Scripts/Tests/", null),
         (new Regex(@"SceneScopeAuthoring|SceneContractMigration"), "scene auto-fixing editor tools are deleted (use the read-only ProductionSceneContractValidator)", null, null),
         (new Regex(@"PlayerMovementController\.(LocalPlayer|OnLocalPlayerSpawned)"), "static local-player access (resolve ILocalPlayerState)", @"^Assets/Scripts/Core/Lifecycle/Player/Contracts/State/ILocalPlayerState\.cs$", null),
-        (new Regex(@"\b(MenuStarfield|MenuSceneryController)\.Current\b"), "static menu-scenery access (use the MainMenuLifetimeScope serialized contract)", null, null),
         (new Regex(@"\b(PauseMenu\.IsMenuOpen|ChatInput\.IsFocused|ProgrammatorGrid\.IsOpen)\b"), "static UI state access outside the UI layer (compose IInputBlocker)", @"^Assets/Scripts/UI/", null),
         (new Regex(@"\bpartial\s+(?:class|struct|record)\b"), "partial type declaration is forbidden (decompose into separate classes/responsibilities instead)", @"^Assets/Scripts/VContainer/", null),
     };

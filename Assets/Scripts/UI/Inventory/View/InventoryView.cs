@@ -49,7 +49,7 @@ namespace Kern.UI.Inventory
         private VisualElement? _fullScroll;
         private VisualElement? _hotbarSlots;
         private VisualElement? _fullSlots;
-        private Label? _toggleGlyph;
+        private VisualElement? _toggleIcon;
         private bool _isInventoryOpen;
         private InventoryTooltipController? _tooltipController;
         private bool _initialized;
@@ -207,7 +207,7 @@ namespace Kern.UI.Inventory
 
             _slots = new InventorySlotCollection(_model, _catalog);
             BuildUI();
-            _tooltipController = new InventoryTooltipController(_doc.rootVisualElement, _catalog);
+            _tooltipController = new InventoryTooltipController(_doc.rootVisualElement, _catalog, _loc);
 
             _model.OnItemsChanged += RebuildSlots;
             _model.OnSelectedChanged += OnModelSelectedChanged;
@@ -232,7 +232,7 @@ namespace Kern.UI.Inventory
                 var item = _model!.GetItem(type);
                 if (item != null)
                 {
-                    _tooltipController?.ShowItemInfo(item, _catalog.GetIcon(type));
+                    _tooltipController?.ShowItemInfo(item);
                     return;
                 }
             }
@@ -268,12 +268,12 @@ namespace Kern.UI.Inventory
                     _inventoryButton.clicked += ToggleFullInventory;
                     if (_loc != null)
                     {
-                        _inventoryButton.tooltip = $"{_loc.Get("inventory.open")} — {_loc.Get("inventory.hotbar")}";
+                        _inventoryButton.tooltip = _loc.Get("inventory.open");
 
                         // Кнопка — узкая полоса с треугольником, как в старом
                         // клиенте: название туда не влезает, внутри остаётся
                         // только стрелка, разворачивающаяся при сворачивании.
-                        _toggleGlyph = _inventoryButton.Q<Label>();
+                        _toggleIcon = _inventoryButton.Q<VisualElement>("InventoryToggleIcon");
                     }
 
                     ApplyInventoryMode();
@@ -317,7 +317,7 @@ namespace Kern.UI.Inventory
             ItemData? item = _model.GetItem(type);
             if (item != null)
             {
-                _tooltipController?.ShowItemInfo(item, _catalog.GetIcon(type));
+                _tooltipController?.ShowItemInfo(item);
             }
         }
 
@@ -359,10 +359,9 @@ namespace Kern.UI.Inventory
                 return;
             }
 
-            // Четыре строки, столбцы прирастают влево — как FixedRowCount = 4
-            // со StartAxis = Vertical в старом клиенте. Создаются только
-            // ячейки реально держимых предметов: номер слота больше не имеет
-            // смысла, у каждого типа одна ячейка на панель.
+            // Четыре строки, первый предмет снизу, столбцы прирастают влево — как FixedRowCount = 4
+            // со StartAxis = Vertical в старом клиенте (макет: .inv-slots, grid-row 4…1). Порядок задаёт лист:
+            // столбец — column-reverse, ряд столбцов — row-reverse. Номер ячейки — место предмета в списке
             VisualElement? column = null;
             for (int i = 0; i < count; i++)
             {
@@ -370,10 +369,11 @@ namespace Kern.UI.Inventory
                 {
                     column = new VisualElement();
                     column.AddToClassList("inv-slot-column");
+                    column.pickingMode = PickingMode.Ignore;
                     container.Add(column);
                 }
 
-                column!.Add(_slots.CreateCell(types[i]));
+                column!.Add(_slots.CreateCell(types[i], i));
             }
         }
 
@@ -413,10 +413,8 @@ namespace Kern.UI.Inventory
                     _isInventoryOpen ? DisplayStyle.Flex : DisplayStyle.None;
             }
 
-            if (_toggleGlyph != null)
-            {
-                _toggleGlyph.text = _isInventoryOpen ? "\u25B6" : "\u25C0";
-            }
+            // Стрелка раскрытия смотрит влево (список растёт влево), в раскрытом — обратно
+            _toggleIcon?.EnableInClassList("is-flipped", _isInventoryOpen);
 
             // Раскрытый список на сенсорном экране — окно по центру (Touch.uss):
             // полосой вдоль края полсотни предметов закрыли бы весь HUD.

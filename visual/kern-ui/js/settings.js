@@ -28,7 +28,9 @@
 
   // Переназначение клавиш: нажать на клавишу — «Нажмите клавишу…», Esc — отмена
   let listening = null;
-  const keyName = e => e.code === 'Space' ? 'Space' : e.key.length === 1 ? e.key.toUpperCase() : e.key;
+  const ARROWS = { ArrowUp: '↑', ArrowDown: '↓', ArrowLeft: '←', ArrowRight: '→' };
+  const SIDES = { ShiftLeft: 'Left Shift', ShiftRight: 'Right Shift', AltLeft: 'Left Alt', AltRight: 'Right Alt', ControlLeft: 'Left Ctrl', ControlRight: 'Right Ctrl' };
+  const keyName = e => e.code === 'Space' ? 'Space' : ARROWS[e.key] || SIDES[e.code] || (e.key.length === 1 ? e.key.toUpperCase() : e.key);
   function stopListen() { if (listening) { listening.textContent = listening.dataset.key; listening.classList.remove('is-listening'); listening = null; } }
   dlg.querySelectorAll('button.keycap:not(.padcap)').forEach(k => k.onclick = () => {
     stopListen(); listening = k; k.textContent = 'Нажмите клавишу…'; k.classList.add('is-listening');
@@ -41,7 +43,7 @@
       stopListen();
     } else if (e.key === 'Escape') close();
   }, true);
-  const DEFAULTS = ['Space', 'E', 'G', 'V', 'Y', 'H', 'F', 'J'];
+  const DEFAULTS = ['W', '↑', 'S', '↓', 'A', '←', 'D', '→', 'Left Shift', 'Right Shift', 'Left Alt', 'Space', 'E', 'G', 'V', 'Y', 'H', 'F', 'J'];
   $('keysReset').onclick = () => { stopListen(); dlg.querySelectorAll('button.keycap:not(.padcap)').forEach((k, i) => { k.dataset.key = k.textContent = DEFAULTS[i]; }); };
 
   // «Управление»: клавиатура или геймпад

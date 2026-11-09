@@ -19,6 +19,7 @@ using Object = UnityEngine.Object;
 
 using Kern.AssetPipeline.Loading;
 using Kern.Core.Rendering;
+using Kern.Diagnostics.Artifacts;
 
 namespace Kern.Tests.PlayMode;
 
@@ -112,8 +113,7 @@ public sealed class SurfaceSceneRenderPathPlayModeTests
             Assert.That(observed, Is.True, "Must observe the actual scene-linear world-grid input before bloom and URP tonemapping.");
             Assert.That(complete, Is.True, "Production HDR readback must complete.");
             Assert.That(PostProcessRuntimeState.DiagnosticDisplayFrame, Is.GreaterThanOrEqualTo(Time.frameCount - 2));
-            string directory = Path.Combine(Application.dataPath, "../Logs/Diagnostics/surface-scene");
-            Directory.CreateDirectory(directory);
+            string directory = DiagnosticArtifactPaths.GetDirectory("surface-scene");
             Save("surface-3d");
             float neutralOutputLuminance = ReadOutputLuminance();
             // DisplayFinal receives URP-tonemapped light. A second numerical capture disables

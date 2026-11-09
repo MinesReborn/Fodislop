@@ -1,34 +1,94 @@
-/* Экран загрузки бутстрапа.
- *
- * Лист лежит рядом с разметкой, а не в Assets/Resources/Styles, потому что
- * подключается через <ui:Style> самим UXML: бутстрап поднимается раньше темы.
- * Значения при этом берутся из общей палитры — токены объявлены в теме и
- * доступны здесь по наследованию от корня панели.
- */
+/* Экран загрузки — boot макета (visual/kern-ui: screens.css .boot, micro.css .boot-phase, systems.css .meter--wide).
+   Лист подключается самим UXML: бутстрап поднимается раньше темы. Токены — KernTokens.uss темы панели.
+   Фон экранов вне игры (.screen-space) и шкала ступенями (.meter-quant) — общие классы Kern.uss;
+   здесь продублированы, потому что тема у панели бутстрапа может ещё не стоять. */
 
-.bootstrap-loading-overlay {
+.screen-space {
     position: absolute;
     left: 0;
-    right: 0;
     top: 0;
+    right: 0;
     bottom: 0;
     align-items: center;
     justify-content: center;
-    background-color: var(--surface-scrim, rgba(3, 5, 9, 0.95));
+    background-color: var(--void);
+    /* Виньетка bg.svg: радиальный градиент USS (центр 62 % / 50 %, #14121d → void) */
+    background-image: radial-gradient(ellipse farthest-side at 62% 50%, #14121d 0%, #06050a 100%);
 }
 
-.bootstrap-loading-overlay.is-hidden {
+/* Точки по сетке клеток мира: клетка 32 px, кость 8 % (bg.svg) */
+.screen-space__dots {
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    --dots-color: rgba(216, 213, 238, 0.08);
+    --dots-step: 32;
+    --dots-size: 2;
+}
+
+.boot-screen.is-hidden {
     display: none;
 }
 
-.bootstrap-loading-title {
-    color: var(--text-primary, #ffffff);
-    font-size: var(--size-2xl, 28px);
-    -unity-font-style: bold;
+/* Колонка 420 px по центру; зазор 14 px — полями */
+.boot {
+    width: 420px;
+    align-items: center;
 }
 
-.bootstrap-loading-phase {
-    margin-top: var(--space-6, 24px);
-    color: var(--text-secondary, #94a3b8);
-    font-size: var(--size-lg, 18px);
+.boot-logo {
+    width: 72px;
+    height: 72px;
+    margin-bottom: 22px;
+    background-image: resource("UI/Theme/Kern/Icons/mark");
+}
+
+.boot-title {
+    margin: 0;
+    padding: 0;
+    -unity-font-definition: var(--face-display);
+    font-size: var(--t-title);
+    -unity-font-style: bold;
+    letter-spacing: 2px; /* 0.02em: интервал UI Toolkit — в сотых кегля */
+    color: var(--bone);
+    -unity-text-align: middle-center;
+}
+
+.boot-phase {
+    min-height: 17px;
+    margin: 14px 0 0 0;
+    padding: 0;
+    -unity-font-definition: var(--face-mono);
+    font-size: var(--t-4);
+    letter-spacing: 2px; /* 0.02em: интервал UI Toolkit — в сотых кегля */
+    color: var(--ash);
+    -unity-text-align: middle-center;
+}
+
+/* Шкала ступенями: ячейка 6 px и зазор 2 px — повторяемая текстура quant-8.png, цвет — тинтом */
+.meter-quant {
+    height: 6px;
+    overflow: hidden;
+    --quant-color: var(--well);
+}
+
+.meter-quant__fill {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 0;
+    --quant-color: var(--mist);
+    transition: width var(--dur-fast) linear;
+}
+
+.boot-meter {
+    align-self: stretch;
+    margin-top: 20px;
+}
+
+.boot-meter.is-idle {
+    visibility: hidden;
 }

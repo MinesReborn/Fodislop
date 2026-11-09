@@ -1,6 +1,6 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements">
     <ui:VisualElement name="LocalChatPanel" class="lchat-panel">
-        <ui:TextField name="LocalChatField" class="lchat-input" />
+        <ui:TextField name="LocalChatField" class="chat-input lchat-input" />
         <ui:Button name="LocalChatSendButton" class="lchat-send" text="&gt;" />
     </ui:VisualElement>
 </ui:UXML>

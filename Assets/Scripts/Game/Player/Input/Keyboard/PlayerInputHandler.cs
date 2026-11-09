@@ -313,15 +313,12 @@ namespace Kern.Game.Player.Input
             }
         }
 
-        // Схема «Указатель мыши» (InterfaceSettings.ControlScheme == 1): пока
-        // зажата ПКМ, дрон идёт к указателю от центра экрана — то, что
-        // обещает вкладка «Управление» («ПКМ (удержание)»). ЛКМ остаётся за
-        // клик-маршрутом. Мёртвая зона 20 px гасит дрожь у центра.
+        // Движение мышью: пока зажата ПКМ, дрон идёт к указателю от центра
+        // экрана — то, что обещает вкладка «Управление» («ПКМ (удержание)»).
+        // ЛКМ остаётся за клик-маршрутом. Мёртвая зона 20 px гасит дрожь у центра.
         private void ReadMousePointerMovement()
         {
-            if (Mouse.current == null ||
-                _clientConfig?.Config.Interface.ControlScheme != 1 ||
-                !Mouse.current.rightButton.isPressed)
+            if (Mouse.current == null || !Mouse.current.rightButton.isPressed)
             {
                 return;
             }

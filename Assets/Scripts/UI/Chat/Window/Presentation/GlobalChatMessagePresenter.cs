@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using Kern.UI.Localization;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -12,11 +13,16 @@ internal sealed class GlobalChatMessagePresenter
     // и мелкий недокрут после предыдущей автопрокрутки.
     private const float BottomStickThreshold = 32f;
 
+    // Свёрнутый чат показывает три последние строки канала
+    private const int PeekLines = 3;
+
     private readonly ChatMessageHistory _history = new();
+    private readonly System.Collections.Generic.List<string> _peek = new();
+    private VisualElement? _peekLines;
     private ScrollView? _scrollView;
     private Action<long>? _messageClicked;
 
-    // Строку сообщения можно кликнуть (как в легаси-чате): клик по чужой строке
+    // Строку сообщения можно кликнуть: клик по чужой строке
     // открывает серверное окно отправителя (кнопка «Личное сообщение»).
     // По ревью PR передаётся MessageId — отправитель резолвится сервером
     // по идентификатору сообщения, а не по PlayerId.
@@ -29,21 +35,58 @@ internal sealed class GlobalChatMessagePresenter
         Render();
     }
 
+    private void RenderPeek()
+    {
+        if (_peekLines == null)
+        {
+            return;
+        }
+
+        _peekLines.Clear();
+        foreach (string line in _peek)
+        {
+            var label = new Label(line) { pickingMode = PickingMode.Ignore };
+            label.AddToClassList("chat-peek-line");
+            _peekLines.Add(label);
+        }
+    }
+
     public void Detach()
     {
+        _peekLines = null;
         _scrollView = null;
         _messageClicked = null;
     }
 
-    public void Add(string formattedMessage, long messageId = 0)
+    public void AttachPeek(VisualElement? peekLines)
     {
-        _history.Add(formattedMessage, messageId);
-        AppendVisible(formattedMessage, messageId);
+        _peekLines = peekLines;
+        RenderPeek();
+    }
+
+    // peek — строка для свёрнутого чата («ник: текст»); системные сообщения туда не попадают.
+    // time — «18:42» перед ником, у системной строки пусто
+    public void Add(string formattedMessage, long messageId = 0, string? peek = null, string time = "")
+    {
+        _history.Add(formattedMessage, messageId, time);
+        AppendVisible(formattedMessage, messageId, time);
+        if (peek != null)
+        {
+            _peek.Add(peek);
+            if (_peek.Count > PeekLines)
+            {
+                _peek.RemoveAt(0);
+            }
+
+            RenderPeek();
+        }
     }
 
     public void Clear()
     {
         _history.Clear();
+        _peek.Clear();
+        RenderPeek();
         Render();
     }
 
@@ -55,13 +98,13 @@ internal sealed class GlobalChatMessagePresenter
         }
 
         _scrollView.Clear();
-        foreach ((string formatted, long messageId) in _history.GetMessages())
+        foreach ((string formatted, long messageId, string time) in _history.GetMessages())
         {
-            AppendVisible(formatted, messageId);
+            AppendVisible(formatted, messageId, time);
         }
     }
 
-    private void AppendVisible(string formattedMessage, long messageId)
+    private void AppendVisible(string formattedMessage, long messageId, string time)
     {
         if (_scrollView == null)
         {
@@ -74,24 +117,33 @@ internal sealed class GlobalChatMessagePresenter
         // к дну не дёргаем.
         bool stickToBottom = IsAtBottom();
 
-        VisualElement line;
+        // Строка — контейнер: текст и время рядом. Время нельзя класть внутрь Label: у текстового элемента с детьми
+        // UI Toolkit не меряет текст, строка получала нулевую высоту и строки ленты налезали друг на друга
+        var line = new VisualElement();
+        line.AddToClassList("chat-line-row");
         if (messageId > 0 && _messageClicked != null)
         {
             Action<long> clicked = _messageClicked;
-            var wrapper = new VisualElement();
-            wrapper.AddToClassList("gchat-message--clickable");
-            wrapper.RegisterCallback<ClickEvent>(_ => clicked(messageId));
-            _scrollView.Add(wrapper);
-            line = wrapper;
+            line.AddToClassList("chat-line--clickable");
+            line.RegisterCallback<ClickEvent>(_ => clicked(messageId));
         }
-        else
+
+        _scrollView.Add(line);
+
+        // Ряд: время моно (колонка 45 px с зазором, макет .chat-log li time) и текст строки с шагом 1.45 кегля
+        if (time.Length > 0)
         {
-            line = _scrollView;
+            var timeLabel = new Label(time) { pickingMode = PickingMode.Ignore };
+            timeLabel.AddToClassList("chat-line__time");
+            line.Add(timeLabel);
         }
 
         var label = new Label(formattedMessage);
-        label.AddToClassList("gchat-message");
+        label.AddToClassList("chat-line");
+        label.AddToClassList("lh-145");
+        UILocalizer.ApplyLineHeight(label);
         line.Add(label);
+
         while (_scrollView.childCount > ChatMessageHistory.MaxMessages)
         {
             _scrollView.RemoveAt(0);
@@ -103,7 +155,7 @@ internal sealed class GlobalChatMessagePresenter
         // игрок начал скроллить сам.
         if (stickToBottom)
         {
-            _scrollView.ScrollTo(label);
+            _scrollView.ScrollTo(line);
         }
     }
 

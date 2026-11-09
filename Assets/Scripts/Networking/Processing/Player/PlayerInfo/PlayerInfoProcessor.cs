@@ -61,6 +61,7 @@ public sealed class PlayerInfoProcessor :
     {
         _robotManager.SetLocalPlayerBotId(packet.BotId);
         _playerStats.SetNickname(packet.Nickname);
+        _playerStats.SetPlayerId(packet.PlayerId);
 
         var player = _localPlayer.Current;
         if (player != null)
@@ -116,7 +117,9 @@ public sealed class PlayerInfoProcessor :
 
         if (packet.BotId != 0 && packet.BotId == _robotManager.LocalPlayerBotId)
         {
-            _localPlayer.Current?.UpdateServerPosition(new Vector2Int(packet.X, packet.Y));
+            _localPlayer.Current?.UpdateServerPosition(
+                new Vector2Int(packet.X, packet.Y),
+                rotation: (Direction)packet.Rotation);
         }
     }
 

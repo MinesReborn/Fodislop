@@ -126,7 +126,7 @@ Handles player identity. Sign-in methods: anonymous, social providers (Google, A
 
 After sign-in: `PlayerId` and `PlayerName` are available. All sign-in methods fire the `SignedIn` event. `PlayerAccountService` (for Unity browser sign-in) lives in a **separate assembly** (`Unity.Services.Authentication.PlayerAccounts`).
 
-- **Full reference:** [references/authentication.md](references/authentication.md)
+- **Full reference:** [references/authentication.md](authentication.md)
 - **Building Block:** [Player Account](#asset-store-building-blocks) — ready-made sign-in UI and identity management
 
 ### Cloud Code
@@ -142,7 +142,7 @@ var result = await CloudCodeService.Instance.CallModuleEndpointAsync<TResult>(
 
 Prefer C# modules over JavaScript scripts for production. Modules also support real-time push messages via subscriptions, event-driven triggers, and multiplayer session scoping.
 
-- **Full reference:** [references/cloud-code.md](references/cloud-code.md)
+- **Full reference:** [references/cloud-code.md](cloud-code.md)
 
 ### Cloud Save
 
@@ -159,7 +159,7 @@ Per-player key-value storage with three access classes, plus game-wide Custom da
 
 Values are serialized as JSON. Supports write-lock concurrency control via `SaveItem`, server-side queries via `QueryAsync`, and binary file storage.
 
-- **Full reference:** [references/cloud-save.md](references/cloud-save.md)
+- **Full reference:** [references/cloud-save.md](cloud-save.md)
 - **Building Blocks:** Used by [Achievements](#asset-store-building-blocks) (Protected buckets) and [Player Account](#asset-store-building-blocks) (Default/Public data)
 
 ### Remote Config
@@ -170,7 +170,7 @@ Server-side game configuration. Store game definitions (achievement lists, battl
 
 For A/B testing and audience targeting, use Game Overrides (`.ugo`) via the Tooling package.
 
-- **Full reference:** [references/remote-config.md](references/remote-config.md)
+- **Full reference:** [references/remote-config.md](remote-config.md)
 - **Building Block:** Used by the [Achievements](#asset-store-building-blocks) block for server-side definitions
 
 ### Tooling
@@ -179,7 +179,7 @@ For A/B testing and audience targeting, use Game Overrides (`.ugo`) via the Tool
 
 Editor-only package. Registers **Access Control** (`.ac`) and **Game Overrides** (`.ugo`) file types with the Deployment Window. Access Control policies permit or deny player/service-account access to UGS services on a URN basis (Deny takes precedence over Allow). Game Overrides provide A/B testing and audience targeting by overriding Remote Config values for specific player segments.
 
-- **Full reference:** [references/tooling.md](references/tooling.md)
+- **Full reference:** [references/tooling.md](tooling.md)
 
 ### Deployment
 
@@ -196,7 +196,7 @@ Editor-only package providing the **Deployment Window** (Services > Deployment).
 | Economy | `.ec*` | Currency/inventory definitions |
 | Game Overrides | `.ugo` | Audience-targeted config overrides |
 
-- **Full reference:** [references/deployment.md](references/deployment.md)
+- **Full reference:** [references/deployment.md](deployment.md)
 
 ### UGS CLI
 
@@ -208,7 +208,7 @@ The [Unity Gaming Services CLI](https://github.com/Unity-Technologies/unity-gami
 
 Auto-generated REST clients for all UGS services. Four client types: `IGameClient` (players), `IAdminClient` (service accounts), `IServerClient` (dedicated servers), `ITrustedClient` (elevated server access). Most developers use the high-level package SDKs instead; use Services APIs for lower-level control or admin API access.
 
-- **Full reference:** [references/apis.md](references/apis.md)
+- **Full reference:** [references/apis.md](apis.md)
 
 ## Asset Store Building Blocks
 
@@ -242,9 +242,9 @@ Implementation-ready blueprints for common live game features. Each includes dat
 
 | Feature | Key Services | Blueprint |
 |---|---|---|
-| **Battle Pass** | `remote-config`, `cloudsave`, `cloudcode`, `economy`, `tooling`, `deployment` — Remote Config (pass definitions) + Cloud Save Protected (progress) + Cloud Code (XP awards, reward claims, premium purchase) | [references/battlepass.md](references/battlepass.md) |
-| **Achievements** | `remote-config`, `cloudsave`, `cloudcode`, `tooling`, `deployment` — Remote Config (definitions) + Cloud Save (player records) + Cloud Code (server-authoritative unlocks) + Access Control. **Asset Store:** [Achievements Building Block](https://assetstore.unity.com/packages/essentials/tutorial-projects/unity-building-block-achievements-341918) | [references/achievements.md](references/achievements.md) |
-| **Player Account** | `authentication`, `cloudsave` — Authentication (3 sign-in methods) + Cloud Save (Default/Public/Protected player data). **Asset Store:** Player Account Building Block (via `com.unity.starter-kits`) | [references/player-account.md](references/player-account.md) |
+| **Battle Pass** | `remote-config`, `cloudsave`, `cloudcode`, `economy`, `tooling`, `deployment` — Remote Config (pass definitions) + Cloud Save Protected (progress) + Cloud Code (XP awards, reward claims, premium purchase) | [references/battlepass.md](battlepass.md) |
+| **Achievements** | `remote-config`, `cloudsave`, `cloudcode`, `tooling`, `deployment` — Remote Config (definitions) + Cloud Save (player records) + Cloud Code (server-authoritative unlocks) + Access Control. **Asset Store:** [Achievements Building Block](https://assetstore.unity.com/packages/essentials/tutorial-projects/unity-building-block-achievements-341918) | [references/achievements.md](achievements.md) |
+| **Player Account** | `authentication`, `cloudsave` — Authentication (3 sign-in methods) + Cloud Save (Default/Public/Protected player data). **Asset Store:** Player Account Building Block (via `com.unity.starter-kits`) | [references/player-account.md](player-account.md) |
 
 ## Common Architecture Patterns
 
@@ -295,18 +295,18 @@ For any live game feature, deploy these cloud resources via the Deployment Windo
 ## Detailed References
 
 ### Service References
-- **Authentication** — sign-in methods, events, profiles, identity providers, code templates: [references/authentication.md](references/authentication.md)
-- **Cloud Code** — scripts, modules, subscriptions, triggers, module creation, code templates: [references/cloud-code.md](references/cloud-code.md)
-- **Cloud Save** — access classes, data operations, files, queries, code templates: [references/cloud-save.md](references/cloud-save.md)
-- **Remote Config** — definitions, `.rc` format, Game Overrides, code templates: [references/remote-config.md](references/remote-config.md)
-- **Tooling** — Access Control (`.ac`) policies, Game Overrides (`.ugo`), URN reference: [references/tooling.md](references/tooling.md)
-- **Deployment** — file types, workflow, programmatic API: [references/deployment.md](references/deployment.md)
-- **Services APIs** — four client types, service areas, code templates: [references/apis.md](references/apis.md)
+- **Authentication** — sign-in methods, events, profiles, identity providers, code templates: [references/authentication.md](authentication.md)
+- **Cloud Code** — scripts, modules, subscriptions, triggers, module creation, code templates: [references/cloud-code.md](cloud-code.md)
+- **Cloud Save** — access classes, data operations, files, queries, code templates: [references/cloud-save.md](cloud-save.md)
+- **Remote Config** — definitions, `.rc` format, Game Overrides, code templates: [references/remote-config.md](remote-config.md)
+- **Tooling** — Access Control (`.ac`) policies, Game Overrides (`.ugo`), URN reference: [references/tooling.md](tooling.md)
+- **Deployment** — file types, workflow, programmatic API: [references/deployment.md](deployment.md)
+- **Services APIs** — four client types, service areas, code templates: [references/apis.md](apis.md)
 
 ### Feature Blueprints
-- **Achievements** — full implementation with data models, client code, Cloud Code module, cloud resources: [references/achievements.md](references/achievements.md)
-- **Battle Pass** — full implementation with tiered XP, free/premium tracks, Cloud Code module, cloud resources: [references/battlepass.md](references/battlepass.md)
-- **Player Account** — sign-in flows, identity management, Cloud Save data, code templates: [references/player-account.md](references/player-account.md)
+- **Achievements** — full implementation with data models, client code, Cloud Code module, cloud resources: [references/achievements.md](achievements.md)
+- **Battle Pass** — full implementation with tiered XP, free/premium tracks, Cloud Code module, cloud resources: [references/battlepass.md](battlepass.md)
+- **Player Account** — sign-in flows, identity management, Cloud Save data, code templates: [references/player-account.md](player-account.md)
 
 ## Reminders
 

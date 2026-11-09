@@ -1,6 +1,11 @@
-<!doctype html><html lang="ru"><meta charset="utf-8"><title>Terrain fragment checkpoints</title>
+<!doctype html><html lang="ru"><meta charset="utf-8"><title>Архив Terrain fragment checkpoints</title>
 <style>body{font:16px system-ui;max-width:960px;margin:40px auto;line-height:1.5}table{border-collapse:collapse}td,th{border:1px solid #aaa;padding:8px}</style>
-<h1>Диагностика стоимости fragment террейна</h1>
+<h1>Архив диагностики стоимости fragment террейна</h1>
+<p>Режимы 0–4 остаются benchmark-only ветками текущего
+<code>TerrainForwardPass.hlsl</code>; приведённые ниже p50 и сравнения выполнены
+30 сентября 2026 года и являются историческими. Они не задают актуальный
+performance baseline и не подтверждают текущую стоимость fragment на новом
+рабочем дереве. Новый baseline требует отдельного разрешённого production run.</p>
 <p>TL-STAGE, TL-LIFE, TL-REV, TL-PERF, TL-VERIFY: владелец — Terrain Universal2D.
 Потребитель — явно запускаемый FrameBenchmarkPlayModeTests. Глобальный integer
 _KernTerrainBenchmarkStage равен 0 в production; тест сохраняет исходное значение

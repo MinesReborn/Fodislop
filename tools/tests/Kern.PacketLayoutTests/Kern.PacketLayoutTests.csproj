@@ -1,0 +1,19 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <IsTestProject>true</IsTestProject>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="NUnit" Version="3.14.0" />
+    <PackageReference Include="NUnit3TestAdapter" Version="4.6.0" />
+    <Compile Include="../../../Assets/Scripts/UI/ServerWindows/Building/Containers/GridLayout/PacketGridLayout.cs" Link="PacketGridLayout.cs" />
+    <Compile Include="../../../Assets/Scripts/Networking/Processing/UserInterface/WindowPacket/ClickableElementOrder.cs" Link="ClickableElementOrder.cs" />
+    <Compile Include="../../../Assets/Scripts/Networking/Gateways/Windows/WindowCommandStream.cs" Link="WindowCommandStream.cs" />
+    <Compile Include="../../../Assets/Scripts/Tests/Editor/Networking/Gateways/Windows/WindowCommandStreamTests.cs" Link="WindowCommandStreamTests.cs" />
+    <Compile Include="../../../Assets/Scripts/Tests/Editor/Networking/Gateways/Windows/WindowCommandStreamFuzzTests.cs" Link="WindowCommandStreamFuzzTests.cs" />
+    <ProjectReference Include="../../../Packages/MinesServerNetworking/MinesServer.Networking/MinesServer.Networking.csproj" />
+  </ItemGroup>
+</Project>

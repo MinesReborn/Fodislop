@@ -141,7 +141,10 @@ public sealed class TerrainMaterialManager
         CleanupMaterials();
         _cellMaterials = new[] { CreateCellMaterial(clientConfig) };
         Material surface = _cellMaterials[0];
-        _presentationMaterials = new[] { surface, surface, surface };
+        // Видимый фон — один сабмеш. Стенки и передний план блоков живут в
+        // отдельном меше со своим рендерером и той же поверхностной
+        // материей (см. TerrainPresentationWindow).
+        _presentationMaterials = new[] { surface };
 
         SnapshotAtlasRefs(atlases);
         FrameEventLog.Record($"террейн: материалы пересозданы, атласов {atlases.Count}");

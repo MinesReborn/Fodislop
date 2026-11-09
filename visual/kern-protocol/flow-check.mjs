@@ -1,0 +1,18 @@
+import fs from 'node:fs';
+import assert from 'node:assert/strict';
+import {chromium} from '@playwright/test';
+import {replaceText} from './rich-text.mjs';
+const fixtures=JSON.parse(fs.readFileSync(new URL('./design-packets.json',import.meta.url)));
+const find=(p,path)=>path.split('/').filter(x=>/^\d+$/.test(x)).reduce((n,i)=>n.Children[Number(i)],p.Content);
+const browser=await chromium.launch();
+try{
+ const page=await browser.newPage({viewport:{width:1700,height:1100}}),errors=[];page.on('pageerror',e=>errors.push(e.message));await page.goto('http://127.0.0.1:8791/visual/kern-protocol/');await page.waitForSelector('#builder-properties');
+ async function load(packet){await page.locator('details').filter({has:page.locator('#importData')}).evaluate(el=>el.open=true);await page.locator('#importData').fill(JSON.stringify(packet));await page.click('#import');await page.waitForFunction(()=>document.getElementById('artboard').dataset.layoutReady==='true');await page.evaluate(()=>document.fonts.ready);}
+ const path=Object.entries(fixtures.market.EditorLayers).find(([,label])=>label==='Итог')[0],packet=structuredClone(fixtures.market.Packet),group=find(packet,path);assert.equal(group.Type,'DockPanelPacket');assert.ok(group.Children.every(n=>!n.AttachedProperties.some(p=>p.Key.startsWith('Canvas.'))));
+ await load(packet);const selector='#artboard [data-packet-path="'+path+'"]';const before=await page.locator(selector).boundingBox();group.Children[0].Text=replaceText(group.Children[0].Text,'ДЛИННАЯ ПОДПИСЬ ИТОГА, КОТОРАЯ ДОЛЖНА ПЕРЕНОСИТЬСЯ БЕЗ НАЛОЖЕНИЯ НА СУММУ');await load(packet);
+ const boxes=await page.locator(selector).evaluate(el=>[...el.children].map(child=>{const r=child.getBoundingClientRect();return {y:r.y,bottom:r.bottom};}));assert.ok(boxes[1].y>=boxes[0].bottom+5);assert.ok((await page.locator(selector).boundingBox()).height>before.height+7);assert.ok(await page.locator('.window-overflow').isVisible());const oldHeight=await page.getByLabel('Height',{exact:true}).inputValue();await page.getByRole('button',{name:'Увеличить окно до содержимого',exact:true}).click();await page.waitForFunction(()=>document.getElementById('artboard').dataset.layoutReady==='true');assert.ok(Number(await page.getByLabel('Height',{exact:true}).inputValue())>Number(oldHeight));assert.ok(await page.locator('.window-overflow').isHidden());
+ const info=structuredClone(fixtures.resp.Packet),factsPath=Object.entries(fixtures.resp.EditorLayers).find(([,label])=>label==='Характеристики')[0],facts=find(info,factsPath);assert.equal(facts.Type,'DockPanelPacket');assert.ok(facts.Children.every(row=>row.Type==='GridPacket'));await load(info);
+ const rowPath=factsPath+'/Children/0',rowSelector='#artboard [data-packet-path="'+rowPath+'"]',initial=await page.locator(rowSelector).boundingBox();facts.AttachedProperties.find(p=>p.Key==='Canvas.Width').Value='330';await load(info);const after=await page.locator(rowSelector).boundingBox();assert.ok(after.width<initial.width-60);
+ const widths=await page.locator(rowSelector).evaluate(el=>[...el.children].map(c=>c.getBoundingClientRect().width));assert.ok(Math.abs(widths.reduce((a,b)=>a+b,0)-after.width)<1);facts.Children[0].Children[0].Text=replaceText(facts.Children[0].Children[0].Text,'Очень длинная подпись характеристики, которая не помещается в выделенную колонку и требует изменения компоновки.');await load(info);assert.ok(await page.locator('.window-overflow').isVisible());assert.deepEqual(errors,[]);
+ console.log('Flow: long captions push values down; native fact grids follow frame width without child coordinates');
+}finally{await browser.close();}

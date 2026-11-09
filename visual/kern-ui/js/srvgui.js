@@ -36,7 +36,7 @@
     ['green', 'Зелёные', 2340, 12], ['blue', 'Синие', 1204, 18], ['red', 'Красные', 96, 40],
     ['violet', 'Фиолетовые', 12, 95], ['white', 'Белые', 3, 260], ['cyan', 'Голубые', 57, 70],
   ];
-  // Режим стенда «много кристаллов и денег» (?rich=1|2|3, список «Груз и деньги» в панели стенда): сумма продажи ≈ $99 млрд (КК), ×1000 (ККК), ×1 000 000 (КККК)
+  // Режим стенда «много кристаллов и денег» (?rich=1|2|3, список «Груз и деньги» в панели стенда): сумма продажи ≈ $99 млрд (B), ×1000 (T), ×1 000 000 (Q)
   const RICH_CRYSTALS = [
     ['green', 'Зелёные', 3900000000, 12], ['blue', 'Синие', 1600000000, 18], ['red', 'Красные', 120000000, 40],
     ['violet', 'Фиолетовые', 55000000, 95], ['white', 'Белые', 9000000, 260], ['cyan', 'Голубые', 160000000, 70],
@@ -52,8 +52,6 @@
   setRich(0);
   // Бокс: в образце — синие целиком и половина красных
   const inBox = crystals.map(([, , have], i) => i === 1 ? have : i === 2 ? Math.round(have / 2) : 0);
-  // Предметы инвентаря: строка — Image по имени предмета, Slider количества; в образце — полимер наполовину и вся чёрная скала
-  const boxItems = (window.kernItems || []).map(([id, have, name]) => [id, name, have, id === 'poly' ? 20 : id === 'geoBlackRock' ? have : 0]);
   const afterSale = () => Math.round(Math.max(...crystals.map(([, , have], i) => have - sold[i])) * 100 / capacity);
   const plural = (n, one, few, many) => { const a = n % 10, b = n % 100; return a === 1 && b !== 11 ? one : a >= 2 && a <= 4 && (b < 12 || b > 14) ? few : many; };
   // Разряды — тонкой шпацией, как в остальном интерфейсе
@@ -138,13 +136,13 @@
 
     // Создание бокса: Basket.OpenBoxGui — CrystalConfig «останется / будет в боксе» на шесть кристаллов груза, текст и кнопка
     // dropbox:%M% (значения ползунков). Бокс встаёт в клетку перед роботом; строки источника нет — координаты бокса игроку не нужны
-    box: { w: 560, h: 600, root: Dock([
+    box: { w: 560, h: 500, root: Dock([
       head('img/cells/Box.png', 'Создание бокса'),
-      T('Выберите ползунками, сколько кристаллов и предметов положить в бокс.', { dock: 'Top', role: 'text' }),
+      T('Выберите ползунками, сколько кристаллов положить в бокс.', { dock: 'Top', role: 'text' }),
       Dock([
         Panel([T('Кристаллов в боксе', { role: 'cap' }), T(num(inBox.reduce((a, b) => a + b, 0)), { role: 'sum' })], { dock: 'Left', role: 'total' }),
-        Panel([T(`${inBox.filter(Boolean).length} ${plural(inBox.filter(Boolean).length, 'вид', 'вида', 'видов')} кристаллов`), T(`Предметов — ${num(boxItems.reduce((a, it) => a + it[3], 0))} шт`)], { dock: 'Left', role: 'annot' }),
-        Btn('В бокс', { dock: 'Right', primary: true, disabled: !inBox.some(Boolean) && !boxItems.some(it => it[3]) }), T(''),
+        Panel([T(`${inBox.filter(Boolean).length} ${plural(inBox.filter(Boolean).length, 'вид', 'вида', 'видов')} кристаллов`)], { dock: 'Left', role: 'annot' }),
+        Btn('В бокс', { dock: 'Right', primary: true, disabled: !inBox.some(Boolean) }), T(''),
       ], { dock: 'Bottom', role: 'foot' }),
       // Колонки: значок, название (остаток), останется, ползунок, будет в боксе
       Scroll([Grid([46, 0, 84, 150, 96], [0, ...crystals.map(() => 0)], [
@@ -160,22 +158,29 @@
             cell(r, 4, T(num(inBox[i]), { role: 'num strong' + off })),
           ];
         }),
-      ], { role: 'table' }),
-      Grid([46, 0, 84, 150, 96], [0, ...boxItems.map(() => 0)], [
-        cell(0, 0, T('', { role: 'cap' })), cell(0, 1, T('Предмет', { role: 'cap' })), cell(0, 2, T('Останется', { role: 'cap num' })),
-        cell(0, 3, T('', { role: 'cap' })), cell(0, 4, T('Будет в боксе', { role: 'cap num' })),
-        ...boxItems.flatMap(([id, name, have, put], i) => {
-          const r = i + 1;
-          return [
-            cell(r, 0, I(`img/items/${id}.png`, 24, 24)),
-            cell(r, 1, T(name)),
-            cell(r, 2, T(num(have - put), { role: 'num' })),
-            cell(r, 3, Slider(0, have, 1, put)),
-            cell(r, 4, T(num(put), { role: 'num strong' })),
-          ];
-        }),
       ], { role: 'table' })]),
     ]) },
+
+    // Пополнение (донат): сервер присылает пакеты кредитов с ценой; выбранный — нажатой клавишей цены (клик уходит на сервер,
+    // окно приходит заново с новым выбором), итог и «Оплатить» — в подвале. Оплата — во внешнем окне платёжной системы
+    get donate() {
+      const packs = [[100, 0, 0.99], [300, 0, 2.99], [550, 10, 4.99], [1200, 20, 9.99], [2500, 25, 19.99], [6500, 30, 49.99]];
+      const pick = 2, usd = n => '$' + n.toFixed(2);   // цена — в долларах, как в магазинах платформ
+      return { w: 560, h: 540, root: Dock([
+        head('img/ui/credit.svg', 'Пополнение', 'На счету — 340 кредитов'),
+        Dock([
+          Panel([T('К оплате', { role: 'cap' }), T(usd(packs[pick][2]), { role: 'sum' })], { dock: 'Left', role: 'total' }),
+          Panel([T(`${num(packs[pick][0])} кредитов`), T(packs[pick][1] ? `Из них бонус — ${num(Math.round(packs[pick][0] * packs[pick][1] / (100 + packs[pick][1])))}` : 'Без бонуса')], { dock: 'Left', role: 'annot' }),
+          Btn('Оплатить', { dock: 'Right', primary: true }), T(''),
+        ], { dock: 'Bottom', role: 'foot' }),
+        Grid([0, 0, 0], [0, 0], packs.map(([cr, bonus, price], i) => cell(Math.floor(i / 3), i % 3, Panel([
+          I('img/ui/credit.svg', 18, 24),
+          T(`<b>${num(cr)}</b>кредитов`, { role: 'big' }),
+          T(bonus ? `+${bonus}% бонус` : 'без бонуса', { role: bonus ? 'note bonus' : 'note' }),
+          Btn(usd(price), { on: i === pick }),
+        ], { role: 'pack' }))), { dock: 'Top', role: 'packs' }),
+      ]) };
+    },
 
     // Мой клан: clan_info у DummyClanManager — название, номер, описание, «Покинуть клан»
     clan_info: { w: 420, h: 300, root: Dock([
@@ -189,15 +194,14 @@
     ]) },
   };
 
-  // Число длиннее пяти знаков сервер присылает полным, клиент сокращает тысячами — K, KK, KKK, KKKK (перед буквами не больше 99 999):
+  // Число сервер присылает полным, клиент сокращает общим правилом (js/numbers.js): в колонке таблицы до «9 999» целиком, дальше K, M, B, T, Q —
   // окно не растёт от данных. Полное значение — по наведению или касанию
-  const short = n => { let k = 0; while (n >= 1e5 && k < 4) { n /= 1e3; k++; } return num(Math.floor(n)) + (k ? ' ' + 'K'.repeat(k) : ''); };
   function cutNumber(e) {
     const m = e.textContent.trim().match(/^(\$?)([\d\s\u202f\u00a0]+)$/);
     if (!m) return;
     const v = Number(m[2].replace(/\D/g, ''));
-    if (v < 1e5) return;
-    e.innerHTML = `<span class="pk-cut" tabindex="0" data-full="${m[1]}${num(v)}">${m[1]}${short(v)}</span>`;
+    if (window.kernShort(v) === null) return;
+    e.innerHTML = window.kernCut(v, m[1]);
   }
 
   // ── Отрисовка дерева: один узел пакета — один элемент ──
@@ -283,6 +287,8 @@
   window.openSrvWin = open;
   // Кнопка «Бокс» в панели груза — сервер отвечает окном создания бокса
   $('boxBtn').onclick = () => open('box');
+  // «Пополнить» в кошельке — сервер отвечает окном пополнения
+  $('buyCreds').onclick = () => open('donate');
 
   $('srvWinLayer').querySelector('[data-close]').onclick = () => open('');
   $('standSrvWin').onchange = e => open(e.target.value);

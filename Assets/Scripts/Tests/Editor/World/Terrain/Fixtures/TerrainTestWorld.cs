@@ -12,7 +12,7 @@ using MinesServer.Networking.Server.Packets.Information;
 using MinesServer.Networking.Server.Packets.World;
 using UnityEngine;
 
-using Kern.Networking.Offline;
+using Kern.Networking.Dummy;
 
 namespace Kern.Tests.World;
 

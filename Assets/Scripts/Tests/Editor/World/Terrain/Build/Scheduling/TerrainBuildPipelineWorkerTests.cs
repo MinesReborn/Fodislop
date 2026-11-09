@@ -10,7 +10,7 @@ using MinesServer.Data;
 using NUnit.Framework;
 using UnityEngine;
 
-using Kern.Networking.Offline;
+using Kern.Networking.Dummy;
 
 using Kern.Diagnostics.World;
 

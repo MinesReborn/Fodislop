@@ -78,10 +78,7 @@ internal sealed class GlobalChatMutePresenter
             return;
         }
 
-        bool activeAvailable = _channels.CanSendToActiveChannel;
-        _view.InputField?.SetEnabled(!muted);
-        _view.SendButton?.SetEnabled(!muted && activeAvailable);
-        _view.ColorButton?.SetEnabled(!muted && activeAvailable);
-        _view.GlobalChannelButton?.SetEnabled(true);
+        // Отправка — Enter из поля: поле доступно, пока нет блокировки и канал известен серверу
+        _view.InputField?.SetEnabled(!muted && _channels.CanSendToActiveChannel);
     }
 }

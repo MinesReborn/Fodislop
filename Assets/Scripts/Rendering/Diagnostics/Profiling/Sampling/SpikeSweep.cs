@@ -106,8 +106,8 @@ public sealed class SpikeSweep : IDisposable
 
     private void OpenBatch()
     {
-        // «Main Thread» охватывает весь кадр главного потока, в редакторе
-        // вместе с его окнами; PlayerLoop — запасной вариант без них.
+        // Оба источника описывают разные области кадра; имя фактически
+        // открывшегося маркера сохраняется в FrameSource для отчёта.
         _frameRecorder = ProfilerRecorder.StartNew(ProfilerCategory.Internal, "Main Thread", FramesPerBatch);
         FrameSource = "Main Thread";
         if (!_frameRecorder.Valid)

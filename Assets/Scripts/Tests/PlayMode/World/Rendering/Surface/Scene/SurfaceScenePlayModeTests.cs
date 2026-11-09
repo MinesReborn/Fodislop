@@ -22,6 +22,7 @@ using Object = UnityEngine.Object;
 
 using Kern.AssetPipeline.Loading;
 using Kern.Game.Player.Cameras;
+using Kern.Diagnostics.Artifacts;
 
 namespace Kern.Tests.PlayMode;
 
@@ -40,8 +41,8 @@ public sealed class SurfaceScenePlayModeTests
         _runInBackground = Application.runInBackground;
         Application.runInBackground = true;
         _authentication = DummyAuthenticationScope.Seed("surface-scene-production-token");
-        yield return PlayModeHarness.StartAtGateway();
-        Debug.Log("[SurfaceSceneProof] Gateway ready.");
+        yield return PlayModeHarness.StartAtMainMenu();
+        Debug.Log("[SurfaceSceneProof] MainMenu ready.");
         _config = PlayModeHarness.FindBootstrap()!.Container.Resolve<IClientConfigManager>();
         _originalDummyConnection = _config.Config.Connection.UseDummyConnection;
         _config.UpdateSection(config => config.Connection, settings => settings.UseDummyConnection = true);
@@ -82,10 +83,14 @@ public sealed class SurfaceScenePlayModeTests
         Camera camera = diagnostic.Camera;
         Assert.That(surface.transform.Find("SurfaceScene"), Is.Null,
             "The restored gameplay surface must not contain decorative pseudo-terrain.");
-        MeshRenderer[] legacy = new[] { "SurfaceHorizon", "SurfacePerspective", "SurfaceTransit" }
+        MeshRenderer[] legacy = new[]
+            {
+                SurfaceRenderer.HorizonObjectName,
+                SurfaceRenderer.PerspectiveObjectName,
+                SurfaceRenderer.TransitObjectName,
+            }
             .Select(name => surface.transform.Find(name).GetComponent<MeshRenderer>()).ToArray();
-        string directory = Path.Combine(Application.dataPath, "../Logs/Diagnostics/surface-scene");
-        Directory.CreateDirectory(directory);
+        string directory = DiagnosticArtifactPaths.GetDirectory("surface-scene");
         var report = new List<string>();
         var gpuRecorder = Recorder.Get("RenderLoop.Draw");
         gpuRecorder.enabled = true;
@@ -123,7 +128,7 @@ public sealed class SurfaceScenePlayModeTests
             yield return PlayModeHarness.Frames(30);
             Assert.That(surface.LightingGeometryRevision, Is.EqualTo(revision));
             report.Add($"Stable frames: rebuilds=0; lighting revision delta=0; tick CPU={tickRecorder.elapsedNanoseconds * 1e-6:F4} ms");
-            Mesh horizonMesh = legacy.Single(renderer => renderer.gameObject.name == "SurfaceHorizon")
+            Mesh horizonMesh = legacy.Single(renderer => renderer.gameObject.name == SurfaceRenderer.HorizonObjectName)
                 .GetComponent<MeshFilter>().sharedMesh;
             Assert.That(horizonMesh.vertexCount, Is.EqualTo(4), "The original horizon geometry must be preserved.");
             report.Add($"Original three surface objects; original horizon triangles={horizonMesh.triangles.Length / 3}; no separate SurfaceScene root.");

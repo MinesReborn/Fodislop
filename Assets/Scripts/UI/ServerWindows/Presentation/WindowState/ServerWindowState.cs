@@ -12,7 +12,6 @@ namespace Kern.UI.ServerWindows;
         public required string Tag { get; init; }
         public required VisualElement Overlay { get; init; }
         public required VisualElement Frame { get; init; }
-        public required WindowBinding Binding { get; init; }
         public required IGUIComponentPacket Tree { get; set; }
 
         /// <summary>Preorder list from the shared window protocol contract.</summary>

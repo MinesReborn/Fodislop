@@ -28,7 +28,7 @@ public sealed class TouchControlsPlayModeTests
     [UnitySetUp]
     public IEnumerator SetUp()
     {
-        yield return PlayModeHarness.StartAtGateway();
+        yield return PlayModeHarness.StartAtMainMenu();
         BootstrapLifetimeScope bootstrap = PlayModeHarness.FindBootstrap()!;
         yield return PlayModeHarness.EnterMainGame(bootstrap);
 

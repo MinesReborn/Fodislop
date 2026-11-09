@@ -143,8 +143,6 @@ public sealed class ShaderWarmupContractTests
         ShaderNames.Terrain,
         ShaderNames.WorldSurface,
         ShaderNames.WorldEntity,
-        ShaderNames.Starfield,
-        ShaderNames.MenuLineUnlit,
         ShaderNames.UnpremultiplyAlpha,
         ShaderNames.MissionVirtualRing,
 

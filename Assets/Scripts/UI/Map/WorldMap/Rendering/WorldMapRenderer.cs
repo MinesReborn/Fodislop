@@ -3,7 +3,6 @@
 using System;
 using System.Collections.Generic;
 using Kern.Core.Interfaces;
-using Kern.Core.Localization;
 using Kern.World;
 using MinesServer.Data;
 using UnityEngine;
@@ -57,8 +56,6 @@ namespace Kern.UI.Map
         private bool _isInitialized;
 
         [Inject]
-        private ILocalizationService _localization = null!;
-        [Inject]
         private MapModeState _mapModeState = null!;
 
         public event Action? CloseRequested;
@@ -88,7 +85,6 @@ namespace Kern.UI.Map
                 _bounds,
                 _cellSampler,
                 _pathOverlay,
-                _localization,
                 ResetWorldViewState);
             _playerTracker = new MapPlayerTracker(_localPlayer);
             _playerTracker.OnPlayerSpawned += () =>
@@ -194,6 +190,8 @@ namespace Kern.UI.Map
                 _injectedDocument,
                 OnCloseButtonClicked,
                 FollowPlayer,
+                () => ZoomStep(-ZoomButtonStep),
+                () => ZoomStep(ZoomButtonStep),
                 OnWorldMapWheel,
                 OnPanelGeometryChanged);
         }
@@ -276,6 +274,12 @@ namespace Kern.UI.Map
         }
 
         private void RequestRender() => _renderRequested = true;
+
+        // Кнопки «±» карты (макет: .map-tools) — шаг колеса от центра карты
+        private const float ZoomButtonStep = 3f;
+
+        private void ZoomStep(float delta) =>
+            _inputDispatcher.HandleZoomStep(delta, _maxCellsPerPixel, ref _cellsPerPixel, ref _viewCenterX, ref _viewCenterY);
 
         private void OnWorldMapWheel(WheelEvent evt) =>
             _inputDispatcher.HandleWheel(evt, _maxCellsPerPixel, ref _cellsPerPixel, ref _viewCenterX, ref _viewCenterY);
@@ -436,8 +440,6 @@ namespace Kern.UI.Map
             _followPlayer = true;
             _playerTracker?.ResetState();
             UpdatePlayerMarker();
-            _renderCoordinator.UpdateStatus(
-                _manager, _cellsPerPixel, _viewCenterX, _viewCenterY);
         }
 
         public void Hide()

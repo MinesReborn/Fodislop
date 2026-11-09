@@ -18,39 +18,22 @@ public static class StyleApplicator
             return;
         }
 
-        // UILine красит себя сам по GUIStylePacket.Background (см.
-        // LinePacketBuilder): фоновая заливка бокса здесь превратила бы
-        // линию в залитый прямоугольник.
-        if (element is UILine)
-        {
-            return;
-        }
-
         var style = packet.Style.Value;
         IStyle elementStyle = element.style;
 
-        // Заливка фона — цвет линии, плашки уровня, подложки карточек.
-        // Прозрачный (не заданный сервером) цвет не перекрывает тему USS.
-        if (style.Background.A > 0)
+        if (element is not UILine)
         {
             elementStyle.backgroundColor = ToUnityColor(style.Background);
-        }
-
-        if (style.BorderWidth > 0)
-        {
             elementStyle.borderTopWidth = style.BorderWidth;
             elementStyle.borderBottomWidth = style.BorderWidth;
             elementStyle.borderLeftWidth = style.BorderWidth;
             elementStyle.borderRightWidth = style.BorderWidth;
 
-            if (style.Border.A > 0)
-            {
-                Color border = ToUnityColor(style.Border);
-                elementStyle.borderTopColor = border;
-                elementStyle.borderBottomColor = border;
-                elementStyle.borderLeftColor = border;
-                elementStyle.borderRightColor = border;
-            }
+            Color border = ToUnityColor(style.Border);
+            elementStyle.borderTopColor = border;
+            elementStyle.borderBottomColor = border;
+            elementStyle.borderLeftColor = border;
+            elementStyle.borderRightColor = border;
         }
 
         ApplyMargins(style.Margin,

@@ -17,6 +17,7 @@ internal static class PostProcessPassExecutor
 {
     private static readonly ProfilerMarker s_displayMarker = new(ProfilerCategory.Render, "Kern.PostProcess.DisplayFinal", MarkerFlags.SampleGPU);
     private static Texture3D? s_identityLUT3D;
+    private static Texture2D? s_calibrationMark;
 
     // LocalKeyword ищет слово в шейдере по имени; кэшируем вместе со ссылкой
     // на сам шейдер, чтобы не искать его дважды за кадр.
@@ -100,7 +101,6 @@ internal static class PostProcessPassExecutor
         cmd.SetComputeVectorParam(data.PostProcessCS, "_DisplaySourceUv", sourceUv);
         cmd.SetComputeVectorParam(data.PostProcessCS, "_DisplayWorldToViewportUv", data.DisplayWorldToViewportUv);
         cmd.SetComputeFloatParam(data.PostProcessCS, "_DisplayViewportAspect", data.DisplayViewportAspect);
-        cmd.SetComputeFloatParam(data.PostProcessCS, "_FisheyeStrength", data.FisheyeStrength);
         cmd.SetComputeIntParam(data.PostProcessCS, "_DisplayLinearFilter", data.DisplayLinearFilter ? 1 : 0);
         cmd.SetComputeFloatParam(data.PostProcessCS, CompareSplitId, data.CompareSplit);
         cmd.SetComputeIntParam(data.PostProcessCS, CompareModeId, data.CompareMode);
@@ -113,6 +113,14 @@ internal static class PostProcessPassExecutor
             cmd.SetComputeFloatParam(data.PostProcessCS, VignetteSmoothnessId, data.VignetteSmoothness);
             cmd.SetComputeVectorParam(data.PostProcessCS, VignetteCenterId, data.VignetteCenter);
         }
+
+        cmd.SetComputeFloatParam(
+            data.PostProcessCS,
+            ChromaticAberrationId,
+            data.ChromaticAberrationActive ? data.ChromaticAberration : 0f);
+        cmd.SetComputeIntParam(data.PostProcessCS, "_ColorVisionMode", data.ColorVisionMode);
+        cmd.SetComputeFloatParam(data.PostProcessCS, "_DisplayBlackLift", data.DisplayBlackLift);
+        cmd.SetComputeFloatParam(data.PostProcessCS, "_DisplayGamma", data.DisplayGamma);
 
         // Keep the shader finite even if a stale/partially initialized HDR
         // output profile reaches the pass before display reconciliation.
@@ -155,6 +163,22 @@ internal static class PostProcessPassExecutor
         cmd.SetComputeFloatParam(data.PostProcessCS, FrameIndexId, data.FrameIndex);
         cmd.SetComputeFloatParam(data.PostProcessCS, CalibrationPatternId, data.CalibrationPattern);
         cmd.SetComputeFloatParam(data.PostProcessCS, CalibrationValueId, data.CalibrationValue);
+        cmd.SetComputeVectorParam(data.PostProcessCS, "_CalibRect0", data.CalibrationRect0);
+        cmd.SetComputeVectorParam(data.PostProcessCS, "_CalibRect1", data.CalibrationRect1);
+        cmd.SetComputeVectorParam(data.PostProcessCS, "_CalibRect2", data.CalibrationRect2);
+        cmd.SetComputeTextureParam(data.PostProcessCS, data.KernelComposite, "_CalibMark", GetCalibrationMark());
+    }
+
+    // Знак калибровочных узоров (Resources/Rendering/Calibration/Textures/CalibrationMark): маска в красном канале
+    private static Texture GetCalibrationMark()
+    {
+        if (s_calibrationMark == null)
+        {
+            s_calibrationMark = Resources.Load<Texture2D>(Kern.Core.ResourcePaths.CalibrationMarkTexture) ??
+                throw new System.InvalidOperationException($"[PostProcess] Resources/{Kern.Core.ResourcePaths.CalibrationMarkTexture}.png is required.");
+        }
+
+        return s_calibrationMark;
     }
 
     private static Texture3D GetIdentityLUT3D()

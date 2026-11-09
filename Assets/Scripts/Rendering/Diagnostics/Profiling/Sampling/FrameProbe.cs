@@ -19,6 +19,7 @@ public sealed class FrameProbe : IDisposable
     private UnityEngine.Profiling.Recorder? _gpuRecorder;
     private readonly RollingSeries _gpuSeries = new(Capacity);
     private int _triedDirectoryVersion = -1;
+    private int _gpuSampleAgeFrames = int.MaxValue;
 
     public FrameProbe(string title, string markerName, bool isDetail = false, bool gpu = false, params string[] aliases)
     {
@@ -55,9 +56,17 @@ public sealed class FrameProbe : IDisposable
 
     public bool Available => _recorder.Valid || _gpuRecorder != null;
 
+    public bool HasSamples { get; private set; }
+
+    public int SampleCount => _gpuRecorder != null ? _gpuSeries.Count : _recorder.Valid ? _recorder.Count : 0;
+
     public ProfilerMarkerDataUnit Unit { get; private set; } = ProfilerMarkerDataUnit.TimeNanoseconds;
 
     public bool IsTime => Unit == ProfilerMarkerDataUnit.TimeNanoseconds;
+
+    public bool IsGPU => _gpu;
+
+    public int SampleAgeFrames => _gpuSampleAgeFrames;
 
     // Для времени — миллисекунды, для остального — значение как есть.
     public double Last { get; private set; }
@@ -148,19 +157,32 @@ public sealed class FrameProbe : IDisposable
         }
 
         _gpuSeries.Clear();
+        _gpuSampleAgeFrames = int.MaxValue;
         _triedDirectoryVersion = -1;
         Last = 0d;
         Average = 0d;
         Peak = 0d;
+        HasSamples = false;
     }
 
     // Старый Recorder хранит только последний кадр, поэтому GPU-пробу надо
     // опрашивать каждый кадр, а не с частотой обновления строк.
     public void TickGPU()
     {
-        if (_gpuRecorder != null)
+        if (_gpuRecorder == null)
         {
-            _gpuSeries.Push(_gpuRecorder.gpuElapsedNanoseconds * 1e-6);
+            return;
+        }
+
+        double gpuMilliseconds = _gpuRecorder.gpuElapsedNanoseconds * 1e-6;
+        if (gpuMilliseconds > 0d && !double.IsNaN(gpuMilliseconds) && !double.IsInfinity(gpuMilliseconds))
+        {
+            _gpuSeries.Push(gpuMilliseconds);
+            _gpuSampleAgeFrames = 0;
+        }
+        else if (_gpuSampleAgeFrames < int.MaxValue)
+        {
+            _gpuSampleAgeFrames++;
         }
     }
 
@@ -171,6 +193,8 @@ public sealed class FrameProbe : IDisposable
             EnsureStarted();
             if (!Available)
             {
+                Last = Average = Peak = 0d;
+                HasSamples = false;
                 return;
             }
         }
@@ -180,44 +204,48 @@ public sealed class FrameProbe : IDisposable
             Last = _gpuSeries.Last;
             Average = _gpuSeries.Average;
             Peak = _gpuSeries.Peak;
+            HasSamples = _gpuSeries.Count > 0;
+            return;
+        }
+
+        int count = _recorder.Count;
+        if (count <= 0)
+        {
+            Last = Average = Peak = 0d;
+            HasSamples = false;
             return;
         }
 
         double scale = IsTime ? 1e-6 : 1d;
         Last = _recorder.LastValue * scale;
-
-        int count = _recorder.Count;
-        if (count <= 0)
+        double total = 0d;
+        long peak = 0;
+        for (int i = 0; i < count; i++)
         {
-            Average = Last;
-            Peak = Last;
-        }
-        else
-        {
-            double total = 0d;
-            long peak = 0;
-            for (int i = 0; i < count; i++)
-            {
-                long value = _recorder.GetSample(i).Value;
-                total += value;
-                peak = Math.Max(peak, value);
-            }
-
-            Average = total / count * scale;
-            Peak = peak * scale;
+            long value = _recorder.GetSample(i).Value;
+            total += value;
+            peak = Math.Max(peak, value);
         }
 
-#if UNITY_EDITOR
-        if (Last == 0d && _names[0] == "Draw Calls Count")
-        {
-            Last = Average = Peak = UnityEditor.UnityStats.drawCalls;
-        }
-#endif
+        Average = total / count * scale;
+        Peak = peak * scale;
+        HasSamples = true;
+
     }
 
     // Значение прошлого кадра без разбора истории: фоновый монитор читает его
     // только в провисшем кадре, и обходить 60 сэмплов там незачем.
-    public double ReadLast() => _recorder.Valid ? _recorder.LastValue * (IsTime ? 1e-6 : 1d) : 0d;
+    public bool TryReadLast(out double value)
+    {
+        if (_recorder.Valid && _recorder.Count > 0)
+        {
+            value = _recorder.LastValue * (IsTime ? 1e-6 : 1d);
+            return !double.IsNaN(value) && !double.IsInfinity(value);
+        }
+
+        value = 0d;
+        return false;
+    }
 
     public string FormatValue(double value) => Format(value, Unit);
 

@@ -23,8 +23,6 @@ namespace Kern.Game.Entities.Robots
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, sourceNamespace: "Kern.Game", sourceAssembly: null, sourceClassName: "Robot")]
     public class Robot : MonoBehaviour, IRobotView
     {
-        private const string TAG = "[Robot]";
-
         [SerializeField]
         [UnityEngine.Serialization.FormerlySerializedAs("_botID")]
         private uint _botId;
@@ -319,12 +317,18 @@ namespace Kern.Game.Entities.Robots
 
         public void SetMetadata(int playerId, byte clanId, string nickname, string skinPath, string tailPath)
         {
+            // В капсуле AFK хвост не показывается (как в легаси-клиенте), хотя
+            // сервер продолжает присылать его путь.
+            string effectiveTailPath = RobotAssetLoader.IsCapsuleSkin(skinPath)
+                ? string.Empty
+                : tailPath;
+
             if (_isMetadataLoaded &&
                 _playerId == playerId &&
                 _clanId == clanId &&
                 string.Equals(_nickname, nickname, global::System.StringComparison.Ordinal) &&
                 string.Equals(_skinPath, skinPath, global::System.StringComparison.Ordinal) &&
-                string.Equals(_tailPath, tailPath, global::System.StringComparison.Ordinal))
+                string.Equals(_tailPath, effectiveTailPath, global::System.StringComparison.Ordinal))
             {
                 return;
             }
@@ -333,7 +337,7 @@ namespace Kern.Game.Entities.Robots
             _clanId = clanId;
             _nickname = nickname;
             _skinPath = skinPath;
-            _tailPath = tailPath;
+            _tailPath = effectiveTailPath;
             _isMetadataLoaded = true;
             _visualsLoadCompleted = string.IsNullOrEmpty(_skinPath);
 

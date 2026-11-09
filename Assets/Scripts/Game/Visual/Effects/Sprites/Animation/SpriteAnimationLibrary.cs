@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using Kern.Core;
 using Kern.World;
 using UnityEngine;
 
@@ -33,7 +34,7 @@ public sealed class SpriteAnimationLibrary : IDisposable
             ?? throw new InvalidOperationException("The sprite animation catalog is missing.");
         Catalog data = JsonUtility.FromJson<Catalog>(asset.text)
             ?? throw new InvalidOperationException("The sprite animation catalog is invalid.");
-        Shader shader = Resources.Load<Shader>("Shaders/Effects/Cells/Destruction/CellDestruction")
+        Shader shader = Resources.Load<Shader>(ResourcePaths.CellDestructionShader)
             ?? throw new InvalidOperationException("The world-grid effect shader is missing.");
         var emittingMeshes = new HashSet<int>();
         foreach (Clip clip in data.Clips)
@@ -137,7 +138,7 @@ public sealed class SpriteAnimationLibrary : IDisposable
             return material;
         }
 
-        Shader shader = Resources.Load<Shader>("Shaders/Effects/Cells/Destruction/CellDestruction")
+        Shader shader = Resources.Load<Shader>(ResourcePaths.CellDestructionShader)
             ?? throw new InvalidOperationException("The world-grid effect shader is missing.");
         material = new Material(shader) { name = key, mainTexture = texture };
         material.SetVector("_SourceTextureSize", new Vector4(texture.width, texture.height, 0f, 0f));

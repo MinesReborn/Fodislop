@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using Kern.Core;
 using Kern.World;
 using UnityEngine;
 
@@ -106,7 +107,7 @@ public sealed class CellDestructionClip : IDisposable
 
         // These authored pixels are emission, not white diffuse albedo.
         // They illuminate the world without being multiplied by incoming light.
-        Shader shader = Resources.Load<Shader>("Shaders/Effects/Cells/Destruction/CellDestruction")
+        Shader shader = Resources.Load<Shader>(ResourcePaths.CellDestructionShader)
             ?? throw new InvalidOperationException("The cell destruction shader is missing.");
         Material = new Material(shader) { name = "CellDestruction" };
         Material.SetVector("_SourceTextureSize", new Vector4(_texture.width, _texture.height, 0, 0));

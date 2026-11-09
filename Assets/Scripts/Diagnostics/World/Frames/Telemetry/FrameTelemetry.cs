@@ -5,6 +5,17 @@ using System.Diagnostics;
 using Unity.Profiling;
 using UnityEngine;
 namespace Kern.Diagnostics.World;
+
+public interface IFrameAllocationTelemetry
+{
+    long GcAllocPerFrameBytes { get; }
+    long GcAllocTotalPerSecondBytes { get; }
+    int GcCollectionCount { get; }
+    bool HasGcAllocationSample { get; }
+    bool HasGcAllocationRateSample { get; }
+    bool IsGcAllocationTrackingAvailable { get; }
+}
+
 public interface IFrameTelemetry
 {
     float TerrainMeshTimeMs { get; set; }
@@ -94,7 +105,7 @@ public interface IFrameTelemetry
     void ResetFrameTimers();
 }
 
-public sealed class FrameTelemetry : IFrameTelemetry, IFrameTelemetryProducerStamp, ITerrainTextureUploadTelemetryReceiver, IDisposable
+public sealed class FrameTelemetry : IFrameTelemetry, IFrameAllocationTelemetry, IFrameTelemetryProducerStamp, ITerrainTextureUploadTelemetryReceiver, IDisposable
 {
     public float TerrainMeshTimeMs { get; set; }
     public float TerrainCacheTimeMs { get; set; }
@@ -109,6 +120,12 @@ public sealed class FrameTelemetry : IFrameTelemetry, IFrameTelemetryProducerSta
     public int LightingCommandBufferBytes { get; set; }
     public int ActiveDynamicLights { get; set; }
     public long GcAllocPerFrameBytes { get; set; }
+
+    public bool HasGcAllocationSample { get; private set; }
+
+    public bool HasGcAllocationRateSample { get; private set; }
+
+    public bool IsGcAllocationTrackingAvailable => _allocationRecorderStarted && _allocatedInFrameRecorder.Valid;
 
     // Cumulative terrain rebuild counters, deliberately not reset per frame.
     //
@@ -200,8 +217,7 @@ public sealed class FrameTelemetry : IFrameTelemetry, IFrameTelemetryProducerSta
     // fixes; a number that is always zero is worse, because it looks like
     // an answer.
     //
-    // The recorder needs the profiler enabled, which is the editor and
-    // development builds - exactly where this overlay runs.
+    // The sample is available only when Unity exposes this profiler counter.
     public long GcAllocTotalPerSecondBytes { get; private set; }
 
     // Deliberately NOT split into "main thread" and "worker threads".
@@ -239,6 +255,7 @@ public sealed class FrameTelemetry : IFrameTelemetry, IFrameTelemetryProducerSta
     private const double AllocationRateWindowSeconds = 1.0;
 
     private long _windowTotalAllocatedBytes;
+    private int _windowAllocationSampleCount;
     private double _windowStartSeconds;
     private readonly Stopwatch _allocationClock = Stopwatch.StartNew();
 
@@ -273,8 +290,11 @@ public sealed class FrameTelemetry : IFrameTelemetry, IFrameTelemetryProducerSta
             _allocatedInFrameRecorder = default;
             _allocationRecorderStarted = false;
             GcAllocPerFrameBytes = 0;
+            HasGcAllocationSample = false;
+            HasGcAllocationRateSample = false;
             GcAllocTotalPerSecondBytes = 0;
             _windowTotalAllocatedBytes = 0;
+            _windowAllocationSampleCount = 0;
             _windowStartSeconds = 0d;
             return;
         }
@@ -283,16 +303,25 @@ public sealed class FrameTelemetry : IFrameTelemetry, IFrameTelemetryProducerSta
             ProfilerCategory.Memory,
             "GC Allocated In Frame");
         _allocationRecorderStarted = true;
+        HasGcAllocationSample = false;
+        HasGcAllocationRateSample = false;
         _windowTotalAllocatedBytes = 0;
+        _windowAllocationSampleCount = 0;
         _windowStartSeconds = _allocationClock.Elapsed.TotalSeconds;
     }
 
     private void UpdateAllocationRates()
     {
-        if (_allocatedInFrameRecorder.Valid)
+        if (_allocatedInFrameRecorder.Valid && _allocatedInFrameRecorder.Count > 0)
         {
             GcAllocPerFrameBytes = _allocatedInFrameRecorder.LastValue;
+            HasGcAllocationSample = true;
             _windowTotalAllocatedBytes += GcAllocPerFrameBytes;
+            _windowAllocationSampleCount++;
+        }
+        else
+        {
+            HasGcAllocationSample = false;
         }
 
         double now = _allocationClock.Elapsed.TotalSeconds;
@@ -302,13 +331,20 @@ public sealed class FrameTelemetry : IFrameTelemetry, IFrameTelemetryProducerSta
             return;
         }
 
-        if (_windowStartSeconds > 0d)
+        if (_windowAllocationSampleCount > 0)
         {
             GcAllocTotalPerSecondBytes = (long)(_windowTotalAllocatedBytes / elapsed);
+            HasGcAllocationRateSample = true;
+        }
+        else
+        {
+            GcAllocTotalPerSecondBytes = 0;
+            HasGcAllocationRateSample = false;
         }
 
         GcCollectionCount = GC.CollectionCount(0);
         _windowTotalAllocatedBytes = 0;
+        _windowAllocationSampleCount = 0;
         _windowStartSeconds = now;
     }
 

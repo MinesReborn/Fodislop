@@ -2,7 +2,7 @@
 <html lang="ru"><meta charset="utf-8"><title>Мировая растеризация 32 px/клетку</title>
 <style>body{max-width:1000px;margin:40px auto;padding:0 20px;font:16px/1.5 system-ui;color:#dedede;background:#17191d}table{border-collapse:collapse;width:100%}td,th{border:1px solid #555;padding:8px;text-align:left}code{color:#addcff}.pending{color:#ffd479}</style>
 <h1>Мировая растеризация 32 px/клетку</h1>
-<p>Изменение от 19 октября 2026. Владелец — presentation, <code>PostProcessRendererFeature</code>.
+<p>Текущее состояние реализации, сверено по исходникам 8 ноября 2026. Владелец — presentation, <code>PostProcessRendererFeature</code>.
 Растеризация Renderer2D получает один мировой буфер с плотностью 32 пикселя на клетку.
 Размеры округляются наружу, с одним защитным пикселем на каждой стороне. GPU projection
 отображает эти границы в буфер; точечное представление выбирает исходный видимый прямоугольник.
@@ -10,13 +10,16 @@
 <h2>Стадии и данные — TL-OWN, TL-STAGE, TL-DATA</h2>
 <table><tr><th>Стадия</th><th>Вход → выход</th><th>Владелец</th></tr>
 <tr><td>AddRenderPasses, до CreateResources</td><td>Видимый мир → frame-local descriptor мирового разрешения для color/depth/normals/light attachments</td><td>WorldRasterGridPass.Prepare</td></tr>
-<tr><td>BeforeRendering</td><td>Color и выделенный cameraDepth → согласованные размеры, формат depth сохраняется. В native-режиме без промежуточного depth проход не создаёт и не подменяет его.</td><td>WorldRasterDepthPass</td></tr>
+<tr><td>BeforeRendering</td><td>Проверяется <code>activeDepthTexture</code>, которую привяжет Renderer2D. При совпадающих extent/slices/MSAA она сохраняется; при несовпадении создаётся depth того же формата и размеров color attachment и выбирается через <code>WorldRasterAttachmentBinding</code>. Если active depth отсутствует, проход ничего не подменяет. Это изменение frame resource, не Camera component/property.</td><td>WorldRasterDepthPass</td></tr>
 <tr><td>Перед первыми normals</td><td>Границы сетки → GPU view/projection и inverse matrices для следующих мировых проходов</td><td>WorldRasterGridPass</td></tr>
 <tr><td>До URP postprocessing</td><td>Мировое изображение → bloom на той же мировой сетке, origin включает защитную границу</td><td>WorldBloomRenderPass</td></tr>
 <tr><td>После URP postprocessing</td><td>Мировое изображение → DisplayFinal в мировом разрешении</td><td>PostProcessRenderPass</td></tr>
 <tr><td>После DisplayFinal, до final blit/UI</td><td>Готовые мировые пиксели → экранный буфер с point sampling и обрезкой защитной границы</td><td>WorldRasterPresentationPass</td></tr></table>
 <p>Цветовой формат presentation наследуется от источника. Цветовая конверсия и HDR encoding
 остаются в URP. Новых lighting solves, подписок или вызовов terrain collection нет.</p>
+<p>Геометрия растеризуется через frame-local descriptor и GPU matrices; Camera остаётся
+источником viewport/input и её свойства не переписываются. Point presentation после
+postprocessing возвращает world image к display target до UI.</p>
 <h2>Жизненный цикл и обновление — TL-LIFE, TL-REV</h2>
 <table><tr><th>Событие</th><th>Действие</th></tr>
 <tr><td>Feature.Create</td><td>Сброс CPU layout pass; графические ресурсы по-прежнему принадлежат URP/RenderGraph.</td></tr>
@@ -32,21 +35,27 @@ H = ceil(maxY·32) − floor(minY·32) + 2. При видимых 16×16 кле�
 дополнительных compute dispatch нет. Presentation требует один экранный color target:
 при RGBA16F это 8·displayWidth·displayHeight байт, без depth и MSAA.
 Экономия относительно исходного разрешения зависит от zoom и размера экрана и не измерена.</p>
-<h2>Проверки — TL-VERIFY, TL-CHANGE</h2>
+<h2>Проверки и границы доказательства — TL-VERIFY, TL-CHANGE</h2>
+<p>Дата выше относится к сверке исходного кода, не к production capture. Приведённые далее
+результаты и статусы относятся к указанным историческим прогонам. В рамках последнего
+обновления документа Unity/GPU-проверки не запускались; текущий визуальный результат и
+производительность этой страницей не сертифицированы.</p>
 <p>Оба обязательных rg-скана из TERRAIN_LIGHTING_STANDARD.md выполнены: совпадений нет.
 Новых ссылок между реализациями Terrain и Lighting нет. Scoped git diff --check проходит.</p>
 <p>Отдельная Roslyn-компиляция Kern.Presentation и Kern.Tests.PlayMode по Unity Bee response files
 с выводом в /tmp проходит без ошибок. Исходные предупреждения CS0649/CS1701 не подавлялись.
-Среда проекта: Unity 6000.7.0b4; response files используют C# 11.</p>
+На момент этой проверки Unity Bee response files задавали C# 11. Текущий
+`Assets/csc.rsp` задаёт C# 12; исторический результат отдельной компиляции выше
+не является проверкой текущих generated response files.</p>
 <p>Обновлены production tests MainGame_WorldGridZoomImage и
 Surface_RealMeshPass_PreservesHdrAndProducesDepthLayers: размеры attachments включают guard;
 проверяются неизменные Camera projection/rect/zoom и отсутствие PixelPerfectCamera.
 Независимый pixel oracle по-прежнему сравнивает блоки 2×2, zoom round-trip и общий участок мира.</p>
-<p class="pending">Production image gate не пройден: команда
+<p class="pending">Исторический статус того снимка: команда
 <code>unity test . --mode PlayMode --filter MainGame_WorldGridZoomImage --output /tmp/kern-world-grid-results.xml --timeout 180</code>
-отклонена Unity CLI, потому что проект открыт в Editor, PID 8453. Редактор не закрывался.
-Исчезновение полос, orientation, HDR и фактическая производительность пока не подтверждены.
-До production capture изменение не считается визуально проверенным и не готово к слиянию.</p>
+была отклонена до запуска; результат этого прогона отсутствует. Это не текущая причина
+остановки и не подтверждение pass/fail для нынешнего дерева. Полосы, orientation, HDR и
+актуальная производительность требуют отдельного разрешённого production capture.</p>
 <h2>Активное depth-вложение</h2>
 <p>WorldRasterDepthPass проверяет activeDepthTexture, которое Renderer2D действительно
 привяжет, включая выбор backbuffer depth. При несовпадении размеров создаётся
@@ -54,10 +63,12 @@ Surface_RealMeshPass_PreservesHdrAndProducesDepthLayers: размеры attachme
 Изолированный адаптер UrpIntegration компилируется через asmref в URP assembly,
 поскольку селектор internal. Production reflection и правки Camera отсутствуют.
 Если depth отсутствует, режим без depth сохраняется.</p>
-<p>TL-VERIFY: MainGame_TerrainRimImage и
-Surface_RealMeshPass_PreservesHdrAndProducesDepthLayers прошли headless в копии
-проекта. Второй тест проверяет обе исходные позиции селектора, включая импортированный
-depth 3420×1890 без creation descriptor и мировой color меньшего размера.
+<p>Историческая заметка о тестах из предыдущего снимка сообщает о headless-прогоне
+<code>MainGame_TerrainRimImage</code> и
+<code>Surface_RealMeshPass_PreservesHdrAndProducesDepthLayers</code> в копии проекта.
+Этот результат не является текущей проверкой и не задаёт допустимый workflow: проектные
+инструкции запрещают запускать проверки на копии. В той записи второй тест проверял обе
+позиции depth-селектора, включая импортированный depth 3420×1890 без creation descriptor.
 Отчёт: Logs/Diagnostics/terrain-rim-material-proof/active-depth-results.xml.
 Исправление не меняет геометрию, освещение или их invalidation; выделение depth
 выполняется только при реальном несовпадении размеров активного вложения.</p>

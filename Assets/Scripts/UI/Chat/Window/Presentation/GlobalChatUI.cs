@@ -35,13 +35,9 @@ namespace Kern.UI.Chat
 
         private ChatEventGateway _chatEvents = null!;
         private ChatViewElements? _view;
-        private ChatColorController? _colorController;
         private ChatBlinkController? _blink;
-        private ChatWindowInteractionController? _interaction;
-        private ChatTogglePresenter? _togglePresenter;
 
         private GlobalChatVisibilityController _visibility = null!;
-        private const string ChatOpenClass = "ui--chat-open";
         private bool _initialized;
         private TouchCommands? _touchCommands;
         private readonly GlobalChatMessagePresenter _messages = new();
@@ -79,9 +75,8 @@ namespace Kern.UI.Chat
                 _doc,
                 _messages,
                 () => _view,
-                () => _interaction,
                 () => _channels.ActiveTag,
-                () => _togglePresenter?.SetActive(_visibility.IsOpen));
+                () => _channels.CloseChatListPopup());
             _channels = new GlobalChatChannelPresenter(
                 _chatEvents,
                 _networkService,
@@ -99,6 +94,7 @@ namespace Kern.UI.Chat
             _chatEvents.HistoryReceived += AddHistory;
             _chatEvents.MuteReceived += _mutePresenter.ApplyMute;
             _chatEvents.ChatListReceived += _channels.ApplyChatList;
+            _chatEvents.UnreadChanged += _channels.RefreshUnread;
             if (_chatEvents.LastChatList is ChatListPacket lastChatList)
             {
                 _channels.ApplyChatList(lastChatList);
@@ -116,7 +112,7 @@ namespace Kern.UI.Chat
             bool inputBlocked = _inputBlocker != null && _inputBlocker.IsInputBlocked;
             if (!_visibility.IsOpen || !inputBlocked || _uiInput.IsChatFocused)
             {
-                Toggle();
+                _visibility.ToggleOpen();
             }
         }
 
@@ -152,10 +148,8 @@ namespace Kern.UI.Chat
             loc.RegisterLocalizable(this);
             CreateUI();
             _blink = new ChatBlinkController(_operations, destroyCancellationToken, () => _view?.Blinker);
-            if (_view?.Panel != null)
-            {
-                _view.Panel.style.display = DisplayStyle.None;
-            }
+            _visibility.Set(GlobalChatVisibilityController.Mode.Peek);
+            _channels.RefreshUnread();
 
             ApplyChatConfig();
 
@@ -164,6 +158,12 @@ namespace Kern.UI.Chat
                 try
                 {
                     _networkService.Send(new QueryChatHistoryPacket(_channels.ActiveTag, 0));
+
+                    // Имя канала в шапке — из списка каналов сервера; список ещё не приходил — запросить
+                    if (_chatEvents.LastChatList == null)
+                    {
+                        _networkService.Send(new OpenChatListPacket());
+                    }
                 }
                 catch (Exception ex)
                 {
@@ -208,21 +208,17 @@ namespace Kern.UI.Chat
                 _chatEvents.HistoryReceived -= AddHistory;
                 _chatEvents.MuteReceived -= _mutePresenter.ApplyMute;
                 _chatEvents.ChatListReceived -= _channels.ApplyChatList;
+                _chatEvents.UnreadChanged -= _channels.RefreshUnread;
                 _chatEvents.SetFocusedTag(null);
             }
 
             _blink?.Dispose();
             _blink = null;
-            _interaction?.Dispose();
-            _interaction = null;
 
             _view?.Tree.RemoveFromHierarchy();
             _messages.Detach();
-            _togglePresenter?.Dispose();
-            _togglePresenter = null;
             _mutePresenter.UnbindView();
             _view = null;
-            _colorController = null;
         }
 
         private void ApplyChatConfig()
@@ -252,14 +248,12 @@ namespace Kern.UI.Chat
             bool inputBlocked = _inputBlocker != null && _inputBlocker.IsInputBlocked;
 
             // T не открывает этот канал: он принадлежит локальному чату
-            // (FloatingChatManager → LocalChatInput). Глобальное окно открывает
-            // TAB - кнопки чата в HUD больше нет.
+            // (FloatingChatManager → LocalChatInput). Режимы глобального чата листает TAB.
             if (Keyboard.current.tabKey.wasPressedThisFrame)
             {
-                // TAB — единственный владелец этого окна и работает всегда,
-                // независимо от блокировки ввода: открытые поверх окна,
-                // инвентарь или пауза не мешают ни открыть, ни закрыть чат.
-                Toggle();
+                // TAB работает всегда, независимо от блокировки ввода: открытые поверх
+                // окна, инвентарь или пауза не мешают сменить режим чата.
+                _visibility.Cycle();
 
                 return;
             }
@@ -302,18 +296,10 @@ namespace Kern.UI.Chat
             _view = new ChatViewElements(tree, _loc);
             _channels.BindView(_view);
             _mutePresenter.BindView(_view);
-            _messages.Attach(_view.ScrollView);
 
             if (_doc != null && _view.Panel != null)
             {
                 _doc.rootVisualElement.Add(tree);
-                _togglePresenter = new ChatTogglePresenter(_doc, _loc, _chatEvents);
-                _togglePresenter.Create(Toggle);
-
-                _interaction = new ChatWindowInteractionController(
-                    tree,
-                    _view.Panel,
-                    _clientConfig);
 
                 // Колесо над окном чата прокручивает лог, а не зумит камеру:
                 // клеймим кадр в UIInputManager. TrickleDown — раньше нативного
@@ -341,17 +327,16 @@ namespace Kern.UI.Chat
             }
 
             _view.BindActions(
-                OnSendClicked,
-                _channels.OpenChatList,
-                _channels.CloseChatListPopup);
-
-            _colorController = new ChatColorController(_networkService, _view.ColorButton, _view.ColorGrid);
+                _channels.ToggleChatList,
+                () => _visibility.Set(GlobalChatVisibilityController.Mode.Peek),
+                () => _visibility.Set(GlobalChatVisibilityController.Mode.Open));
 
             // Устанавливаем фолбэк-шрифт смайлов для текста сообщений и поля ввода.
             ChatEmojiCatalog.EnsureInstalled();
             _messages.Attach(
                 _view.ScrollView,
                 _channels.OnMessageClicked);
+            _messages.AttachPeek(_view.PeekLines);
             _channels.UpdateChannelHeader();
         }
 
@@ -394,7 +379,7 @@ namespace Kern.UI.Chat
             _view.InputField.Focus();
         }
 
-        public void Toggle() => _visibility.Toggle();
+        public void Toggle() => _visibility.Cycle();
 
         public void Show() => _visibility.Show();
 
@@ -407,7 +392,7 @@ namespace Kern.UI.Chat
                 return;
             }
 
-            AppendMessage(ChatMessageFormatter.FormatGlobal(msg, DateTime.Now), msg.Id);
+            _messages.Add(ChatMessageFormatter.FormatGlobal(msg), msg.Id, ChatMessageFormatter.FormatPeek(msg), ChatMessageFormatter.FormatTime(msg));
         }
 
         // Живые сообщения приходят только участникам текущего чата (роутинг по
@@ -429,7 +414,7 @@ namespace Kern.UI.Chat
 
             foreach (ChatMessagePacket message in packet.Messages)
             {
-                AppendMessage(ChatMessageFormatter.FormatGlobal(message, DateTime.Now), message.Id);
+                _messages.Add(ChatMessageFormatter.FormatGlobal(message), message.Id, ChatMessageFormatter.FormatPeek(message), ChatMessageFormatter.FormatTime(message));
             }
 
             // Свежая загрузка истории - показываем последние сообщения,

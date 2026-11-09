@@ -22,6 +22,7 @@ public static class PostProcessVolumeRegistration
             _ = stack.GetComponent<BloomComponent>();
             _ = stack.GetComponent<VignetteComponent>();
             _ = stack.GetComponent<EigengrauComponent>();
+            _ = stack.GetComponent<ChromaticAberrationComponent>();
         }
     }
 }

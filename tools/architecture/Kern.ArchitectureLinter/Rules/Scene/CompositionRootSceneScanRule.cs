@@ -23,7 +23,6 @@ public sealed class CompositionRootSceneScanRule : IRule
     {
         "Assets/Scripts/Bootstrap/Scenes/Scopes/BootstrapLifetimeScope.cs",
         "Assets/Scripts/Bootstrap/Scenes/Scopes/GameLifetimeScope.cs",
-        "Assets/Scripts/Bootstrap/Scenes/Scopes/GatewayLifetimeScope.cs",
         "Assets/Scripts/Bootstrap/Scenes/Scopes/MainMenuLifetimeScope.cs",
     };
 

@@ -32,7 +32,7 @@ public sealed class EffectWorldLightingPlayModeTests
     public IEnumerator GunShotReusesRenderersAfterEffectIsCleared()
     {
         _authentication = DummyAuthenticationScope.Seed("playmode-gunshot-reuse");
-        yield return PlayModeHarness.StartAtGateway();
+        yield return PlayModeHarness.StartAtMainMenu();
         var bootstrap = PlayModeHarness.FindBootstrap()!;
         yield return PlayModeHarness.EnterMainGame(bootstrap);
         var effects = PlayModeHarness.RequireInGame<ServerEventPlaybackManager>();
@@ -65,7 +65,7 @@ public sealed class EffectWorldLightingPlayModeTests
     public IEnumerator MainGame_HealHurtMining_EmitAndRemoveDynamicRadiance()
     {
         _authentication = DummyAuthenticationScope.Seed("playmode-effect-world-light");
-        yield return PlayModeHarness.StartAtGateway();
+        yield return PlayModeHarness.StartAtMainMenu();
         var bootstrap = PlayModeHarness.FindBootstrap()!;
         var config = bootstrap.Container.Resolve<IClientConfigManager>();
         GraphicsPreset originalPreset = config.Config.GraphicsPreset;

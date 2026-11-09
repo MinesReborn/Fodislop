@@ -34,76 +34,34 @@ internal sealed class InventorySlotCollection
 
         internal readonly Dictionary<ItemType, List<VisualElement>> _cellElements = new();
 
-        internal VisualElement CreateCell(ItemType type)
+        // Ячейка макета (visual/kern-ui .inv-slots li): 64×64, значок 40 по центру, номер «01» слева сверху,
+        // количество справа снизу; размеры — в Inventory.uss. Подсказка — название предмета
+        internal VisualElement CreateCell(ItemType type, int index)
         {
             var cell = new VisualElement();
             cell.name = "Cell_" + type;
             cell.userData = type;
-            cell.AddToClassList("inv-cell");
-            // Размер клетки продублирован инлайном (62px): иконка 38px по
-            // центру оставляет по 12px полей, и цифра количества в правом
-            // нижнем углу ложится на тёмный фон клетки, не на спрайт
-            // (репорт: «расширить квадратик рамки инвентарной»).
-            cell.style.width = 62f;
-            cell.style.height = 62f;
-            cell.style.minWidth = 62f;
-            cell.style.minHeight = 62f;
-            // InventoryRoot стоит в picking-mode="Ignore"; ячейка обязана явно
-            // вернуть Position, иначе Ignore наследуется на поддерево и слот
-            // не получает мышь вообще.
+            cell.AddToClassList("inv-slot");
+            // InventoryRoot стоит в picking-mode="Ignore"; ячейка явно возвращает Position
             cell.pickingMode = PickingMode.Position;
+
+            var number = new Label((index + 1).ToString("00", System.Globalization.CultureInfo.InvariantCulture));
+            number.AddToClassList("inv-slot__index");
+            number.pickingMode = PickingMode.Ignore;
+            cell.Add(number);
 
             var icon = new VisualElement();
             icon.name = "Icon";
-            icon.AddToClassList("inv-icon");
+            icon.AddToClassList("inv-slot__icon");
             icon.style.display = DisplayStyle.None;
-            // Размер иконки продублирован инлайном: если правило .inv-icon
-            // из Inventory.uss не применится, VisualElement по умолчанию
-            // растягивается на всю клетку — и цифра количества в любом углу
-            // оказывалась бы поверх спрайта (репорт: «налезает на спрайт»).
-            icon.style.width = 38f;
-            icon.style.height = 38f;
             icon.pickingMode = PickingMode.Ignore;
             cell.Add(icon);
 
-            // Количество — цифра в правом нижнем углу слота. Растянутый на
-            // всю клетку абсолютный контейнер (инлайн, все отступы —
-            // литеральные нули) прижимает содержимое флексом в угол — это
-            // работает при любых таблицах стилей, в отличие от якорения
-            // right/bottom. Сама цифра — чистый текст с тенью, без плашки:
-            // угол под неё освобождает увеличенная клетка (62px).
-            var qtyWrap = new VisualElement();
-            qtyWrap.name = "QuantityWrap";
-            qtyWrap.AddToClassList("inv-qty-wrap");
-            qtyWrap.style.position = Position.Absolute;
-            qtyWrap.style.left = 0f;
-            qtyWrap.style.right = 0f;
-            qtyWrap.style.top = 0f;
-            qtyWrap.style.bottom = 0f;
-            qtyWrap.style.justifyContent = Justify.FlexEnd;
-            qtyWrap.style.alignItems = Align.FlexEnd;
-            qtyWrap.pickingMode = PickingMode.Ignore;
-            cell.Add(qtyWrap);
-
             var qtyLabel = new Label();
             qtyLabel.name = "Quantity";
-            qtyLabel.AddToClassList("inv-qty");
-            qtyLabel.style.textShadow = new TextShadow
-            {
-                color = Color.black,
-                offset = new Vector2(1, -1),
-            };
-            // Инлайн перебивает абсолютную раскладку прежних правил
-            // .inv-qty из Inventory.uss: цифра — обычный (относительный)
-            // элемент размером по содержимому, без плашки — угол под неё
-            // освобождает увеличенная клетка.
-            qtyLabel.style.position = Position.Relative;
-            qtyLabel.style.marginRight = 1f;
-            qtyLabel.style.marginBottom = 1f;
-            qtyLabel.AddToClassList("text-size-2xs");
-            qtyLabel.style.color = Color.white;
+            qtyLabel.AddToClassList("inv-slot__qty");
             qtyLabel.pickingMode = PickingMode.Ignore;
-            qtyWrap.Add(qtyLabel);
+            cell.Add(qtyLabel);
 
             // Подсветка наведения — только мышью: у пальца наведения нет, и
             // подсветка залипала бы на последней тронутой ячейке.
@@ -111,10 +69,10 @@ internal sealed class InventorySlotCollection
             {
                 if (evt.pointerType == UnityEngine.UIElements.PointerType.mouse)
                 {
-                    cell.AddToClassList("inv-cell--highlight");
+                    cell.AddToClassList("is-hover");
                 }
             });
-            cell.RegisterCallback<PointerLeaveEvent>(_ => cell.RemoveFromClassList("inv-cell--highlight"));
+            cell.RegisterCallback<PointerLeaveEvent>(_ => cell.RemoveFromClassList("is-hover"));
 
             // Нажатие выбирает предмет. Повторное касание пальцем уже
             // выбранного — применяет его: на сенсорном экране это единственная
@@ -157,6 +115,9 @@ internal sealed class InventorySlotCollection
 
             if (item != null)
             {
+                cell.tooltip = string.IsNullOrWhiteSpace(item.Name) || item.Name == type.ToString()
+                    ? _catalog.GetName(type)
+                    : item.Name;
                 icon.style.display = DisplayStyle.Flex;
                 Texture2D? texture = item.Icon ?? _catalog.GetIcon(type);
                 if (texture != null)
@@ -170,7 +131,7 @@ internal sealed class InventorySlotCollection
                     icon.style.backgroundColor = item.IconColor;
                 }
 
-                qty.text = item.Quantity > 1 ? item.Quantity.ToString() : string.Empty;
+                qty.text = item.Quantity.ToString(System.Globalization.CultureInfo.InvariantCulture);
             }
             else
             {
@@ -187,7 +148,7 @@ internal sealed class InventorySlotCollection
                 bool isSelected = type == selected;
                 foreach (VisualElement cell in cells)
                 {
-                    cell.EnableInClassList("inv-cell--selected", isSelected);
+                    cell.EnableInClassList("is-on", isSelected);
                 }
             }
         }

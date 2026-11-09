@@ -25,6 +25,11 @@ public static class MenuKeyboardHandler
             return;
         }
 
+        if (modalManager.IsCapturing)
+        {
+            return;
+        }
+
         if (keyboard.escapeKey.wasPressedThisFrame)
         {
             if (modalManager.HasActiveModal)

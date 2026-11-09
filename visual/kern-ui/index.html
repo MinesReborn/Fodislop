@@ -71,6 +71,35 @@ if (new URLSearchParams(location.search).get('embed')) document.documentElement.
         <option value="modal">Сообщение сервера</option>
         <option value="link">Ссылка от сервера</option>
       </select></label>
+    <label class="stand-pick" data-for="game"><span class="stand-label">Миссия</span>
+      <select id="standMission">
+        <option value="">Нет</option>
+        <option value="first">Счёт</option>
+        <option value="timer">Таймер</option>
+        <option value="image">С картинкой</option>
+        <option value="build">Постройка</option>
+        <option value="single">Один шаг</option>
+        <option value="done">Выполнена</option>
+        <option value="long">Длинный текст</option>
+      </select></label>
+    <label class="stand-pick" data-for="game"><span class="stand-label">Обучение</span>
+      <select id="standTut">
+        <option value="">Нет</option>
+        <option value="mission">К миссии, с линзой</option>
+        <option value="prog">К программатору</option>
+        <option value="center">В центре, 8 с</option>
+        <option value="first">Сценарий первого входа</option>
+      </select></label>
+    <label class="stand-pick" data-for="game"><span class="stand-label">Карта: команда сервера</span>
+      <select id="standMapCmd">
+        <option value="">—</option>
+        <option value="cmap">CMAP: своя таблица цветов</option>
+        <option value="reset">CMAPRESET</option>
+        <option value="m0">MAPMODE0 «Обычный»</option>
+        <option value="m2">MAPMODE2 «Только живки»</option>
+        <option value="m3">MAPMODE3 «Грани и дороги»</option>
+        <option value="m4">MAPMODE4 «Пользовательский»</option>
+      </select></label>
     <label class="stand-pick" data-for="game"><span class="stand-label">Окно сервера</span>
       <select id="standSrvWin">
         <option value="">Нет</option>
@@ -80,13 +109,14 @@ if (new URLSearchParams(location.search).get('embed')) document.documentElement.
         <option value="clan_list">Кланы</option>
         <option value="clan_info">Мой клан</option>
         <option value="box">Бокс</option>
+        <option value="donate">Пополнение</option>
       </select></label>
     <label class="stand-pick" data-for="game"><span class="stand-label">Груз и деньги</span>
       <select id="standRich">
         <option value="">Обычные</option>
-        <option value="1">Много (КК)</option>
-        <option value="2">Ещё больше (ККК)</option>
-        <option value="3">Предел (КККК)</option>
+        <option value="1">Много (B)</option>
+        <option value="2">Ещё больше (T)</option>
+        <option value="3">Предел (Q)</option>
       </select></label>
     <label class="stand-pick"><span class="stand-label">Язык</span>
       <select id="standLang" class="lang-pick">
@@ -148,6 +178,12 @@ if (new URLSearchParams(location.search).get('embed')) document.documentElement.
     <div class="hud" id="hud" data-chat="0">
       <!-- Стрелки у края экрана: к цели миссии (MissionArrowPacket) и к своей метке с карты -->
       <div class="edge-arrows" id="edgeArrows"></div>
+      <!-- Подсказка обучения (MN: текст, отступы dx/dy, якорь, причина скрытия): плашка с выноской к своему углу;
+           якорь < 10 — линза: всё, кроме места у выноски, притушено, робот стоит -->
+      <div class="tut-layer" id="tutLayer" hidden>
+        <div class="tut-lens" id="tutLens" hidden></div>
+        <div class="tut" id="tut"><div class="panel tut-box"><p class="tut-text" id="tutText" data-srv></p></div><i class="tut-lead" aria-hidden="true"></i></div>
+      </div>
 
       <!-- Чат, развёрнутый (Legacy: колонка слева на всю высоту, HUD сдвигается) -->
       <aside class="chat-column" aria-label="Чат">
@@ -188,14 +224,18 @@ if (new URLSearchParams(location.search).get('embed')) document.documentElement.
               <!-- Деньги и кредиты — строками; знак валюты и значок кредита в одном слоте -->
               <dl class="wallet">
                 <div><dt>Деньги</dt><dd class="money" title="Деньги"><span class="cur">$</span><span id="money">14 850</span></dd></div>
-                <div><dt>Кредиты</dt><dd class="creds" title="Кредиты"><img src="img/legacy/credit.png" alt="" width="6" height="7"><span id="creds">340</span></dd></div>
+                <div><dt>Кредиты</dt><dd class="creds" title="Кредиты"><svg class="cur-cred" aria-hidden="true"><use href="#i-credit"/></svg><span id="creds">340</span></dd></div>
+                <button type="button" class="btn wallet-buy" id="buyCreds" title="Пополнить баланс донатом"><svg class="wallet-buy__ico" aria-hidden="true"><use href="#i-topup"/></svg>Пополнить</button>
               </dl>
             </article>
-            <article class="panel mission" id="mission" hidden>
-              <div class="mission-cells"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
-              <p class="mission-title" data-srv>Первая добыча</p>
-              <p class="mission-text" data-srv title="Накопай 10 синих кристаллов">Накопай 10 синих кристаллов</p>
-              <span class="mission-progress">3 / 10</span>
+            <!-- Миссия (MissionPanelPacket MM: картинка Url ImgX×ImgY, Text, Progress 0…100; MissionProgressPacket MP: Experience/Max).
+                 Первая строка текста — название, остальное — задание; %P% — счёт MP, %T%сек% — обратный отсчёт. Нажатие — Miso -->
+            <article class="panel mission" id="mission" role="button" tabindex="0" hidden>
+              <div class="mission-cells" id="missionCells"><i class="on"></i><i class="on"></i><i class="on"></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+              <img class="mission-img" id="missionImg" alt="" hidden>
+              <p class="mission-title" id="missionTitle" data-srv>Первая добыча</p>
+              <p class="mission-text" id="missionText" data-srv title="Накопай 10 синих кристаллов">Накопай 10 синих кристаллов</p>
+              <span class="mission-progress" id="missionProgress">3 / 10</span>
             </article>
           </div>
 
@@ -234,6 +274,7 @@ if (new URLSearchParams(location.search).get('embed')) document.documentElement.
           <div class="panel minimap" title="Карта мира" role="button" tabindex="0">
             <canvas id="minimap" width="264" height="264"></canvas>
             <span class="coords" id="coords">1184:902</span>
+            <span class="mm-mode" id="mmMode" hidden></span>
           </div>
         </section>
 
@@ -369,6 +410,11 @@ if (new URLSearchParams(location.search).get('embed')) document.documentElement.
             <span class="map-scale" id="mapScale"></span>
           </div>
           <aside class="map-side">
+            <h3><b class="sec-plate">Режим</b></h3>
+            <div class="map-mode">
+              <div class="map-filters" id="mapMode" role="radiogroup" aria-label="Режим карты"></div>
+              <p class="map-hint" id="mapModeHint"></p>
+            </div>
             <h3><b class="sec-plate">Показывать</b></h3>
             <div class="map-filters" id="mapFilters">
               <label class="check"><input type="checkbox" data-kind="me" checked><i class="pin-dot pin-dot--me"></i>Я</label>
@@ -376,6 +422,7 @@ if (new URLSearchParams(location.search).get('embed')) document.documentElement.
               <label class="check"><input type="checkbox" data-kind="build" checked><i class="pin-dot pin-dot--build"></i>Мои здания</label>
               <label class="check"><input type="checkbox" data-kind="spawn" checked><i class="pin-dot pin-dot--spawn"></i>Респаун</label>
               <label class="check"><input type="checkbox" data-kind="mark" checked><i class="pin-dot pin-dot--mark"></i>Моя метка</label>
+              <label class="check" title="Где вы давно не были, карта бледнее: там всё могло измениться"><input type="checkbox" id="mapAge" checked><i class="pin-dot pin-dot--age"></i>Давность разведки</label>
             </div>
             <h3><b class="sec-plate">Места</b></h3>
             <ul class="map-places" id="mapPlaces"></ul>
@@ -730,7 +777,6 @@ if (new URLSearchParams(location.search).get('embed')) document.documentElement.
       <button type="button" class="rail-btn" title="Выход из игры"><img src="img/ui/mm_icon_exit.png" alt=""></button>
     </nav>
     <footer class="menu-foot" aria-label="Информация о сборке">
-      <button type="button" class="menu-news" id="menuNews"><small>Новое</small><span>0.9.0 — клановые ворота и новые команды программатора</span></button>
       <span class="menu-meta menu-online"><i></i><small>В сети</small><b>1 284</b></span>
       <span class="menu-meta"><small>Версия</small><b id="versionLabel">0.8.14</b></span>
       <span class="menu-meta"><small>Сборка</small><code id="buildHash">fb8e0225</code><i class="idcode" id="buildBars" aria-hidden="true"></i></span>
@@ -757,21 +803,6 @@ if (new URLSearchParams(location.search).get('embed')) document.documentElement.
       </section>
     </div>
 
-    <div class="dialog-layer" id="healthDialog" hidden>
-      <section class="panel dialog health" role="dialog" aria-labelledby="healthTitle" aria-describedby="healthDescription">
-        <header class="upd-head">
-          <h2 id="healthTitle">Проверка ресурсов</h2>
-          <button type="button" class="icon-btn" data-close title="Закрыть"><svg><use href="#i-close"/></svg></button>
-        </header>
-        <p id="healthDescription">Проверка доступности файлов клиента.</p>
-        <div class="upd-box" id="healthProgress" hidden>
-          <div class="meter meter--wide"><i id="healthFill"></i></div>
-          <div class="upd-meta"><small id="healthStatus" aria-live="polite">Проверка файлов…</small><b id="healthCount">0 / 0</b></div>
-        </div>
-        <div class="dialog-actions">
-          <button type="button" class="btn" id="healthClose" data-close>Закрыть</button>
-          <button type="button" class="btn btn--primary" id="healthCheck">Проверить</button>
-        </div>
       </section>
     </div>
    </section>
@@ -792,10 +823,17 @@ if (new URLSearchParams(location.search).get('embed')) document.documentElement.
       </nav>
       <div class="settings-body">
         <div class="set-page is-on" data-tab="graphics">
-          <div class="field pc-only"><span><b>Режим экрана</b></span><div class="seg" role="radiogroup"><button type="button" role="radio" aria-checked="true">Полноэкранный</button><button type="button" role="radio" aria-checked="false">Оконный</button></div></div>
+          <!-- Режим окна — режимы Unity (FullScreenMode); показываются те, что есть на платформе:
+               Windows — эксклюзивный, полный экран в окне, оконный; macOS — полный экран в окне, развёрнутое окно, оконный -->
+          <label class="field pc-only"><span><b>Режим окна</b></span>
+            <select><option>Эксклюзивный полный экран</option><option selected>Полный экран в окне</option><option>Развёрнутое окно</option><option>Оконный</option></select></label>
           <label class="field pc-only"><span><b>Разрешение</b></span>
             <select><option>1280×720</option><option>1366×768</option><option>1600×900</option><option selected>1920×1080</option><option>2560×1440</option><option>3840×2160</option></select></label>
           <div class="field"><span><b>Качество графики</b></span><div class="seg" role="radiogroup"><button type="button" role="radio" aria-checked="false">Классика</button><button type="button" role="radio" aria-checked="true">Стандарт</button></div></div>
+          <label class="field"><span><b>Искажение сетки террейна</b></span><input type="checkbox" class="switch" checked></label>
+          <!-- Как картинка ложится на пиксели экрана: сглаженно, точно по пикселям или как есть -->
+          <label class="field"><span><b>Отрисовка пикселей</b></span>
+            <select><option selected>Сглаженная</option><option>Точная по пикселям</option><option>Без обработки</option></select></label>
           <label class="field"><span><b>Ограничение FPS</b></span>
             <select><option>Без ограничения</option><option>144</option><option selected>60</option><option>30</option></select></label>
           <label class="field"><span><b>Вертикальная синхронизация</b></span><input type="checkbox" class="switch" checked></label>
@@ -804,6 +842,7 @@ if (new URLSearchParams(location.search).get('embed')) document.documentElement.
           <h3 class="set-sec"><b class="sec-plate">Эффекты</b></h3>
           <label class="field"><span><b>Свечение</b></span><input type="checkbox" class="switch" checked></label>
           <label class="field"><span><b>Виньетка</b></span><input type="checkbox" class="switch" checked></label>
+          <label class="field"><span><b>Эйгенграу</b></span><input type="checkbox" class="switch"></label>
         </div>
         <div class="set-page" data-tab="audio">
           <label class="field"><span><b>Общая громкость</b></span><span class="range"><input type="range" min="0" max="100" value="85"><output>85%</output></span></label>
@@ -827,7 +866,14 @@ if (new URLSearchParams(location.search).get('embed')) document.documentElement.
         <div class="set-page" data-tab="controls">
           <div class="field"><span><b>Устройство</b></span><div class="seg" id="ctlSeg" role="radiogroup"><button type="button" role="radio" aria-checked="true" data-view="keys">Клавиатура</button><button type="button" role="radio" aria-checked="false" data-view="pad">Геймпад</button></div></div>
           <div class="ctl-view" data-view="keys">
-            <div class="field"><span><b>Движение</b></span><span class="keycap is-fixed">W A S D / ← ↑ ↓ →</span></div>
+            <!-- У движения и поворота по две клавиши: основная и вторая, обе переназначаются -->
+            <div class="field"><span><b>Движение вверх</b></span><span class="keycaps"><button type="button" class="keycap" data-key="W">W</button><button type="button" class="keycap" data-key="↑">↑</button></span></div>
+            <div class="field"><span><b>Движение вниз</b></span><span class="keycaps"><button type="button" class="keycap" data-key="S">S</button><button type="button" class="keycap" data-key="↓">↓</button></span></div>
+            <div class="field"><span><b>Движение влево</b></span><span class="keycaps"><button type="button" class="keycap" data-key="A">A</button><button type="button" class="keycap" data-key="←">←</button></span></div>
+            <div class="field"><span><b>Движение вправо</b></span><span class="keycaps"><button type="button" class="keycap" data-key="D">D</button><button type="button" class="keycap" data-key="→">→</button></span></div>
+            <div class="field"><span><b>Поворот на месте</b></span><span class="keycaps"><button type="button" class="keycap" data-key="Left Shift">Left Shift</button><button type="button" class="keycap" data-key="Right Shift">Right Shift</button></span></div>
+            <div class="field"><span><b>Медленное движение</b></span><button type="button" class="keycap" data-key="Left Alt">Left Alt</button></div>
+            <label class="field"><span><b>Помощь в движении</b></span><input type="checkbox" class="switch" checked></label>
             <div class="field"><span><b>Копать</b></span><button type="button" class="keycap" data-key="Space">Space</button></div>
             <div class="field"><span><b>Автокопание</b></span><button type="button" class="keycap" data-key="E">E</button></div>
             <div class="field"><span><b>Геология</b></span><button type="button" class="keycap" data-key="G">G</button></div>
@@ -909,6 +955,7 @@ if (new URLSearchParams(location.search).get('embed')) document.documentElement.
     <symbol id="i-minus" viewBox="0 0 24 24"><path d="M5 12h14"/></symbol>
     <symbol id="i-prev" viewBox="0 0 24 24"><path d="m15 18-6-6 6-6"/></symbol>
     <symbol id="i-next" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></symbol>
+    <symbol id="i-arrows" viewBox="0 0 24 24"><path d="m2 7.5 6 4.5-6 4.5M9 7.5l6 4.5-6 4.5M16 7.5l6 4.5-6 4.5"/></symbol>
     <symbol id="i-up" viewBox="0 0 24 24"><path d="m5 12 7-7 7 7M12 19V5"/></symbol>
     <symbol id="i-down" viewBox="0 0 24 24"><path d="M12 5v14M19 12l-7 7-7-7"/></symbol>
     <symbol id="i-left" viewBox="0 0 24 24"><path d="m12 19-7-7 7-7M19 12H5"/></symbol>
@@ -958,6 +1005,10 @@ if (new URLSearchParams(location.search).get('embed')) document.documentElement.
     <symbol id="i-autodig" viewBox="0 0 24 24"><path d="M14 4l6 6-3 3-6-6z"/><path d="M11 7l-7 7 3 3 7-7"/><path d="M4 21a3 3 0 0 0 5 0"/></symbol>
     <symbol id="i-geo" viewBox="0 0 24 24"><g transform="rotate(180 12 12)"><path d="M17 2.5L15 7.5"/><path d="M5 7.5h14v4a7 7 0 0 1-7 7H5z"/><path d="M5 18.5l1.2 2.5 1.3-2.5 1.2 2.5 1.3-2.5"/><path d="M7 7.5l1.6-3 2.4 1.2 1.6-2.2 2.4 4"/></g></symbol>
     <symbol id="i-heal" viewBox="0 0 24 24"><path d="M9 4h6v5h5v6h-5v5H9v-5H4V9h5z"/></symbol>
+    <!-- Знак кредита — вектором в высоту цифр, как «$» шрифта: угловое C и две черты внутри (знак кредита игры, img/legacy/credit.png) -->
+    <symbol id="i-credit" viewBox="0 0 10 13"><path d="M10 1H1v11h9M4.2 4.7H10M4.2 8.3H10" stroke-width="1.9"/></symbol>
+    <!-- Пополнение (донат): карта оплаты — оплата реальными деньгами, не игровая валюта: контур, сплошная полоса, строка номера -->
+    <symbol id="i-topup" viewBox="0 0 24 24"><path d="M2.5 5.5h19v13h-19zM6 15h4" stroke-width="2"/><path d="M2.5 8.5h19v3.5h-19z" fill="currentColor" stroke="none"/></symbol>
     <symbol id="i-gift" viewBox="0 0 24 24"><rect x="3.5" y="8" width="17" height="4" rx="1"/><path d="M5 12v8h14v-8"/><path d="M12 8v12"/><path d="M12 8c-1.5-3-5-4-5.5-2S9 8 12 8zM12 8c1.5-3 5-4 5.5-2S15 8 12 8z"/></symbol>
     <!-- Усиления и события (i-fx-*): только прямые отрезки, как срез панели. Добыча — ore/yield/bit, прокачка — xp/core/skill, событие — time/signal/surge -->
     <symbol id="i-fx-ore" viewBox="0 0 24 24"><path d="M12 3l9 7-9 11-9-11z"/><path d="M3 10h18M8 10l4 11M16 10l-4 11"/></symbol>
@@ -978,6 +1029,9 @@ if (new URLSearchParams(location.search).get('embed')) document.documentElement.
   </defs>
 </svg>
 
+<script src="js/numbers.js"></script>
+<script src="js/arrows.js"></script>
+<script src="js/menu.js"></script>
 <script src="js/motion.js"></script>
 <script src="js/scene.js"></script>
 <script src="js/world.js"></script>
@@ -990,6 +1044,8 @@ if (new URLSearchParams(location.search).get('embed')) document.documentElement.
 <script src="js/prog.js"></script>
 <script src="js/events.js"></script>
 <script src="js/srvgui.js"></script>
+<script src="js/tutorial.js"></script>
+<script src="js/mapmodes.js"></script>
 <script src="js/i18n-data.js"></script>
 <script src="js/i18n.js"></script>
 <script src="js/gamepad.js"></script>

@@ -14,8 +14,8 @@ using VContainer;
 using Stopwatch = System.Diagnostics.Stopwatch;
 
 using Kern.Networking.Gateways;
+using Kern.UI.Gateway;
 using Kern.Networking.Status;
-using Kern.Core.Platform;
 using Kern.UI.Localization;
 using Kern.UI.Screens;
 
@@ -27,11 +27,6 @@ namespace Kern.UI.Menu
     public class MainMenu : MonoBehaviour, ILocalizableUI
     {
 
-        [SerializeField]
-        private Texture2D? _shadeTexture;
-        [SerializeField]
-        private Texture2D? _spaceBgTexture;
-
         private UIDocument? _doc;
         private VisualElement? _root;
         private VisualElement? _tree;
@@ -39,12 +34,10 @@ namespace Kern.UI.Menu
         private readonly MenuLoaderPanel _loaderPanel = new();
         private readonly MenuModalManager _modalManager = new();
         private readonly MenuNavigationPresenter _navigationPresenter = new();
-        private MenuRepairPresenter _repairPresenter = null!;
         private MenuServerStatusPresenter _serverStatusPresenter = null!;
         private MenuPlayerIdentityPresenter _identityPresenter = null!;
         private MenuWorldEntryController _worldEntry = null!;
         private bool _built;
-        private bool _subscribed;
         private bool _teardownStarted;
 
         [Inject]
@@ -62,26 +55,29 @@ namespace Kern.UI.Menu
         [Inject]
         private IAsyncOperationSupervisor _operations = null!;
         [Inject]
-        private IMenuFileDiagnosticsService _fileDiagnostics = null!;
-        [Inject]
         private WindowCommandStream _windowCommands = null!;
         [Inject]
         private IPlayerStats _playerStats = null!;
+        [Inject]
+        private ILoadingTip _loadingTip = null!;
+        [Inject]
+        private MenuGate _gate = null!;
+        [Inject]
+        private IAudioSystem _audio = null!;
+        [Inject]
+        private Kern.Rendering.Display.DisplayManager _display = null!;
 
-        private MenuStarfield? _sceneStarfield;
-        private MenuSceneryController? _sceneScenery;
-        private MenuSceneryPresenter _sceneryPresenter = null!;
+        // Окно настроек — общее с игрой; в меню живых систем графики нет, выбор сохраняется в конфиг
+        private Kern.UI.Settings.SettingsWindow? _settings;
 
         [Inject]
-        private void Construct(IRuntimeAssetPaths runtimeAssetPaths)
+        private void Construct()
         {
-            _sceneryPresenter = new MenuSceneryPresenter(runtimeAssetPaths);
-            _repairPresenter = new MenuRepairPresenter(_loc, _operations, _fileDiagnostics);
-            _serverStatusPresenter = new MenuServerStatusPresenter(_loc, _operations, _clientConfig, _modalManager);
+            _serverStatusPresenter = new MenuServerStatusPresenter(_loc, _operations, _clientConfig);
             _identityPresenter = new MenuPlayerIdentityPresenter(_loc, _playerStats);
             _worldEntry = new MenuWorldEntryController(_loc, _sceneNavigator, _connection,
                 _worldEntryPreparation, _loadProgress, _operations, _windowCommands,
-                _loaderPanel, _modalManager, _navigationPresenter, _sceneryPresenter,
+                _loaderPanel, _modalManager,
                 () => destroyCancellationToken);
         }
 
@@ -118,10 +114,7 @@ namespace Kern.UI.Menu
                     _root.Add(_tree);
                 }
                 _worldEntry.Bind(_tree, _root, _mainMenuContainer);
-                SubscribeEvents();
                 _worldEntry.SubscribeWindowVisibility();
-                _sceneryPresenter.Bind(_tree);
-                _sceneryPresenter.ApplyTextures(ref _shadeTexture, ref _spaceBgTexture);
 
                 if (_loc != null)
                 {
@@ -131,12 +124,8 @@ namespace Kern.UI.Menu
             }
         }
 
-        public void InitializeScene(MenuStarfield? starfield, MenuSceneryController? scenery)
+        public void InitializeScene()
         {
-            _sceneStarfield = starfield;
-            _sceneScenery = scenery;
-            _sceneryPresenter.BindScene(starfield, scenery);
-
             if (_teardownStarted)
             {
                 return;
@@ -183,13 +172,20 @@ namespace Kern.UI.Menu
             _tree = tree;
 
             BindUIElements(tree);
-            _modalManager.Bind(tree);
-            _sceneryPresenter.Bind(tree);
+            _settings?.Dispose();
+            _settings = new Kern.UI.Settings.SettingsWindow(
+                _doc,
+                _root,
+                _clientConfig!,
+                _audio,
+                _display,
+                new Kern.UI.Settings.ConfigSettingsApply(_clientConfig!),
+                _loc,
+                _playerStats,
+                _ => { });
+            _modalManager.UseSettingsWindow(_settings);
 
-            _subscribed = false;
-            SubscribeEvents();
             _worldEntry.SubscribeWindowVisibility();
-            _sceneryPresenter.ApplyTextures(ref _shadeTexture, ref _spaceBgTexture);
 
             if (_loc != null)
             {
@@ -199,7 +195,13 @@ namespace Kern.UI.Menu
             ApplyLocalizedText();
             _built = true;
 
-            _sceneryPresenter.MarkUIBuilt();
+            // Вход и онбординг — слой поверх меню (третьей сцены «ворот» больше нет).
+            // Пройденные в этой сцене ворота перестройка меню не открывает заново.
+            if (!_gate.Passed)
+            {
+                _gate.Open(_doc, _root, forceForm: false);
+            }
+
             Debug.Log($"[MainMenu] UI BUILT successfully: children={_root.childCount}");
         }
 
@@ -209,14 +211,8 @@ namespace Kern.UI.Menu
             while (Time.realtimeSinceStartup < timeout)
             {
                 cancellationToken.ThrowIfCancellationRequested();
-                if (_built && _sceneryPresenter.IsSceneryReady)
-                {
-                    return;
-                }
-
                 _serverStatusPresenter.TickOnlineBadge(_worldEntry.IsLoading);
-            _sceneryPresenter.Tick(ref _spaceBgTexture);
-                if (_built && _sceneryPresenter.IsSceneryReady)
+                if (_built)
                 {
                     return;
                 }
@@ -226,8 +222,7 @@ namespace Kern.UI.Menu
 
             cancellationToken.ThrowIfCancellationRequested();
             throw new TimeoutException(
-                "Сценка главного меню не готова за 3 секунды. " +
-                $"Разметка построена={_built}; {_sceneryPresenter.DescribeReadiness()}.");
+                "Разметка главного меню не построена за 3 секунды.");
         }
 
         private void BindUIElements(VisualElement tree)
@@ -239,22 +234,18 @@ namespace Kern.UI.Menu
             // Живое имя и уровень шахтёра (бейдж справа сверху и досье):
             // сервер присылает их по сокету ещё в меню, см. PlayerIdentityProcessor.
 
-            // Строка и карточка реального сервера в окне выбора: метки без
-            // имён, ищутся классами внутри карточки ServerItemHades.
-
-            _repairPresenter.Bind(tree);
             _serverStatusPresenter.Bind(tree);
             _identityPresenter.Bind(tree);
             _identityPresenter.SubscribePlayerIdentity();
-            _loaderPanel.Bind(tree, searchRoot, _loc);
+            _loaderPanel.Bind(tree, searchRoot, _loc, _loadingTip);
 
             _navigationPresenter.Bind(
                 tree,
                 _modalManager,
                 _worldEntry.OnPlayButtonClicked,
                 _worldEntry.CancelDescent,
-                _loc,
-                ClientMarketPolicy.IsVkAvailable);
+                _worldEntry.RetryDescent,
+                _loc);
 
             _loaderPanel.Reset();
         }
@@ -268,7 +259,7 @@ namespace Kern.UI.Menu
 
             if (Application.isPlaying && !_built)
             {
-                InitializeScene(_sceneStarfield, _sceneScenery);
+                InitializeScene();
                 if (!_built)
                 {
                     return;
@@ -282,7 +273,7 @@ namespace Kern.UI.Menu
                 {
                     _tree = null;
                     _built = false;
-                    InitializeScene(_sceneStarfield, _sceneScenery);
+                    InitializeScene();
                     return;
                 }
             }
@@ -299,37 +290,15 @@ namespace Kern.UI.Menu
             }
 
             _serverStatusPresenter.TickOnlineBadge(_worldEntry.IsLoading);
-            _sceneryPresenter.Tick(ref _spaceBgTexture);
-            MenuKeyboardHandler.HandleInput(_modalManager, _worldEntry.IsLoading, _worldEntry.OnPlayButtonClicked, _worldEntry.CancelDescent);
-
-        }
-
-        private void SubscribeEvents()
-        {
-            if (_subscribed)
+            // Пока открыты ворота входа, клавиши меню (Enter — «Играть») не действуют.
+            if (_gate.IsOpen)
             {
                 return;
             }
 
-            if (_tree != null)
-            {
-                _modalManager.SubscribeEvents(
-                    _tree,
-                    _worldEntry.OnPlayButtonClicked,
-                    _clientConfig,
-                    _sceneNavigator,
-                    _operations,
-                    _loc);
+            MenuKeyboardHandler.HandleInput(_modalManager, _worldEntry.IsLoading, _worldEntry.OnPlayButtonClicked, _worldEntry.CancelDescent);
 
-                _repairPresenter.Subscribe();
-
-                _modalManager.RepairModalOpened += _repairPresenter.OnRepairModalOpened;
-            }
-
-            _subscribed = true;
         }
-
-        public void OpenModal(VisualElement? modal) => _modalManager.OpenModal(modal);
 
         public void CloseCurrentModal() => _modalManager.CloseCurrentModal();
 
@@ -345,7 +314,6 @@ namespace Kern.UI.Menu
             _navigationPresenter.ApplyLocalization(_loc);
             _loaderPanel.RefreshLocalization();
             // UILocalizer.Apply сбрасывает тексты на ключи разметки — возвращаем живые.
-            _repairPresenter.ApplyRepairTexts();
             _identityPresenter.ApplyPlayerIdentity();
             UILocalizer.AssertLocalized(_tree, _loc);
         }
@@ -358,14 +326,8 @@ namespace Kern.UI.Menu
                 UIScreen.Unbind(_doc);
             }
 
-            if (_repairPresenter != null)
-            {
-                _modalManager.RepairModalOpened -= _repairPresenter.OnRepairModalOpened;
-                _repairPresenter.Dispose();
-            }
-
             _identityPresenter?.Dispose();
-
+            _loaderPanel.Dispose();
 
             if (_loc != null)
             {
@@ -373,6 +335,8 @@ namespace Kern.UI.Menu
             }
 
             _worldEntry?.Dispose();
+            _settings?.Dispose();
+            _settings = null;
 
             _tree?.RemoveFromHierarchy();
             _tree = null;

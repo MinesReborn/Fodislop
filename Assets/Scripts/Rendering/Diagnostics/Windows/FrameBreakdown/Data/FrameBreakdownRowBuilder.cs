@@ -6,7 +6,6 @@ using Kern.Core.Interfaces.Diagnostics;
 using UnityEngine;
 
 using Kern.Diagnostics.Frames;
-using Kern.Diagnostics.Memory;
 using Kern.Rendering.Diagnostics.Profiling;
 using Kern.Rendering.Diagnostics.Tools;
 
@@ -19,7 +18,6 @@ internal static class FrameBreakdownRowBuilder
 
     private static readonly List<(int Start, int Length, double Weight)> s_stageOrder = new();
     private static readonly List<FrameProbe> s_reordered = new();
-    private static readonly List<Kern.Diagnostics.Memory.AllocationLedger.Entry> s_ledgerSorted = new();
 
     public static void BuildFrameRows(
         List<FrameBreakdownRow> rows,
@@ -27,8 +25,7 @@ internal static class FrameBreakdownRowBuilder
         FrameProbe playerLoop,
         PlayerLoopBreakdown loop,
         MarkerSearch search,
-        IReadOnlyList<FrameProbe> memory,
-        long toolBytes)
+        IReadOnlyList<FrameProbe> memory)
     {
         rows.Clear();
         rows.Add(new FrameBreakdownRow(FrameBreakdownRowKind.Header, "ПОТОКИ — АГРЕГАТЫ FRAMETIMINGMANAGER"));
@@ -36,8 +33,8 @@ internal static class FrameBreakdownRowBuilder
         {
             rows.Add(new FrameBreakdownRow(
                 FrameBreakdownRowKind.Warning,
-                "Тайминги потоков недоступны. В сборке нужен флаг Frame Timing Stats " +
-                "в Player Settings; в редакторе они есть не на всех платформах."));
+                "Тайминги потоков недоступны. Проверьте поддержку Frame Timing Stats " +
+                "и флаг в Player Settings."));
         }
         else
         {
@@ -50,7 +47,7 @@ internal static class FrameBreakdownRowBuilder
             {
                 AddSeries(rows, "· видеокарта — последние доступные замеры", timings.GPU, scale, ToolTheme.FrameGraphColor);
                 rows.Add(new FrameBreakdownRow(FrameBreakdownRowKind.Text,
-                    $"GPU-замеров {timings.GPUSampledFrames} из {timings.SampledFrames} уникальных кадров за сеанс окна; " +
+                    $"GPU-замеров {timings.GPU.Count} из последних {timings.Frame.Count} кадров в окнах усреднения; " +
                     "пропуски не считаются нулевой стоимостью."));
             }
             else
@@ -64,9 +61,11 @@ internal static class FrameBreakdownRowBuilder
         }
 
         rows.Add(new FrameBreakdownRow(FrameBreakdownRowKind.Header, "ИГРОВОЙ ЦИКЛ"));
-        if (!playerLoop.Available)
+        if (!playerLoop.Available || !playerLoop.HasSamples)
         {
-            rows.Add(new FrameBreakdownRow(FrameBreakdownRowKind.Warning, "Маркер PlayerLoop не найден."));
+            rows.Add(new FrameBreakdownRow(
+                FrameBreakdownRowKind.Warning,
+                playerLoop.Available ? "Маркер PlayerLoop найден, но выборок пока нет." : "Маркер PlayerLoop недоступен в этой сборке."));
         }
         else
         {
@@ -74,13 +73,12 @@ internal static class FrameBreakdownRowBuilder
             AddProbe(rows, playerLoop, scale, ToolTheme.Warning, search);
             rows.Add(new FrameBreakdownRow(
                 FrameBreakdownRowKind.Text,
-                $"· сумма найденных маркеров систем   {loop.AccountedMilliseconds:F2} мс",
+                $"· сумма средних маркеров систем   {loop.AccountedMilliseconds:F2} мс; не один кадр",
                 (float)(loop.AccountedMilliseconds / scale),
                 ToolTheme.Warning));
             rows.Add(new FrameBreakdownRow(
                 FrameBreakdownRowKind.Text,
-                "Разность с PlayerLoop не определяет стоимость редактора: " +
-                "покрытие маркерами неполное, окна выборок могут различаться."));
+                "Сумма не обязана совпадать с PlayerLoop: покрытие маркерами неполное, окна выборок могут различаться."));
 
             int shown = Math.Min(FrameTabLoopRows, loop.Sorted.Count);
             for (int i = 0; i < shown; i++)
@@ -95,11 +93,9 @@ internal static class FrameBreakdownRowBuilder
             AddProbeList(rows, search.Pins, ToolTheme.Accent, search, pinnable: true);
         }
 
-        rows.Add(new FrameBreakdownRow(FrameBreakdownRowKind.Header, "МУСОР"));
+        rows.Add(new FrameBreakdownRow(FrameBreakdownRowKind.Header, "GC И АЛЛОКАЦИИ"));
         AddCounter(rows, memory[0]);
         AddCounter(rows, memory[1]);
-        rows.Add(new FrameBreakdownRow(FrameBreakdownRowKind.Text, $"· отдельный замер окон: {toolBytes / 1024d:F1} КБ (главный поток)"));
-        AddAllocationLedgerRows(rows);
     }
 
     public static void BuildLoopRows(
@@ -119,7 +115,7 @@ internal static class FrameBreakdownRowBuilder
                 $"Без маркера в этом сеансе: {loop.MissingCount} (ещё не срабатывали или не размечены)."));
         }
 
-        double scale = Math.Max(BudgetMilliseconds, playerLoop.Available ? playerLoop.Peak : 0d);
+        double scale = Math.Max(BudgetMilliseconds, playerLoop.Available && playerLoop.HasSamples ? playerLoop.Peak : 0d);
         AddProbeList(rows, loop.Sorted, ToolTheme.Warning, search, pinnable: true, scale);
     }
 
@@ -175,13 +171,18 @@ internal static class FrameBreakdownRowBuilder
         rows.Add(new FrameBreakdownRow(
             SystemInfo.supportsGpuRecorder ? FrameBreakdownRowKind.Text : FrameBreakdownRowKind.Warning,
             SystemInfo.supportsGpuRecorder
-                ? $"GPU-рекордеры поддерживаются ({SystemInfo.graphicsDeviceType}). Нули значат, что пасс не оборачивает команды в сэмплер."
-                : $"GPU-рекордеры не поддерживаются на {SystemInfo.graphicsDeviceType} в этом режиме: время по пассам недоступно, нули ниже — не замер."));
+                ? $"GPU-рекордеры поддерживаются ({SystemInfo.graphicsDeviceType}); маркеры без выборок помечены отдельно."
+                : $"GPU-рекордеры не поддерживаются на {SystemInfo.graphicsDeviceType} в этом режиме; время по пассам недоступно."));
         if (timings.GPUSampledFrames > 0)
         {
             rows.Add(new FrameBreakdownRow(
                 FrameBreakdownRowKind.Text,
-                $"Последние доступные GPU-замеры (FrameTimingManager): {timings.GPU.Average:F2} мс, пик {timings.GPU.Peak:F2}"));
+                $"Последние доступные GPU-замеры (FrameTimingManager): {timings.GPU.Average:F2} мс, пик {timings.GPU.Peak:F2}, выборок {timings.GPU.Count}"));
+        }
+        else
+        {
+            rows.Add(new FrameBreakdownRow(FrameBreakdownRowKind.Text,
+                "FrameTimingManager: GPU-выборок пока нет."));
         }
 
         AddStageGroup(rows, gpu, ToolTheme.FrameGraphColor, search);
@@ -241,9 +242,15 @@ internal static class FrameBreakdownRowBuilder
 
     private static void AddSeries(List<FrameBreakdownRow> rows, string title, RollingSeries series, double scale, Color color)
     {
+        if (series.Count == 0)
+        {
+            rows.Add(new FrameBreakdownRow(FrameBreakdownRowKind.Text, $"{title}   нет валидных выборок"));
+            return;
+        }
+
         rows.Add(new FrameBreakdownRow(
             FrameBreakdownRowKind.Text,
-            $"{title}   {series.Average:F2} мс  (пик {series.Peak:F2}, последний {series.Last:F2})",
+            $"{title}   {series.Average:F2} мс  (пик {series.Peak:F2}, последний {series.Last:F2}, кадров {series.Count})",
             (float)(series.Average / scale),
             color));
     }
@@ -261,7 +268,7 @@ internal static class FrameBreakdownRowBuilder
             scale = BudgetMilliseconds;
             foreach (FrameProbe probe in probes)
             {
-                if (probe.Available && probe.IsTime)
+                if (probe.Available && probe.HasSamples && probe.IsTime)
                 {
                     scale = Math.Max(scale, probe.Peak);
                 }
@@ -293,7 +300,13 @@ internal static class FrameBreakdownRowBuilder
 
         if (!probe.Available)
         {
-            rows.Add(new FrameBreakdownRow(FrameBreakdownRowKind.Text, $"{label}  —  маркер не сработал в этом сеансе", Pin: pin));
+            rows.Add(new FrameBreakdownRow(FrameBreakdownRowKind.Text, $"{label}  —  маркер недоступен в этой сборке", Pin: pin));
+            return;
+        }
+
+        if (!probe.HasSamples)
+        {
+            rows.Add(new FrameBreakdownRow(FrameBreakdownRowKind.Text, $"{label}  —  маркер доступен, выборок пока нет", Pin: pin));
             return;
         }
 
@@ -301,14 +314,15 @@ internal static class FrameBreakdownRowBuilder
         {
             rows.Add(new FrameBreakdownRow(
                 FrameBreakdownRowKind.Text,
-                $"{label}   {probe.FormatValue(probe.Last)}  (пик {probe.FormatValue(probe.Peak)})",
+                $"{label}   {probe.FormatValue(probe.Last)}  (пик {probe.FormatValue(probe.Peak)}, выборок {probe.SampleCount})",
                 Pin: pin));
             return;
         }
 
+        string sampleAge = probe.IsGPU ? $", GPU-выборка {probe.SampleAgeFrames} кадр. назад" : string.Empty;
         rows.Add(new FrameBreakdownRow(
             FrameBreakdownRowKind.Text,
-            $"{label}   {probe.Average:F2} мс  (пик {probe.Peak:F2}, последний {probe.Last:F2})",
+            $"{label}   {probe.Average:F2} мс  (пик {probe.Peak:F2}, последний {probe.Last:F2}, выборок {probe.SampleCount}{sampleAge})",
             (float)(probe.Average / scale),
             color,
             pin));
@@ -318,9 +332,11 @@ internal static class FrameBreakdownRowBuilder
     {
         rows.Add(new FrameBreakdownRow(
             FrameBreakdownRowKind.Text,
-            probe.Available
-                ? $"{probe.Title}: {probe.FormatValue(probe.Last)}   (пик {probe.FormatValue(probe.Peak)})"
-                : $"{probe.Title}: счётчика нет в этой сборке"));
+            probe.Available && probe.HasSamples
+                ? $"{probe.Title}: {probe.FormatValue(probe.Last)}   (пик {probe.FormatValue(probe.Peak)}, выборок {probe.SampleCount})"
+                : !probe.Available
+                    ? $"{probe.Title}: счётчика нет в этой сборке"
+                    : $"{probe.Title}: выборок пока нет"));
     }
 
     private static void AddStageGroup(List<FrameBreakdownRow> rows, List<FrameProbe> probes, Color color, MarkerSearch search)
@@ -329,7 +345,7 @@ internal static class FrameBreakdownRowBuilder
         double scale = BudgetMilliseconds;
         foreach (FrameProbe probe in probes)
         {
-            if (probe.Available)
+            if (probe.Available && probe.HasSamples)
             {
                 scale = Math.Max(scale, probe.Peak);
             }
@@ -352,10 +368,10 @@ internal static class FrameBreakdownRowBuilder
             }
 
             int end = i + 1;
-            double weight = probes[i].Available ? probes[i].Average : 0d;
+            double weight = probes[i].Available && probes[i].HasSamples ? probes[i].Average : 0d;
             while (end < probes.Count && probes[end].IsDetail)
             {
-                if (!probes[i].Available && probes[end].Available)
+                if ((!probes[i].Available || !probes[i].HasSamples) && probes[end].Available && probes[end].HasSamples)
                 {
                     weight = Math.Max(weight, probes[end].Average);
                 }
@@ -392,36 +408,4 @@ internal static class FrameBreakdownRowBuilder
         probes.AddRange(s_reordered);
     }
 
-    private static void AddAllocationLedgerRows(List<FrameBreakdownRow> rows)
-    {
-        rows.Add(new FrameBreakdownRow(FrameBreakdownRowKind.Header, "МУСОР ПО ИГРОВЫМ ПУТЯМ (СРЕДНЕЕ ЗА КАДР)"));
-        s_ledgerSorted.Clear();
-        s_ledgerSorted.AddRange(Kern.Diagnostics.Memory.AllocationLedger.Entries);
-        s_ledgerSorted.Sort(static (left, right) => right.AverageBytes.CompareTo(left.AverageBytes));
-        if (s_ledgerSorted.Count == 0)
-        {
-            rows.Add(new FrameBreakdownRow(FrameBreakdownRowKind.Text, "Ни один замеренный путь ещё не выполнялся."));
-            return;
-        }
-
-        double scale = 1024d;
-        foreach (var entry in s_ledgerSorted)
-        {
-            scale = Math.Max(scale, entry.AverageBytes);
-        }
-
-        foreach (var entry in s_ledgerSorted)
-        {
-            rows.Add(new FrameBreakdownRow(
-                FrameBreakdownRowKind.Text,
-                $"{entry.Name}   {entry.AverageBytes / 1024d:F2} КБ  (пик {entry.PeakBytes / 1024d:F1}, " +
-                $"последний {entry.LastFrameBytes / 1024d:F2}, вызовов {entry.LastFrameCalls}" +
-                (entry.CollectionsInside > 0 ? $", сборок внутри {entry.CollectionsInside}" : string.Empty) + ")",
-                (float)(entry.AverageBytes / scale),
-                ToolTheme.Warning));
-        }
-
-        rows.Add(new FrameBreakdownRow(FrameBreakdownRowKind.Text,
-            "Пути могут быть вложены. Общий GC, окна и ledger измерены отдельно; остаток не вычисляется."));
-    }
 }

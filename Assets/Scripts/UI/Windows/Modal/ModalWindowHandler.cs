@@ -1,7 +1,11 @@
 #nullable enable
 
 using System;
+using System.Threading;
+using Kern.AssetPipeline.Loading;
 using Kern.Core;
+using Kern.Core.Interfaces;
+using Kern.UI.Controls;
 using MinesServer.Networking.Server.Packets.GUI;
 using UnityEngine;
 using UnityEngine.InputSystem;
@@ -16,6 +20,10 @@ public class ModalWindowHandler : IDisposable
 {
     private readonly UIDocument _doc;
     private readonly UIInputManager _uiInput;
+    private readonly IAssetLoader _assets;
+    private readonly IWebAssetLoader _web;
+    private readonly IAsyncOperationSupervisor _operations;
+    private CancellationTokenSource? _iconLoad;
     private VisualElement? _overlay;
     private VisualElement? _icon;
     private Label? _title;
@@ -23,10 +31,18 @@ public class ModalWindowHandler : IDisposable
     private Button? _okButton;
     private IVisualElementScheduledItem? _keyWatcher;
 
-    public ModalWindowHandler(UIDocument doc, UIInputManager uiInput)
+    public ModalWindowHandler(
+        UIDocument doc,
+        UIInputManager uiInput,
+        IAssetLoader assets,
+        IWebAssetLoader web,
+        IAsyncOperationSupervisor operations)
     {
         _doc = doc;
         _uiInput = uiInput;
+        _assets = assets;
+        _web = web;
+        _operations = operations;
     }
 
     /// <summary>
@@ -79,7 +95,7 @@ public class ModalWindowHandler : IDisposable
 
         // Контент биндится, а не строится: по пакету меняются только
         // текст и видимость иконки.
-        UIState.SetHidden(_icon, string.IsNullOrEmpty(packet.IconURI));
+        ShowIcon(packet.IconURI);
         _title!.text = packet.Title;
         _desc!.text = packet.Description;
         _okButton!.text = packet.ButtonText;
@@ -88,6 +104,34 @@ public class ModalWindowHandler : IDisposable
         overlay.SetEnabled(true);
         overlay.pickingMode = PickingMode.Position;
         WatchKeys(overlay);
+    }
+
+    // Картинка сообщения (IconURI пакета): до загрузки места нет; пустой адрес — картинки нет
+    private void ShowIcon(string? uri)
+    {
+        _iconLoad?.Cancel();
+        _iconLoad?.Dispose();
+        _iconLoad = null;
+        VisualElement icon = _icon!;
+        icon.style.backgroundImage = StyleKeyword.Null;
+        UIState.Hide(icon);
+        if (string.IsNullOrEmpty(uri))
+        {
+            return;
+        }
+
+        var load = new CancellationTokenSource();
+        _iconLoad = load;
+        _operations.Run("modal_window_icon", async supervisorToken =>
+        {
+            using var linked = CancellationTokenSource.CreateLinkedTokenSource(load.Token, supervisorToken);
+            Texture2D? texture = await ServerImageSource.LoadAsync(_assets, _web, uri, linked.Token);
+            if (!linked.Token.IsCancellationRequested && texture != null)
+            {
+                icon.style.backgroundImage = new StyleBackground(texture);
+                UIState.Show(icon);
+            }
+        });
     }
 
     public bool IsShowing => _overlay != null && !UIState.IsHidden(_overlay);
@@ -129,6 +173,9 @@ public class ModalWindowHandler : IDisposable
     {
         _keyWatcher?.Pause();
         _keyWatcher = null;
+        _iconLoad?.Cancel();
+        _iconLoad?.Dispose();
+        _iconLoad = null;
         _overlay?.RemoveFromHierarchy();
         _overlay = null;
         _icon = null;

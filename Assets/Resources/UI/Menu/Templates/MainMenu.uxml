@@ -1,487 +1,87 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements">
-    <ui:VisualElement name="MainMenuRoot" class="mm-root">
-        <!-- Фон космоса. Процедурное мерцающее звёздное поле из MenuStarfield:
-             шейдер блитится в RenderTexture, которая подставляется сюда из кода.
-             Именно UI-элемент, а не геометрия в сцене — квад на отдельной камере
-             рисовался в дисплей и попадал в игровую камеру, закрывая собой игру.
-             Сценка справа рисуется поверх фона, т.к. этот элемент идёт первым
-             в дереве. -->
-        <ui:Image name="SpaceBgImage" class="mm-space-bg" scale-mode="ScaleAndCrop" />
+    <!-- Главное меню — экран menu и спуск (descent) макета visual/kern-ui/index.html. Фон экранов вне игры,
+         шапка со знаком, заголовок и главное действие слева, связь и выход справа, строка сборки внизу.
+         Вход и онбординг — слой MenuGate поверх этого дерева (Gateway.uxml). Окна меню — ниже, в ModalOverlay. -->
+    <ui:VisualElement name="MainMenuRoot" class="mm-root screen-space screen--menu">
+        <ui:VisualElement class="screen-space__dots" picking-mode="Ignore" />
+        <ui:VisualElement class="menu-shade" picking-mode="Ignore" />
 
-        <!-- СЦЕНКА СПРАВА -->
-        <ui:VisualElement name="MainMenuSceneryContainer" class="mm-scenery-system">
-            <ui:Image name="MainMenuSceneryImage" class="mm-scenery-body" scale-mode="ScaleToFit" />
-
-            <!-- Метка станции на орбите. Позиция берётся из 3D-сцены каждый кадр
-                 (MenuSceneryController.TryGetStationViewportPosition), поэтому
-                 подпись едет вместе со светящейся точкой. Оформление то же, что
-                 у метки высадки: маркер + плашка mm-target-badge. -->
-            <ui:VisualElement name="MainMenuBeacon" class="is-hidden mm-target-reticle mm-beacon">
-                <ui:VisualElement name="BeaconPing" class="is-hidden mm-beacon-ping" picking-mode="Ignore" />
-                <ui:VisualElement class="mm-target-cross-v" />
-                <ui:VisualElement class="mm-target-cross-h" />
-                <ui:VisualElement name="StationBadge" class="mm-target-badge mm-target-badge--right">
-                    <ui:Label class="mm-tb-title" text="mainmenu.fed_base" />
-                    <ui:Label class="mm-tb-coords" text="mainmenu.orbit_status" />
-                </ui:VisualElement>
-            </ui:VisualElement>
-
-        </ui:VisualElement>
-
-        <!-- ТЕНЕВОЙ ГРАДИЕНТ СЛЕВА -->
-        <ui:Image name="LoaderShade" class="mm-loader-shade" picking-mode="Ignore" scale-mode="StretchToFill" />
-
-        <!-- ЭКРАН СПУСКА (ФАЗЫ ЗАГРУЗКИ) -->
-        <ui:VisualElement name="LoaderContainer" class="is-hidden mm-loader">
-            <ui:VisualElement name="LoaderContent" class="is-hidden mm-loader-content">
-                <ui:VisualElement class="mm-eyebrow">
-                    <ui:VisualElement class="mm-eyebrow-dash" />
-                    <ui:Label class="mm-eyebrow-text" text="mainmenu.loading_eyebrow" />
-                </ui:VisualElement>
-                <ui:Label class="mm-heading-white" text="mainmenu.loading_heading" />
-                <ui:Label class="mm-heading-gold" text="mainmenu.loading_heading_accent" />
-                <ui:Label class="mm-subtitle" text="mainmenu.loading_subtitle" />
-                <ui:VisualElement name="LoaderProgressTrack" class="mm-loader-progress-track">
-                    <ui:VisualElement name="LoaderProgressFill" class="mm-loader-progress-fill" />
-                </ui:VisualElement>
-                <ui:VisualElement name="LoaderProgressMeta" class="mm-loader-progress-meta">
-                    <ui:Label name="LoaderPhaseLabel" class="mm-loader-phase-label" text="menu.loading.phase.handshake" />
-                    <ui:Label name="LoaderPhaseCount" class="mm-loader-phase-count" text="1 / 5" />
-                </ui:VisualElement>
-                <ui:VisualElement name="LoaderPhaseList" class="mm-loader-phases" />
-                <ui:Button name="CancelDescentButton" class="mm-btn-outline fit-wrap" text="menu.cancel_descent" />
+        <ui:VisualElement class="menu-top">
+            <ui:VisualElement class="brand">
+                <ui:VisualElement class="brand__mark" />
+                <ui:Label class="wordmark" text="Project Kern" />
+                <ui:Label class="brand-sub caps" text="mainmenu.brand_sub" />
             </ui:VisualElement>
         </ui:VisualElement>
 
-        <!-- ВЕРХНИЙ ХЕДЕР (64px) -->
-        <ui:VisualElement name="MainMenuHeader" class="mm-header">
-            <ui:VisualElement name="MainMenuWordmark" class="mm-wordmark">
-                <ui:Image name="MainMenuLogoIcon" class="mm-wordmark-icon" />
-                <ui:VisualElement class="mm-brand-text">
-                    <ui:Label class="mm-brand-title" text="KERN" />
-                    <ui:Label class="mm-brand-sub" text="mainmenu.brand_sub" />
-                </ui:VisualElement>
-            </ui:VisualElement>
-
-            <ui:VisualElement class="mm-header-right">
-                <ui:Button name="UserPillButton" class="mm-user-pill">
-                    <ui:VisualElement class="mm-user-avatar">
-                        <ui:Label text="mainmenu.avatar_letter" />
-                    </ui:VisualElement>
-                    <ui:VisualElement class="mm-user-meta">
-                        <ui:Label class="mm-user-name" text="mainmenu.user_name" />
-                        <ui:Label class="mm-user-rank" text="mainmenu.user_rank" />
-                    </ui:VisualElement>
-                </ui:Button>
+        <!-- Главный блок: заголовок, описание игры, «Играть» и «Настройки» -->
+        <ui:VisualElement name="MainMenuContainer" class="menu-main">
+            <ui:Label class="menu-title lh-100" text="mainmenu.title" />
+            <ui:Label class="menu-lead lh-150" text="mainmenu.tagline" />
+            <ui:VisualElement class="menu-actions">
+                <ui:Button name="PlayButton" class="btn btn--primary btn--hero" text="menu.play"><ui:VisualElement class="ico ico--arrows btn__arrows" picking-mode="Ignore" /></ui:Button>
+                <ui:Button name="SideSettingsButton" class="btn btn--big menu-settings" text="menu.settings" />
             </ui:VisualElement>
         </ui:VisualElement>
 
-        <!-- ЛЕВАЯ КОЛОНКА МЕНЮ -->
-        <ui:VisualElement name="MainMenuContainer" class="mm-menu">
-            <ui:VisualElement class="mm-eyebrow">
-                <ui:VisualElement class="mm-eyebrow-dash" />
-                <ui:Label class="mm-eyebrow-text" text="mainmenu.rig_ready" />
-            </ui:VisualElement>
-            <ui:VisualElement class="mm-heading-group">
-                <ui:Label class="mm-heading-white" text="mainmenu.world_waiting" />
-                <ui:Label class="mm-heading-gold" text="mainmenu.below_surface" />
-            </ui:VisualElement>
-            <ui:Label class="mm-subtitle" text="mainmenu.tagline" />
-
-            <!-- Основные кнопки -->
-            <ui:VisualElement class="mm-button-group">
-                <ui:Button name="PlayButton" class="mm-btn-primary">
-                    <ui:Label class="mm-btn-primary-text" text="mainmenu.start_descent" />
-                    <ui:VisualElement class="mm-btn-primary-arrow-box">
-                        <ui:Label class="mm-btn-primary-arrow" text="↗" />
+        <!-- Спуск: пояснение фазы, шкала ступенями, фаза и счёт, список этапов, совет сервера, повтор после отказа (MenuLoaderPanel / MenuLoaderProgress) -->
+        <ui:VisualElement name="LoaderContainer" class="menu-main descent is-hidden">
+            <ui:VisualElement name="LoaderContent" class="descent__content">
+                <ui:Label class="menu-title descent__title" text="mainmenu.descent_title" />
+                <ui:Label name="LoaderExplain" class="descent-explain lh-150" />
+                <ui:VisualElement class="descent-progress">
+                    <ui:VisualElement class="meter-quant">
+                        <ui:VisualElement name="LoaderProgressFill" class="meter-quant__fill" />
                     </ui:VisualElement>
-                </ui:Button>
-
-                <ui:Button name="ServerSelectButton" class="mm-btn-secondary">
-                    <ui:Label text="mainmenu.server_select" />
-                    <ui:Label name="MainMenuOnlineBadge" class="mm-server-badge mm-server-badge--offline" text="mainmenu.offline" />
-                </ui:Button>
-            </ui:VisualElement>
-
-            <!-- Подсказка клавиш с плашками kbd -->
-            <ui:VisualElement class="mm-hotkey-row">
-                <ui:Label class="mm-kbd-box" text="ENTER" />
-                <ui:Label class="mm-kbd-label" text="mainmenu.kbd_landing" />
-                <ui:Label class="mm-kbd-dot" text="•" />
-                <ui:Label class="mm-kbd-box" text="ESC" />
-                <ui:Label class="mm-kbd-label" text="mainmenu.kbd_menu" />
+                    <ui:VisualElement class="descent-meta">
+                        <ui:Label name="LoaderPhaseLabel" class="descent-meta__phase" />
+                        <ui:Label name="LoaderPhaseCount" class="descent-meta__count" />
+                    </ui:VisualElement>
+                </ui:VisualElement>
+                <ui:VisualElement name="LoaderPhaseList" class="phases" />
+                <ui:Label name="LoaderTip" class="descent-tip lh-150 is-hidden" />
+                <ui:Button name="RetryDescentButton" class="btn btn--primary btn--wide is-hidden" text="menu.retry_descent"><ui:VisualElement class="ico ico--arrows btn__arrows" picking-mode="Ignore" /></ui:Button>
+                <ui:Button name="CancelDescentButton" class="btn btn--wide" text="menu.cancel_descent" />
             </ui:VisualElement>
         </ui:VisualElement>
 
-        <!-- ПРАВАЯ БОКОВАЯ ПАНЕЛЬ С КНОПКАМИ И СОЦСЕТЯМИ -->
-        <ui:VisualElement class="mm-sidebar">
-            <ui:Button name="SideChronicleButton" class="mm-side-btn" tooltip="mainmenu.tooltip.chronicle">
-                <ui:VisualElement name="SideChronicleIcon" class="mm-side-icon" />
+        <!-- Связь и выход: справа, по центру высоты -->
+        <ui:VisualElement class="menu-rail">
+            <ui:Button name="SideDiscordButton" class="rail-btn">
+                <ui:VisualElement class="rail-btn__icon rail-btn__icon--discord" />
+                <ui:Label class="rail-btn__label" text="Discord" />
             </ui:Button>
-            <ui:Button name="SideSettingsButton" class="mm-side-btn" tooltip="mainmenu.tooltip.settings">
-                <ui:VisualElement name="SideSettingsIcon" class="mm-side-icon" />
+            <ui:Button name="SideTelegramButton" class="rail-btn">
+                <ui:VisualElement class="rail-btn__icon rail-btn__icon--telegram" />
+                <ui:Label class="rail-btn__label" text="Telegram" />
             </ui:Button>
-            <ui:Button name="SideRepairButton" class="mm-side-btn" tooltip="mainmenu.tooltip.repair">
-                <ui:VisualElement name="SideRepairIcon" class="mm-side-icon" />
+            <ui:Button name="SideVkButton" class="rail-btn">
+                <ui:VisualElement class="rail-btn__icon rail-btn__icon--vk" />
+                <ui:Label class="rail-btn__label" text="mainmenu.vk" />
             </ui:Button>
-            <ui:VisualElement class="mm-sidebar-sep" />
-
-            <ui:Button name="SideDiscordButton" class="mm-side-btn" tooltip="mainmenu.tooltip.discord">
-                <ui:VisualElement name="SideDiscordIcon" class="mm-side-icon" />
-            </ui:Button>
-            <ui:Button name="SideTelegramButton" class="mm-side-btn" tooltip="mainmenu.tooltip.telegram">
-                <ui:VisualElement name="SideTelegramIcon" class="mm-side-icon" />
-            </ui:Button>
-            <ui:Button name="SideVkButton" class="mm-side-btn" tooltip="mainmenu.tooltip.vk">
-                <ui:VisualElement name="SideVkIcon" class="mm-side-icon" />
-            </ui:Button>
-
-            <ui:VisualElement class="mm-sidebar-sep" />
-
-            <ui:Button name="SideExitButton" class="mm-side-btn mm-side-btn--danger" tooltip="mainmenu.tooltip.quit">
-                <ui:VisualElement name="SideExitIcon" class="mm-side-icon" />
+            <ui:VisualElement class="rail-sep" />
+            <ui:Button name="SideExitButton" class="rail-btn">
+                <ui:VisualElement class="rail-btn__icon rail-btn__icon--exit" />
+                <ui:Label class="rail-btn__label" text="menu.exit" />
             </ui:Button>
         </ui:VisualElement>
 
-        <!-- НИЖНИЙ ФУТЕР (48px) -->
-        <ui:VisualElement class="mm-footer">
-            <ui:VisualElement class="mm-route">
-                <!-- Маркер активного шага — реальный элемент, а не символ в
-                     тексте: в макете это ::before, а псевдоэлементов в USS нет.
-                     Пока «•» был частью строки «• ОРБИТА», он не мог переехать
-                     на следующий шаг. -->
-                <ui:VisualElement name="MainMenuRouteOrbit" class="mm-route-item mm-route-item--active">
-                    <ui:VisualElement class="mm-route-dot" />
-                    <ui:Label class="mm-route-text" text="mainmenu.route_orbit" />
-                </ui:VisualElement>
-                <ui:VisualElement class="mm-route-sep" />
-                <ui:VisualElement name="MainMenuRouteDescent" class="mm-route-item">
-                    <ui:VisualElement class="mm-route-dot" />
-                    <ui:Label class="mm-route-text" text="mainmenu.route_descent" />
-                </ui:VisualElement>
-                <ui:VisualElement class="mm-route-sep" />
-                <ui:VisualElement name="MainMenuRouteSurface" class="mm-route-item">
-                    <ui:VisualElement class="mm-route-dot" />
-                    <ui:Label class="mm-route-text" text="mainmenu.route_surface" />
-                </ui:VisualElement>
+        <!-- Строка сборки: в сети, версия, сборка -->
+        <ui:VisualElement class="menu-foot">
+            <ui:VisualElement class="menu-meta menu-online">
+                <ui:VisualElement class="menu-online__dot" />
+                <ui:Label class="menu-meta__key caps" text="mainmenu.online" />
+                <ui:Label name="MainMenuOnlineBadge" class="menu-meta__value" />
             </ui:VisualElement>
-
-            <ui:Button name="NewsTickerButton" class="mm-news-ticker">
-                <ui:Label class="mm-ticker-tag" text="mainmenu.chronicle" />
-                <ui:Label class="mm-ticker-text" text="mainmenu.ticker" />
-            </ui:Button>
-
-            <ui:VisualElement class="mm-footer-meta">
-                <ui:Button name="FooterVersionButton" class="mm-footer-link"  text="" />
+            <ui:VisualElement class="menu-meta">
+                <ui:Label class="menu-meta__key caps" text="mainmenu.version_key" />
+                <ui:Button name="FooterVersionButton" class="menu-meta__value menu-meta__link" text="" />
             </ui:VisualElement>
-        </ui:VisualElement>
-
-        <!-- МОДАЛЬНЫЕ ОКНА (OVERLAY) -->
-        <ui:VisualElement name="ModalOverlay" class="is-hidden mm-modal-overlay">
-
-            <!-- 1. Браузер серверов (2 колонки + IP ввод + карточка деталей) -->
-            <ui:VisualElement name="ServerBrowserModal" class="is-hidden mm-modal-card mm-modal-card--wide">
-                <ui:VisualElement class="mm-modal-header">
-                    <ui:Label class="mm-modal-title" text="mainmenu.server_modal_title" />
-                    <ui:Button name="CloseServerModalButton" class="mm-modal-close" text="✕" />
-                </ui:VisualElement>
-                <ui:VisualElement class="mm-modal-body">
-                    <ui:Label class="mm-modal-desc" text="mainmenu.server_modal_desc" />
-                    <ui:VisualElement class="mm-settings-layout">
-                        <!-- Левая колонка: Серверы и IP -->
-                        <ui:VisualElement class="mm-settings-content mm-settings-content--servers">
-                            <ui:VisualElement class="mm-server-list">
-                                <ui:Button name="ServerItemHades" class="mm-server-card mm-server-card--active">
-                                    <ui:VisualElement class="mm-sc-left">
-                                        <ui:Label class="mm-sc-title" text="mainmenu.server_eu_north" />
-                                        <ui:Label class="mm-sc-desc" text="mainmenu.server_eu_north_desc" />
-                                    </ui:VisualElement>
-                                    <ui:VisualElement class="mm-sc-right">
-                                        <ui:Label class="mm-sc-ping" text="mainmenu.server_eu_north_ping" />
-                                        <ui:Label class="mm-sc-online" text="mainmenu.server_eu_north_online" />
-                                    </ui:VisualElement>
-                                </ui:Button>
-
-                                <ui:Button name="ServerItemDummy" class="mm-server-card">
-                                    <ui:VisualElement class="mm-sc-left">
-                                        <ui:Label class="mm-sc-title" text="DUMMY OFFLINE" />
-                                        <ui:Label class="mm-sc-desc" text="mainmenu.server_dummy_desc" />
-                                    </ui:VisualElement>
-                                    <ui:VisualElement class="mm-sc-right">
-                                        <ui:Label class="mm-sc-ping" text="0 ms" />
-                                        <ui:Label class="mm-sc-online" text="LOCAL" />
-                                    </ui:VisualElement>
-                                </ui:Button>
-
-                            </ui:VisualElement>
-                        </ui:VisualElement>
-
-                        <!-- Правая колонка: Карточка деталей -->
-                        <ui:VisualElement class="mm-card-box mm-server-detail-card">
-                            <ui:Label name="ServerDetailTitle" class="mm-item-title mm-detail-title" text="CHRONOS" />
-                            <ui:Label name="ServerDetailDesc" class="mm-card-tag mm-detail-desc" text="mainmenu.server_eu_north_desc" />
-                            <ui:VisualElement class="mm-row-item">
-                                <ui:Label class="mm-item-title" text="mainmenu.server_depth_label" />
-                                <ui:Label name="ServerDetailDepth" class="mm-item-val mm-text--gold" text="mainmenu.server_default_depth" />
-                            </ui:VisualElement>
-                            <ui:VisualElement class="mm-row-item">
-                                <ui:Label class="mm-item-title" text="mainmenu.server_seed_label" />
-                                <ui:Label name="ServerDetailSeed" class="mm-item-val" text="#849201" />
-                            </ui:VisualElement>
-                            <ui:VisualElement class="mm-row-item">
-                                <ui:Label class="mm-item-title" text="mainmenu.server_ping_label" />
-                                <ui:Label name="ServerDetailPing" class="mm-item-val" text="—" />
-                            </ui:VisualElement>
-                            <ui:VisualElement class="mm-row-item">
-                                <ui:Label class="mm-item-title" text="mainmenu.server_hazard_label" />
-                                <ui:Label name="ServerDetailHazard" class="mm-item-val" text="mainmenu.server_hazard_high" />
-                            </ui:VisualElement>
-                        </ui:VisualElement>
-                    </ui:VisualElement>
-                </ui:VisualElement>
-                <ui:VisualElement class="mm-modal-footer">
-                    <ui:Button name="CloseServerFooterButton" class="mm-btn-outline fit-wrap" text="mainmenu.server_close" />
-                    <ui:Button name="ConfirmServerButton" class="mm-btn-gold fit-wrap" text="mainmenu.server_confirm" />
-                </ui:VisualElement>
+            <ui:VisualElement name="FooterBuild" class="menu-meta">
+                <ui:Label class="menu-meta__key caps" text="mainmenu.build_key" />
+                <ui:Label name="FooterBuildHash" class="menu-meta__value" />
+                <ui:VisualElement name="FooterBuildBars" class="idcode" picking-mode="Ignore" />
             </ui:VisualElement>
-
-            <!-- 2. Настройки (2 колонки) -->
-            <ui:VisualElement name="SettingsModal" class="is-hidden mm-modal-card mm-modal-card--wide">
-                <ui:VisualElement class="mm-modal-header">
-                    <ui:Label class="mm-modal-title" text="mainmenu.settings_modal_title" />
-                    <ui:Button name="CloseSettingsModalButton" class="mm-modal-close" text="✕" />
-                </ui:VisualElement>
-                <ui:VisualElement class="mm-settings-layout">
-                    <!-- Левая навигация -->
-                    <ui:VisualElement class="mm-settings-nav">
-                        <ui:Button name="SettingsTabGraphics" class="mm-nav-tab mm-nav-tab--active" text="mainmenu.settings_tab_graphics" />
-                        <ui:Button name="SettingsTabAudio" class="mm-nav-tab" text="mainmenu.settings_tab_audio" />
-                        <ui:Button name="SettingsTabControls" class="mm-nav-tab" text="mainmenu.settings_tab_controls" />
-                        <ui:Button name="SettingsTabNetwork" class="mm-nav-tab" text="mainmenu.settings_tab_network" />
-                    </ui:VisualElement>
-
-                    <!-- Правый контент -->
-                    <ui:VisualElement class="mm-settings-content">
-                        <!-- Вкладка Графика -->
-                        <ui:VisualElement name="SettingsPaneGraphics" class="mm-tab-pane mm-tab-pane--active">
-                            <ui:VisualElement class="mm-card-box">
-                                <ui:Label class="mm-card-tag" text="mainmenu.settings_card_display" />
-                                <ui:VisualElement class="mm-row-item">
-                                    <ui:Label class="mm-item-title" text="mainmenu.settings_mode" />
-                                    <ui:Label class="mm-item-val" text="mainmenu.settings_borderless" />
-                                </ui:VisualElement>
-                                <ui:VisualElement class="mm-row-item">
-                                    <ui:Label class="mm-item-title" text="mainmenu.settings_lighting" />
-                                    <ui:Label class="mm-item-val" text="mainmenu.settings_lighting_ultra" />
-                                </ui:VisualElement>
-                                <ui:VisualElement class="mm-row-item">
-                                    <ui:Label class="mm-item-title" text="Post-processing &amp; Bloom" />
-                                    <ui:Label class="mm-item-val" text="mainmenu.settings_hdr" />
-                                </ui:VisualElement>
-                            </ui:VisualElement>
-                        </ui:VisualElement>
-
-                        <!-- Вкладка Звук -->
-                        <ui:VisualElement name="SettingsPaneAudio" class="mm-tab-pane">
-                            <ui:VisualElement class="mm-card-box">
-                                <ui:Label class="mm-card-tag" text="FMOD STUDIO AUDIO BACKEND" />
-                                <ui:VisualElement class="mm-row-item">
-                                    <ui:Label class="mm-item-title" text="mainmenu.settings_master_volume" />
-                                    <ui:Label class="mm-item-val" text="100%" />
-                                </ui:VisualElement>
-                                <ui:VisualElement class="mm-row-item">
-                                    <ui:Label class="mm-item-title" text="mainmenu.settings_sound_effects" />
-                                    <ui:Label class="mm-item-val" text="85%" />
-                                </ui:VisualElement>
-                                <ui:VisualElement class="mm-row-item">
-                                    <ui:Label class="mm-item-title" text="mainmenu.settings_spatial" />
-                                    <ui:Label class="mm-item-val" text="mainmenu.settings_active" />
-                                </ui:VisualElement>
-                            </ui:VisualElement>
-                        </ui:VisualElement>
-
-                        <!-- Вкладка Управление -->
-                        <ui:VisualElement name="SettingsPaneControls" class="mm-tab-pane">
-                            <ui:VisualElement class="mm-card-box">
-                                <ui:Label class="mm-card-tag" text="gateway.onb.controls_scheme_label" />
-                                <ui:VisualElement class="mm-row-item">
-                                    <ui:Label class="mm-item-title" text="gateway.onb.controls_scheme_hint" />
-                                    <ui:DropdownField name="MenuSettingsControlScheme" class="onb-select mm-select--controls" />
-                                </ui:VisualElement>
-                            </ui:VisualElement>
-                            <ui:VisualElement class="mm-card-box mm-card-box--gap-top">
-                                <ui:Label class="mm-card-tag" text="mainmenu.settings_card_keys" />
-                                <ui:VisualElement class="mm-row-item">
-                                    <ui:Label class="mm-item-title" text="mainmenu.settings_key_move" />
-                                    <ui:Label class="mm-key-badge" text="W A S D" />
-                                </ui:VisualElement>
-                                <ui:VisualElement class="mm-row-item">
-                                    <ui:Label class="mm-item-title" text="mainmenu.settings_key_dig" />
-                                    <ui:Label class="mm-key-badge" text="SPACE" />
-                                </ui:VisualElement>
-                                <ui:VisualElement class="mm-row-item">
-                                    <ui:Label class="mm-item-title" text="mainmenu.settings_key_autodig" />
-                                    <ui:Label class="mm-key-badge" text="E / L" />
-                                </ui:VisualElement>
-                            </ui:VisualElement>
-                        </ui:VisualElement>
-
-                        <!-- Вкладка Сеть -->
-                        <ui:VisualElement name="SettingsPaneNetwork" class="mm-tab-pane">
-                            <ui:VisualElement class="mm-card-box">
-                                <ui:Label class="mm-card-tag" text="mainmenu.settings_card_network" />
-                                <ui:VisualElement class="mm-row-item">
-                                    <ui:Label class="mm-item-title" text="mainmenu.settings_protocol" />
-                                    <ui:Label class="mm-item-val" text="MinesProtocol v7 Binary" />
-                                </ui:VisualElement>
-                                <ui:VisualElement class="mm-row-item">
-                                    <ui:Label class="mm-item-title" text="mainmenu.settings_cache" />
-                                    <ui:Label class="mm-item-val" text="mainmenu.settings_cache_size" />
-                                </ui:VisualElement>
-                            </ui:VisualElement>
-                        </ui:VisualElement>
-                    </ui:VisualElement>
-                </ui:VisualElement>
-                <ui:VisualElement class="mm-modal-footer">
-                    <ui:Button name="SaveSettingsButton" class="mm-btn-gold fit-wrap" text="mainmenu.settings_save" />
-                </ui:VisualElement>
-            </ui:VisualElement>
-
-            <!-- 3. Хроника и таймлайн событий -->
-            <ui:VisualElement name="ChronicleModal" class="is-hidden mm-modal-card">
-                <ui:VisualElement class="mm-modal-header">
-                    <ui:Label class="mm-modal-title" text="mainmenu.chronicle_modal_title" />
-                    <ui:Button name="CloseChronicleModalButton" class="mm-modal-close" text="✕" />
-                </ui:VisualElement>
-                <ui:VisualElement class="mm-modal-body">
-                    <ui:VisualElement class="mm-timeline">
-                        <ui:VisualElement class="mm-timeline-spine" />
-
-                        <!-- Предстоящие события -->
-                        <ui:Label class="mm-timeline-section-title mm-timeline-section--purple" text="mainmenu.chronicle_upcoming" />
-                        <ui:VisualElement class="mm-timeline-card mm-tc--purple">
-                            <ui:VisualElement class="mm-timeline-bead mm-tb--purple">
-                                <ui:VisualElement class="mm-bead-core" />
-                            </ui:VisualElement>
-                            <ui:VisualElement class="mm-tc-header">
-                                <ui:Label class="mm-tc-tag mm-tag--purple" text="mainmenu.chronicle_event_tag" />
-                                <ui:Label class="mm-tc-date" text="mainmenu.chronicle_event_date" />
-                            </ui:VisualElement>
-                            <ui:Label class="mm-tc-title" text="mainmenu.chronicle_event_title" />
-                            <ui:Label class="mm-tc-body" text="mainmenu.chronicle_event_body" />
-                        </ui:VisualElement>
-
-                        <!-- Текущий патч -->
-                        <ui:Label class="mm-timeline-section-title mm-timeline-section--gold" text="mainmenu.chronicle_current" />
-                        <ui:VisualElement class="mm-timeline-card mm-tc--gold">
-                            <ui:VisualElement class="mm-timeline-bead mm-tb--gold">
-                                <ui:VisualElement class="mm-bead-core" />
-                            </ui:VisualElement>
-                            <ui:VisualElement class="mm-tc-header">
-                                <ui:Label class="mm-tc-tag mm-tag--gold" text="mainmenu.chronicle_update_tag" />
-                                <ui:Label class="mm-tc-date" text="mainmenu.chronicle_today" />
-                            </ui:VisualElement>
-                            <ui:Label class="mm-tc-title mm-text--gold" text="mainmenu.chronicle_update_title" />
-                            <ui:Label class="mm-tc-body" text="mainmenu.chronicle_update_body" />
-                        </ui:VisualElement>
-
-                        <!-- Архив -->
-                        <ui:Label class="mm-timeline-section-title mm-timeline-section--dim" text="mainmenu.chronicle_archive" />
-                        <ui:VisualElement class="mm-timeline-card mm-tc--dim">
-                            <ui:VisualElement class="mm-timeline-bead mm-tb--dim">
-                                <ui:VisualElement class="mm-bead-core" />
-                            </ui:VisualElement>
-                            <ui:VisualElement class="mm-tc-header">
-                                <ui:Label class="mm-tc-tag" text="mainmenu.chronicle_patch_tag" />
-                                <ui:Label class="mm-tc-date" text="mainmenu.chronicle_patch_date" />
-                            </ui:VisualElement>
-                            <ui:Label class="mm-tc-title" text="mainmenu.chronicle_patch_title" />
-                            <ui:Label class="mm-tc-body" text="mainmenu.chronicle_patch_body" />
-                        </ui:VisualElement>
-                    </ui:VisualElement>
-                </ui:VisualElement>
-                <ui:VisualElement class="mm-modal-footer">
-                    <ui:Button name="CloseChronicleFooterButton" class="mm-btn-gold fit-wrap" text="mainmenu.chronicle_close" />
-                </ui:VisualElement>
-            </ui:VisualElement>
-
-            <!-- 4. Проверка и ремонт файлов -->
-            <ui:VisualElement name="RepairModal" class="is-hidden mm-modal-card">
-                <ui:VisualElement class="mm-modal-header">
-                    <ui:Label class="mm-modal-title" text="mainmenu.repair_modal_title" />
-                    <ui:Button name="CloseRepairModalButton" class="mm-modal-close" text="✕" />
-                </ui:VisualElement>
-                <ui:VisualElement class="mm-modal-body">
-                    <ui:Label class="mm-modal-desc" text="mainmenu.repair_modal_desc" />
-                    <ui:VisualElement name="RepairProgressBlock" class="is-hidden mm-card-box mm-card-box--gap-top">
-                        <ui:VisualElement class="mm-loader-progress-track">
-                            <ui:VisualElement name="RepairProgressFill" class="mm-loader-progress-fill mm-progress-fill--init" />
-                        </ui:VisualElement>
-                        <ui:VisualElement class="mm-row-item mm-row-item--meta">
-                            <ui:Label class="mm-card-tag" text="mainmenu.repair_progress_label" />
-                            <ui:Label name="RepairProgressPercent" class="mm-item-val mm-text--gold" text="0%" />
-                        </ui:VisualElement>
-                    </ui:VisualElement>
-                    <!-- Строки проверок создаются кодом из IMenuFileDiagnosticsService.CheckLabelKeys. -->
-                    <ui:VisualElement name="RepairLogLines" class="mm-repair-log" />
-                </ui:VisualElement>
-                <ui:VisualElement class="mm-modal-footer">
-                    <ui:Button name="RunFullRepairButton" class="mm-btn-outline fit-wrap" text="mainmenu.repair_rerun" />
-                    <ui:Button name="ConfirmRepairButton" class="mm-btn-gold fit-wrap" text="mainmenu.repair_close" />
-                </ui:VisualElement>
-            </ui:VisualElement>
-
-            <!-- 5. Досье шахтера (Профиль) -->
-            <ui:VisualElement name="ProfileModal" class="is-hidden mm-modal-card">
-                <ui:VisualElement class="mm-modal-header">
-                    <ui:Label class="mm-modal-title" text="mainmenu.profile_modal_title" />
-                    <ui:Button name="CloseProfileModalButton" class="mm-modal-close" text="✕" />
-                </ui:VisualElement>
-                <ui:VisualElement class="mm-modal-body">
-                    <ui:VisualElement class="mm-profile-hero">
-                        <ui:VisualElement class="mm-profile-avatar">
-                            <ui:Label text="mainmenu.avatar_letter" />
-                        </ui:VisualElement>
-                        <ui:VisualElement class="mm-profile-info">
-                            <ui:Label class="mm-profile-name" text="mainmenu.user_name" />
-                            <ui:Label class="mm-profile-clan" text="mainmenu.profile_clan" />
-                            <ui:Label class="mm-profile-uid" text="mainmenu.profile_expedition_id" />
-                        </ui:VisualElement>
-                    </ui:VisualElement>
-
-                    <!-- Блок токена доступа -->
-                    <ui:VisualElement class="mm-card-box mm-card-box--gap-top">
-                        <ui:Label class="mm-card-tag" text="mainmenu.profile_token_title" />
-                        <ui:VisualElement class="mm-row-item mm-row-item--gap">
-                            <ui:TextField name="ProfileTokenField" value="fdn_tok_9948a204e18" is-read-only="true" class="mm-flex-1" />
-                            <ui:Button name="CopyTokenButton" class="mm-btn-outline fit-wrap" text="mainmenu.profile_copy_token" />
-                        </ui:VisualElement>
-                        <ui:Label name="CopyTokenFeedback" class="is-hidden mm-card-tag mm-text--gold mm-feedback-tag" text="" />
-                    </ui:VisualElement>
-
-                    <!-- Экипировка -->
-                    <ui:VisualElement class="mm-card-box mm-card-box--gap-top">
-                        <ui:Label class="mm-card-tag" text="mainmenu.profile_equipment" />
-                        <ui:VisualElement class="mm-row-item">
-                            <ui:Label class="mm-item-title" text="mainmenu.profile_drill" />
-                            <ui:Label class="mm-item-val mm-text--gold" text="mainmenu.profile_drill_val" />
-                        </ui:VisualElement>
-                        <ui:VisualElement class="mm-row-item">
-                            <ui:Label class="mm-item-title" text="mainmenu.profile_drone" />
-                            <ui:Label class="mm-item-val" text="Hexapod Scout v1" />
-                        </ui:VisualElement>
-                        <ui:VisualElement class="mm-row-item">
-                            <ui:Label class="mm-item-title" text="mainmenu.profile_inventory_slots" />
-                            <ui:Label class="mm-item-val" text="mainmenu.profile_inventory_slots_val" />
-                        </ui:VisualElement>
-                    </ui:VisualElement>
-                </ui:VisualElement>
-                <ui:VisualElement class="mm-modal-footer mm-footer--between">
-                    <ui:Button name="SwitchAccountButton" class="mm-btn-outline fit-wrap" text="mainmenu.profile_switch_account" />
-                    <ui:Button name="CloseProfileFooterButton" class="mm-btn-gold fit-wrap" text="mainmenu.profile_close" />
-                </ui:VisualElement>
-            </ui:VisualElement>
-
         </ui:VisualElement>
     </ui:VisualElement>
 </ui:UXML>

@@ -34,6 +34,7 @@ namespace Kern.Rendering.PostProcessing
         private BloomComponent? _bloom;
         private VignetteComponent? _vignette;
         private EigengrauComponent? _eigengrau;
+        private ChromaticAberrationComponent? _chromaticAberration;
         private readonly GradingWorkbench _gradingWorkbench = new();
 
         [Inject]
@@ -68,6 +69,19 @@ namespace Kern.Rendering.PostProcessing
                 vignette.intensity.overrideState = true;
                 vignette.intensity.value = Mathf.Clamp01(value);
                 vignette.active = vignette.intensity.value > 0f;
+            }
+        }
+
+        public float ChromaticAberrationIntensity
+        {
+            get => GetRequired(_chromaticAberration, nameof(_chromaticAberration)).intensity.value;
+            set
+            {
+                ChromaticAberrationComponent chromaticAberration =
+                    GetRequired(_chromaticAberration, nameof(_chromaticAberration));
+                chromaticAberration.intensity.overrideState = true;
+                chromaticAberration.intensity.value = Mathf.Clamp01(value);
+                chromaticAberration.active = chromaticAberration.intensity.value > 0f;
             }
         }
 
@@ -202,13 +216,15 @@ namespace Kern.Rendering.PostProcessing
             VolumeProfileInitializer.RequireVolumeComponent(ref _bloom, profile);
             VolumeProfileInitializer.RequireVolumeComponent(ref _vignette, profile);
             VolumeProfileInitializer.RequireVolumeComponent(ref _eigengrau, profile);
+            VolumeProfileInitializer.RequireVolumeComponent(ref _chromaticAberration, profile);
             _volumeSetupCompleted = true;
             ApplyClientConfig();
         }
 
         public void ApplyClientConfig()
         {
-            if (_bloom == null || _vignette == null || _eigengrau == null)
+            if (_bloom == null || _vignette == null || _eigengrau == null ||
+                _chromaticAberration == null)
             {
                 // Подготовка сама вызовет применение в конце, поэтому
                 // здесь возврат: иначе конфиг применился бы дважды за один
@@ -225,8 +241,7 @@ namespace Kern.Rendering.PostProcessing
 
             Debug.Log($"[PostProcessController] ApplyClientConfig: Bloom={config.Effects.BloomEnabled}, Vignette={config.Effects.VignetteEnabled}");
 
-            PostProcessRuntimeState.FisheyeScale = config.Effects.FisheyeEnabled
-                ? Mathf.Clamp(config.Effects.FisheyeScale, 0f, 10f) : 0f;
+            PostProcessRuntimeState.ColorVisionMode = (int)config.Effects.ColorVision;
 
             BloomComponent bloom = GetRequired(_bloom, nameof(_bloom));
             bloom.threshold.overrideState = true;
@@ -258,6 +273,10 @@ namespace Kern.Rendering.PostProcessing
             eigengrau.noiseScale.overrideState = true;
             eigengrau.noiseScale.value = PostProcessLook.FilmGrain.NoiseScale;
             EigengrauIntensity = config.Effects.EigengrauEnabled ? PostProcessLook.FilmGrain.Intensity : 0f;
+
+            // Аберрация — авторский вид объектива, а не пользовательская опция:
+            // сила задаётся в PostProcessLook.
+            ChromaticAberrationIntensity = PostProcessLook.ChromaticAberration.Intensity;
         }
 
         private void Update()

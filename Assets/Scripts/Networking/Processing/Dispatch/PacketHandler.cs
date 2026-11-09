@@ -1,6 +1,5 @@
 #nullable enable
 
-using Kern.Core.Platform;
 
 using System;
 using System.Collections.Generic;
@@ -198,7 +197,7 @@ public sealed class PacketHandler : IStartable, IDisposable
         On<DisconnectPacket>(_connection.Process);
         On<ReconnectPacket>(_connection.Process);
         On<AuthTokenPacket>(_authToken.Process);
-        On<OpenURLPacket>(packet => ExternalUrlOpener.TryOpen(packet.URL, nameof(PacketHandler)));
+        On<OpenURLPacket>(_windowProcessor.Process);
         On<MissionArrowPacket>(_missionArrow.Process);
         On<ClientConfigPacket>(_clientConfig.Process);
 

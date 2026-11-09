@@ -156,9 +156,8 @@ public sealed class ColorOutputWindow : ToolWindow
         ToolChrome.SectionHeader("УЗОРЫ КАЛИБРОВКИ");
         GUILayout.Label(
             "Узор рисует проход вывода, поверх него ничего не ложится. " +
-            "Белое поле — проверка белой точки, лестница — проверка пика: " +
-            "верхние ступени должны перестать различаться там, где кончается " +
-            "дисплей.",
+            "Белое поле — проверка белой точки, знак на поле — проверка пика: " +
+            "знак сливается с полем там, где кончается дисплей; три знака — уровень чёрного.",
             MutedLabelStyle);
 
         CalibrationPattern active = PostProcessRuntimeState.CalibrationMode;
@@ -168,7 +167,9 @@ public sealed class ColorOutputWindow : ToolWindow
         DrawPatternRow(
             active, CalibrationPattern.PaperWhite, "Белое поле", display.PaperWhiteNits);
         DrawPatternRow(
-            active, CalibrationPattern.PeakLadder, "Лестница пика", display.PeakBrightnessNits);
+            active, CalibrationPattern.PeakMark, "Знак на пике", display.PeakBrightnessNits);
+        DrawPatternRow(
+            active, CalibrationPattern.BlackMarks, "Знаки у чёрного", 0f);
     }
 
     private static void DrawPatternRow(
@@ -182,6 +183,11 @@ public sealed class ColorOutputWindow : ToolWindow
                 : ToolPalette.Fade(ToolPalette.MutedText, 0.45f));
             if (GUILayout.Toggle(on, label, ToolTheme.SegmentedButton) && !on)
             {
+                // Без экрана калибровки узору нужны места: квадрат по центру и два рядом для знаков у чёрного
+                PostProcessRuntimeState.SetCalibrationRects(
+                    new Vector4(0.375f, 0.25f, 0.25f, 0.4444f),
+                    new Vector4(0.1f, 0.3f, 0.2f, 0.3556f),
+                    new Vector4(0.7f, 0.3f, 0.2f, 0.3556f));
                 PostProcessRuntimeState.SetCalibrationPattern(pattern, valueNits);
             }
         }

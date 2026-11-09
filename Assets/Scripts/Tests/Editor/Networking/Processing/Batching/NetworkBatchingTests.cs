@@ -150,6 +150,7 @@ public class NetworkBatchingTests
         public int MaxHealth => 100;
         public float HealthPercent => 1f;
         public string Nickname => "Test";
+        public uint PlayerId => 0;
         public long Level => 1;
         public long Money => 0;
         public long Credits => 0;
@@ -181,6 +182,7 @@ public class NetworkBatchingTests
         public void SetCurrency(long money, long credits) { }
         public void SetGeology(int current, int max, CellType cell, string text) { }
         public void SetNickname(string nickname) { }
+        public void SetPlayerId(uint playerId) { }
         public void SetClanId(int clanId) { }
         public void SetMaxDepth(int depth) { }
         public void SetSkillProgress(SkillType skill, long current, long max) { }

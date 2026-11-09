@@ -1,496 +1,16 @@
-/* ═══════════════════════════════════════════════════════════
-   Auth.uss — ворота входа
+/* Вход и онбординг — экраны auth и onboarding макета (visual/kern-ui: screens.css .gate, .onb, .steps, .or, .auth-*;
+   micro.css, systems.css). Слой главного меню (MenuGate); общий фон, поля, вкладки — Kern.uss. */
 
-   Портировано из visual/kern-ui-lab (.auth-*). Замены выполнены по
-   контракту переносимости из стайлгайда:
-
-     radial-gradient  → плотная заливка (в USS радиальных градиентов нет)
-     backdrop-filter  → она же (единственная настоящая потеря при переносе)
-     box-shadow       → отдельный слой с mm_shade.png
-     ::before/::after → реальные элементы .auth-brace
-     gap              → margin на детях
-     transform        → translate
-     filter:drop-shadow → отдельный слой: фильтр растеризует поддерево
-                       в промежуточную текстуру и мылит его на нецелом
-                       panel.scale (подробно у .auth-card-shadow)
-   ═══════════════════════════════════════════════════════════ */
-
-.auth-overlay {
-    position: absolute;
-    left: 0;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    align-items: center;
-    justify-content: center;
-    background-color: var(--surface-scrim);
-    display: none;
-}
-
-/* Видимостью управляет состояние ворот на корне, а не отдельный модификатор
-   на каждом слое. Раньше слои были независимы: ничто не мешало показать оба
-   сразу, и онбординг наезжал на форму входа. Теперь состояние одно, и такое
-   наложение невозможно по построению. */
-.gateway--auth .auth-overlay {
-    display: flex;
-}
-
-.auth-card {
-    width: 440px;
-    padding: var(--space-12) 30px;
-    background-color: var(--surface-raised);
-    border-width: var(--border-width-thin);
-    border-color: var(--border-cyan);
-    border-radius: var(--radius-md);
-    flex-direction: column;
-}
-
-/* Тени — отдельными элементами .auth-card-shadow и .auth-brand-logo-glow,
-   а не filter.
-
-   filter в USS заставляет движок растеризовать элемент вместе со всем
-   поддеревом в промежуточную RenderTexture. Размер этой текстуры берётся
-   в панельных точках, а не в пикселях панели, поэтому её блит на нецелом
-   panel.scale (1.35 на Retina) мылил всю карточку: рамку, угловые скобки,
-   текст полей и логотип. У калибровочной карточки .onb-card фильтра нет,
-   и она оставалась резкой — снимки обоих окон это показывали.
-
-   Отключить это «низким разрешением» нельзя: в PanelSettings такого режима
-   нет, это побочный эффект фильтра, а не настройка. Лечится только снятием
-   самого фильтра. В USS box-shadow нет, поэтому мягкая тена — это готовая
-   радиальная текстура mm_shade.png, выложенная отдельным слоем.
-
-   Макет: box-shadow 0 25px 60px void-dense и 0 0 30px cyan-tint. Второй
-   слой в USS лёг бы тенью на первую тень, поэтому перенесена основная.
-   Смещение вниз задано асимметрией отступов: top короче bottom.
-
-   background-size: 100% 100%, а не contain: спрайт квадратный, и contain
-   вложил бы его в бокс карточки по меньшей стороне, оставив сверху и снизу
-   пустые поля — тень не покрыла бы углы карточки по высоте. */
-
-/* Обертка держит карточку в потоке ворот и отдаёт тени её размер.
-   align-items: center нужен, чтобы карточка не растягивалась по поперечи
-   оси: её ширина задана фиксированными 440px. */
-.auth-card-wrap {
-    position: relative;
-    flex-direction: column;
-    align-items: center;
-}
-
-.auth-card-shadow {
-    position: absolute;
-    left: -44px;
-    right: -44px;
-    top: -20px;
-    bottom: -72px;
-    background-image: url("project://database/Assets/Textures/UI/Menu/Branding/mm_shade.png");
-    background-size: 100% 100%;
-    -unity-background-image-tint-color: var(--surface-void-dense);
-    opacity: 0.85;
-}
-
-.auth-brand-logo-wrap {
-    position: relative;
-    width: 38px;
-    height: 38px;
-    margin-bottom: var(--space-3);
-}
-
-.auth-brand-logo-glow {
-    position: absolute;
-    left: -26px;
-    right: -26px;
-    top: -26px;
-    bottom: -26px;
-    background-image: url("project://database/Assets/Textures/UI/Menu/Branding/mm_shade.png");
-    background-size: 100% 100%;
-    -unity-background-image-tint-color: var(--accent-gold-glow);
-}
-
-/* Угловые скобки. В макете это ::before/::after, псевдоэлементов в USS нет. */
-.auth-brace {
-    position: absolute;
-    width: var(--space-7);
-    height: var(--space-7);
-}
-
-.auth-brace--tl {
-    top: -2px;
-    left: -2px;
-    border-top-width: var(--space-1);
-    border-left-width: var(--space-1);
-    border-top-color: var(--accent-gold);
-    border-left-color: var(--accent-gold);
-}
-
-.auth-brace--br {
-    bottom: -2px;
-    right: -2px;
-    border-bottom-width: var(--space-1);
-    border-right-width: var(--space-1);
-    border-bottom-color: var(--accent-gold);
-    border-right-color: var(--accent-gold);
-}
-
-/* ─── Шапка ─────────────────────────────────────────────── */
-
-.auth-brand {
-    align-items: center;
-    padding-bottom: var(--space-6);
-    margin-bottom: var(--space-9);
-    border-bottom-width: var(--border-width-thin);
-    border-bottom-color: var(--border-subtle);
-}
-
-.auth-brand-logo {
-    width: 38px;
-    height: 38px;
-    /* Ссылка на ассет прямо из USS — не нужен ни Image.image, ни поиск файла
-       по путям файловой системы, как в MainMenu.LoadDirectTexture. */
-    background-image: url("project://database/Assets/Textures/UI/Menu/Branding/mm_logo.png");
-    background-size: contain;
-    -unity-background-image-tint-color: var(--accent-gold);
-}
-
-.auth-brand-title {
-    -unity-font-definition: var(--face-display);
-    font-size: var(--size-xl);
-    -unity-font-style: bold;
-    letter-spacing: var(--space-2);
-    color: var(--text-primary);
-    margin-bottom: var(--space-2);
-}
-
-.auth-brand-subtitle {
-    -unity-font-definition: var(--face-data);
-    font-size: var(--size-2xs);
-    letter-spacing: 1.5px;
-    color: var(--accent-cyan);
-    margin-bottom: var(--space-3);
-}
-
-.auth-systems {
-    flex-direction: row;
-}
-
-.auth-system-chip {
-    -unity-font-definition: var(--face-data);
-    font-size: var(--size-2xs);
-    color: var(--accent-cyan);
-    margin-right: var(--space-4);
-}
-
-/* ─── Вкладки ───────────────────────────────────────────── */
-
-.auth-tabs {
-    flex-direction: row;
-    margin-bottom: var(--space-8);
-}
-
-.auth-tab {
-    -unity-font-definition: var(--face-data);
-    font-size: var(--size-2xs);
-    letter-spacing: 1px;
-    padding: var(--space-2) var(--space-4);
-    margin-right: var(--space-3);
-    background-color: var(--surface-inset);
-    border-width: 0;
-    border-radius: var(--radius-sharp);
-    color: var(--text-tertiary);
-}
-
-.auth-tab:hover {
-    color: var(--accent-cyan);
-}
-
-.auth-tab--active {
-    background-color: var(--accent-gold);
-    color: var(--text-on-gold);
-    -unity-font-style: bold;
-}
-
-/* ─── Формы ─────────────────────────────────────────────── */
-
-.auth-form {
-    flex-direction: column;
-}
-
-.auth-form--hidden {
-    display: none;
-}
-
-.auth-field {
-    flex-direction: column;
-    margin-bottom: var(--space-8);
-}
-
-.auth-field-label {
-    -unity-font-definition: var(--face-data);
-    font-size: var(--size-xs);
-    -unity-font-style: bold;
-    letter-spacing: 0.5px;
-    color: var(--text-secondary);
-    margin-bottom: var(--space-3);
-}
-
-/* TextField в UI Toolkit — составной контрол: рамку носит сам элемент,
-   а фон и текст живут во вложенном #unity-text-input. */
-.auth-input {
-    margin: 0;
-}
-
-.auth-input > .unity-base-field__input {
-    background-color: var(--surface-abyss-solid);
-    border-width: var(--border-width-thin);
-    border-color: var(--border-subtle);
-    border-radius: var(--radius-sm);
-    padding: var(--space-5) var(--space-5);
-    -unity-font-definition: var(--face-data);
-    font-size: var(--size-base);
-    color: var(--text-primary);
-}
-
-.auth-input > .unity-base-field__input:focus {
-    border-color: var(--accent-cyan);
-    background-color: var(--surface-solid);
-}
-
-.auth-options {
-    flex-direction: row;
-    justify-content: space-between;
-    margin-bottom: var(--space-8);
-}
-
-.auth-check .unity-label {
-    -unity-font-definition: var(--face-data);
-    font-size: var(--size-xs);
-    color: var(--text-secondary);
-    padding-left: var(--space-3);
-}
-
-/* Флажок. Дефолтный чекмарк UI Toolkit — белый квадрат со светлой галочкой;
-   в тёмной приборной панели он читается как прореха. Красим в утопленную
-   ячейку с тонкой рамкой, галочку тонируем золотом через
-   -unity-background-image-tint-color (обычного image-tint в USS нет). */
-.auth-check .unity-toggle__checkmark,
-.onb-toggle .unity-toggle__checkmark {
-    width: var(--space-8);
-    height: var(--space-8);
-    background-color: var(--surface-inset);
-    border-width: var(--border-width-thin);
-    border-color: var(--border-subtle);
-    border-radius: var(--radius-sharp);
-    -unity-background-image-tint-color: var(--accent-gold);
-}
-
-.auth-check:hover .unity-toggle__checkmark,
-.onb-toggle:hover .unity-toggle__checkmark {
-    border-color: var(--border-cyan);
-}
-
-/* ─── EULA ──────────────────────────────────────────────── */
-
-.auth-eula {
-    height: 96px;
-    margin-bottom: var(--space-4);
-    background-color: var(--surface-abyss-solid);
-    border-width: var(--border-width-thin);
-    border-color: var(--border-subtle);
-    border-radius: var(--radius-sm);
-    padding: var(--space-5) var(--space-6);
-}
-
-.auth-eula-line {
-    -unity-font-definition: var(--face-body);
-    font-size: var(--size-xs);
-    color: var(--text-secondary);
-    white-space: normal;
-    margin-bottom: var(--space-3);
-}
-
-/* ─── Вход через VK ────────────────────────────────────── */
-
-.auth-vk-sep {
-    flex-direction: row;
-    align-items: center;
-    margin: 0 0 var(--space-7) 0;
-}
-
-.auth-vk-sep-line {
-    flex-grow: 1;
-    height: 1px;
-    background-color: var(--border-subtle);
-}
-
-.auth-vk-sep-label {
-    -unity-font-definition: var(--face-data);
-    font-size: var(--size-2xs);
-    letter-spacing: var(--space-1);
-    color: var(--text-tertiary);
-    margin: 0 var(--space-4);
-}
-
-/* Свой вариант: не копия макета, а та же приборная панель, но с фирменным
-   VK-синим (#0077FF). Полноширинная утопленная ячейка, слева бейдж «VK»
-   в фирменном квадрате, справа подпись; на наведении — циановый контур
-   панели, на нажатии — уход вглубь как у .auth-submit. */
-.auth-vk {
-    height: 46px;
-    margin: 0 0 var(--space-8) 0;
-    flex-direction: row;
-    align-items: center;
-    justify-content: center;
-    background-color: var(--surface-abyss-solid);
-    border-width: var(--border-width-thin);
-    border-color: rgb(0, 119, 255);
-    border-radius: var(--radius-sm);
-    transition-property: background-color, border-color, translate;
-    transition-duration: var(--dur-base);
-    transition-timing-function: var(--ease-standard);
-}
-
-.auth-vk:hover {
-    background-color: var(--surface-slate-solid);
-    border-color: var(--accent-cyan);
-}
-
-.auth-vk:active {
-    translate: 0 1px;
-}
-
-.auth-vk:disabled {
-    opacity: 0.45;
-}
-
-.auth-vk-badge {
-    -unity-font-definition: var(--face-body);
-    font-size: var(--size-sm);
-    -unity-font-style: bold;
-    letter-spacing: 1px;
-    color: #ffffff;
-    background-color: rgb(0, 119, 255);
-    border-radius: var(--radius-sharp);
-    padding: 1px var(--space-3);
-    margin-right: var(--space-4);
-}
-
-.auth-vk-label {
-    -unity-font-definition: var(--face-data);
-    font-size: var(--size-xs);
-    -unity-font-style: bold;
-    letter-spacing: 1px;
-    color: rgb(140, 195, 255);
-}
-
-.auth-vk:hover .auth-vk-label {
-    color: var(--accent-cyan);
-}
-
-/* ─── Действия ──────────────────────────────────────────── */
-
-.auth-submit {
-    height: var(--space-14);
-    margin: 0 0 var(--space-8) 0;
-    background-color: var(--accent-gold);
-    border-width: var(--border-width-thin);
-    border-color: var(--accent-gold);
-    border-radius: var(--radius-sm);
-    color: var(--text-on-gold);
-    -unity-font-definition: var(--face-body);
-    font-size: var(--size-lg);
-    -unity-font-style: bold;
-    letter-spacing: 1px;
-    transition-property: background-color, translate;
-    transition-duration: var(--dur-base);
-    transition-timing-function: var(--ease-standard);
-}
-
-.auth-submit:hover {
-    background-color: var(--accent-gold-hover);
-    translate: 0 -1px;
-}
-
-.auth-submit:active {
-    translate: 0 1px;
-}
-
-.auth-footer {
-    flex-direction: row;
-    justify-content: center;
-    align-items: center;
-}
-
-.auth-footer-link {
-    background-color: transparent;
-    border-width: 0;
-    -unity-font-definition: var(--face-body);
-    font-size: var(--size-sm);
-    color: var(--text-secondary);
-    padding: var(--space-2) var(--space-3);
-}
-
-.auth-footer-link:hover {
-    color: var(--accent-cyan);
-}
-
-.auth-footer-sep {
-    color: var(--text-disabled);
-}
-
-/* Строка обратной связи: сюда пишется реальный статус подключения. */
-.auth-hint {
-    -unity-font-definition: var(--face-data);
-    font-size: var(--size-2xs);
-    color: var(--text-tertiary);
-    -unity-text-align: middle-center;
-    white-space: normal;
-    margin-top: var(--space-5);
-}
-
-.auth-hint--warn {
-    color: var(--state-warn);
-}
-
-.auth-hint--danger {
-    color: var(--state-danger);
-}
-
-/* ═══════════════════════════════════════════════════════════
-   GATEWAY — корень отдельной сцены
-   ═══════════════════════════════════════════════════════════ */
-
-/* Ворота — отдельная сцена, и позади неё нет ни звёздного поля, ни планеты
-   из меню: там их просто некому рисовать. Пока корень был залит непрозрачным
-   surface-void, экран читался как чёрная пустота с карточкой посередине.
-   Статичный снимок фона решает это без запуска шейдера звёзд до того, как
-   меню вообще загрузилось, и связывает ворота с меню одной картинкой. */
 .gateway-root {
     position: absolute;
     left: 0;
     top: 0;
     right: 0;
     bottom: 0;
-    background-color: var(--surface-void);
-    background-image: url("project://database/Assets/Textures/UI/Menu/Branding/mm_space_bg.png");
-    background-size: cover;
 }
 
-/* Планеты здесь намеренно нет.
-   В меню она не картинка, а живой рендер 3D-сферы: MenuSceneryController
-   отдаёт RenderTexture с камеры задника в .mm-scenery-body. Файл
-   mm_scenery.png — запасной плейсхолдер (бурое пятно с циановым ореолом), и
-   в композиции он читается как засветка, а не как планета.
-   Чтобы поставить в ворота настоящую планету, в сцену нужно перенести риг
-   задника (Kern/Art/Build Menu Scenery Rig) — это отдельная работа. */
-
-/* ═══════════════════════════════════════════════════════════
-   ОНБОРДИНГ
-
-   Портировано из visual/kern-ui-lab (.onboarding-*).
-   Показывается один раз после первого прохода ворот.
-   ═══════════════════════════════════════════════════════════ */
-
-.onb-overlay {
+/* Состояние ворот — один класс на корне: вход или онбординг */
+.gate-layer {
     position: absolute;
     left: 0;
     top: 0;
@@ -498,300 +18,203 @@
     bottom: 0;
     align-items: center;
     justify-content: center;
-    background-color: var(--surface-scrim);
+}
+
+.gateway--auth .onb-layer,
+.gateway--onboarding #AuthOverlay {
     display: none;
 }
 
-.gateway--onboarding .onb-overlay {
-    display: flex;
+.gate-scroll {
+    flex-grow: 0;
+    max-height: 100%;
 }
 
-/* Паддинг живёт на полосах, а не на карточке: иначе разделители шапки и
-   футера не доходят до краёв и карточка читается как набор плавающих блоков.
-   overflow: hidden обязателен — он же обрезает содержимое по скруглению. */
-.onb-card {
-    width: 780px;
-    max-height: 88%;
-    background-color: var(--surface-raised);
-    border-width: var(--border-width-thin);
-    border-color: var(--border-subtle);
-    border-radius: var(--radius-md);
-    flex-direction: column;
-    overflow: hidden;
-}
-
-/* ─── Шапка ─────────────────────────────────────────────── */
-
-/* flex-shrink: 0 — без него шапка и футер сжимаются раньше тела, когда
-   карточка упирается в max-height, и текст в них начинает обрезаться. */
-.onb-header {
-    flex-direction: row;
-    justify-content: space-between;
+.gate-scroll .unity-scroll-view__content-container {
     align-items: center;
-    flex-shrink: 0;
-    padding: var(--space-7) var(--space-9) var(--space-6) var(--space-9);
-    border-bottom-width: var(--border-width-thin);
-    border-bottom-color: var(--border-subtle);
+    padding: var(--sp-12) 0;
 }
 
-.onb-header-text {
-    flex-direction: column;
-    flex-grow: 1;
-    flex-shrink: 1;
-    margin-right: var(--space-6);
+/* ── Карточка входа 440 px: поля 36 36 28, зазор 14 ── */
+.gate {
+    width: 440px;
+    padding: var(--sp-18) var(--sp-18) var(--sp-14) var(--sp-18);
 }
 
-.onb-eyebrow {
-    -unity-font-definition: var(--face-data);
-    font-size: var(--size-2xs);
-    letter-spacing: 1.5px;
-    color: var(--accent-gold);
-    margin-bottom: var(--space-3);
+.gate > .brand {
+    margin-bottom: 28px;
 }
 
-/* Перенос обязателен. Заголовок и полоса шагов делят одну строку, и на
-   узких тирах заголовок не помещается: без white-space: normal Label не
-   переносится, а вылезает за свой контейнер и наезжает на пилюли. */
-.onb-title {
-    -unity-font-definition: var(--face-display);
-    font-size: var(--size-lg);
-    color: var(--text-primary);
-    white-space: normal;
+.gate > .seg-tabs {
+    margin-bottom: var(--sp-7);
 }
 
-.onb-steps {
+/* Обе формы в одной ячейке: высота — по более длинной (регистрация), «Войти» прижата вниз, как в сетке макета */
+.auth-stack {
+    height: 280px;
+    margin-bottom: var(--sp-7);
+}
+
+.auth-form {
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+}
+
+.auth-form--hidden {
+    display: none;
+}
+
+.auth-form > .fld {
+    margin-bottom: var(--sp-10);
+}
+
+.auth-row {
     flex-direction: row;
-    flex-shrink: 0;
+    align-items: center;
+    justify-content: space-between;
 }
 
-.onb-pill {
-    -unity-font-definition: var(--face-data);
-    font-size: var(--size-2xs);
-    letter-spacing: 1px;
-    padding: var(--space-2) var(--space-4);
-    margin-left: var(--space-3);
-    border-radius: var(--radius-sharp);
-    background-color: var(--surface-inset);
-    color: var(--text-tertiary);
+.auth-note {
+    margin: 3px 0 0 0;
+    padding: 0;
+    align-self: flex-end;
+    color: var(--ash);
+    -unity-font-definition: var(--face-text);
+    font-size: var(--t-4);
+}
+
+.auth-submit {
+    margin-top: auto;
+}
+
+.auth-form > .check {
+    margin-bottom: var(--sp-10);
+}
+
+/* «или» между линиями шва */
+.or {
+    flex-direction: row;
+    align-items: center;
+    margin-bottom: var(--sp-7);
+}
+
+.or__line {
+    flex-grow: 1;
+    height: 1px;
+    background-color: var(--seam);
+}
+
+.or__label {
+    margin: 0 var(--sp-6);
+    padding: 0;
+    color: var(--smoke);
+    -unity-font-definition: var(--face-text);
+    font-size: var(--t-small);
+}
+
+.btn--vk > .btn__label {
+    margin: 0;
+    padding: 0;
+    color: var(--bone);
+    -unity-font-definition: var(--face-text);
+    font-size: var(--t-strong);
+}
+
+.btn__icon--vk {
+    background-image: resource("UI/Theme/Kern/Icons/vk");
+}
+
+/* ── Онбординг 760 px: шапка, шаги, поле-строки, подвал ── */
+.onb {
+    width: 760px;
+}
+
+.onb-head {
+    flex-direction: row;
+    align-items: flex-end;
+    justify-content: space-between;
+    padding: 22px var(--sp-14) var(--sp-9) var(--sp-14);
+    border-bottom-width: 1px;
+    border-color: var(--seam);
+}
+
+.onb-kicker {
+    margin: 0 0 var(--sp-2) 0;
+    padding: 0;
+    color: var(--ash);
+    -unity-font-definition: var(--face-mono);
+    font-size: var(--t-small);
+    letter-spacing: 14px; /* 0.14em: интервал UI Toolkit — в сотых кегля */
+}
+
+.onb-title {
+    margin: 0;
+    padding: 1.9px 0; /* строка 1.4em = 30.8 против 27 по метрикам шрифта */
+    color: var(--bone);
+    -unity-font-definition: var(--face-display);
+    font-size: var(--t-title);
+    -unity-font-style: bold;
+    letter-spacing: 2px; /* 0.02em: интервал UI Toolkit — в сотых кегля */
+}
+
+.steps {
+    flex-direction: row;
+}
+
+.steps__item {
+    margin: 0 0 0 var(--sp-3);
+    padding: var(--sp-3) var(--sp-6);
+    border-width: 1px;
+    border-color: var(--seam);
+    color: var(--smoke);
+    -unity-font-definition: var(--face-mono);
+    font-size: var(--t-3);
     white-space: nowrap;
 }
 
-.onb-pill--active {
-    background-color: var(--accent-gold);
-    color: var(--text-on-gold);
-    -unity-font-style: bold;
+.steps__item.onb-pill--done {
+    color: var(--ash);
 }
 
-.onb-pill--done {
-    color: var(--accent-cyan);
-    border-width: var(--border-width-thin);
-    border-color: var(--border-cyan);
+.steps__item.onb-pill--active {
+    border-color: var(--bone);
+    background-color: rgba(216, 213, 238, 0.06);
+    color: var(--bone);
 }
 
-/* ─── Шаги ──────────────────────────────────────────────── */
-
-/* ScrollView, а не VisualElement: overflow-y: auto из макета в USS не
-   существует, прокрутка бывает только у ScrollView. Паддинг вешается на
-   контейнер содержимого, иначе полоса прокрутки уезжает внутрь отступа. */
 .onb-body {
+    min-height: 234px; /* высота самого длинного шага: шаги макета стоят в одной ячейке, тело держит наибольший */
     flex-grow: 1;
-    flex-shrink: 1;
 }
 
-/* Селектор потомка, а не цепочка «>»: внутренняя структура ScrollView в
-   UI Toolkit не гарантирована и в 6000.5 между viewport и контейнером
-   содержимого лежит ещё один уровень. Цепочка прямых потомков молча не
-   срабатывала, и содержимое прилипало к краям карточки. */
 .onb-body .unity-scroll-view__content-container {
-    padding: var(--space-8) var(--space-9);
+    padding: var(--sp-4) var(--sp-14);
 }
 
 .onb-step {
     display: none;
-    flex-direction: column;
 }
 
 .onb-step--active {
     display: flex;
 }
 
-.onb-block-title {
-    -unity-font-definition: var(--face-data);
-    font-size: var(--size-xs);
-    -unity-font-style: bold;
-    letter-spacing: 1.5px;
-    color: var(--accent-cyan);
-    margin-bottom: var(--space-6);
-}
-
-.onb-row {
+.onb-foot {
     flex-direction: row;
     align-items: center;
-    justify-content: space-between;
-    padding: var(--space-5) var(--space-6);
-    margin-bottom: var(--space-4);
-    background-color: var(--surface-abyss-solid);
-    border-width: var(--border-width-thin);
-    border-color: var(--border-subtle);
-    border-radius: var(--radius-sm);
+    padding: var(--sp-8) var(--sp-14);
+    border-top-width: 1px;
+    border-color: var(--seam);
 }
 
-.onb-row-text {
-    flex-direction: column;
-    flex-grow: 1;
-    margin-right: var(--space-8);
+.onb-foot > .btn {
+    margin-left: var(--sp-4);
 }
 
-.onb-label {
-    -unity-font-definition: var(--face-body);
-    font-size: var(--size-base);
-    color: var(--text-primary);
-    margin-bottom: var(--space-1);
-}
-
-.onb-hint {
-    -unity-font-definition: var(--face-body);
-    font-size: var(--size-xs);
-    color: var(--text-tertiary);
-    white-space: normal;
-}
-
-.onb-select {
-    width: 260px;
-    margin: 0;
-}
-
-.onb-select > .unity-base-field__input {
-    background-color: var(--surface-inset);
-    border-width: var(--border-width-thin);
-    border-color: var(--border-subtle);
-    border-radius: var(--radius-sm);
-    padding: var(--space-3) var(--space-5);
-    -unity-font-definition: var(--face-data);
-    font-size: var(--size-sm);
-    color: var(--text-primary);
-}
-
-.onb-select > .unity-base-field__input:hover {
-    border-color: var(--border-cyan);
-}
-
-/* Ползунок громкости в онбординге. Классы стояли в разметке без единого
-   правила — контрол рисовался стандартной темой Unity. Раскладка взята из
-   макета (css/screens/modals.css, .slider-container): дорожка тянется,
-   число фиксированной ширины прижато вправо. Ширина группы равна .onb-select,
-   чтобы контролы в соседних строках стояли по одной вертикали. */
-
-.onb-slider-group {
-    flex-direction: row;
-    align-items: center;
-    width: 260px;
-}
-
-.onb-slider {
-    flex-grow: 1;
-    margin: 0;
-    margin-right: var(--space-5);
-}
-
-.onb-slider .unity-base-slider__tracker {
-    height: var(--space-2);
-    background-color: var(--surface-inset);
-    border-width: var(--border-width-thin);
-    border-color: var(--border-subtle);
-    border-radius: var(--radius-sharp);
-}
-
-.onb-slider .unity-base-slider__dragger {
-    width: var(--space-7);
-    height: var(--space-7);
-    background-color: var(--accent-gold);
-    border-width: 0;
-    border-radius: var(--radius-sm);
-}
-
-.onb-slider:hover .unity-base-slider__tracker {
-    border-color: var(--border-cyan);
-}
-
-.onb-slider-val {
-    -unity-font-definition: var(--face-data);
-    font-size: var(--size-sm);
-    color: var(--accent-gold);
-    width: 36px;
-    -unity-text-align: middle-right;
-}
-
-.onb-toggle {
-    margin: 0;
-}
-
-.onb-static {
-    -unity-font-definition: var(--face-data);
-    font-size: var(--size-sm);
-    color: var(--accent-cyan);
-}
-
-/* ─── Футер ─────────────────────────────────────────────── */
-
-.onb-footer {
-    flex-direction: row;
-    align-items: center;
-    flex-shrink: 0;
-    padding: var(--space-5) var(--space-9);
-    background-color: var(--surface-inset);
-    border-top-width: var(--border-width-thin);
-    border-top-color: var(--border-subtle);
-}
-
-.onb-footer-spacer {
-    flex-grow: 1;
-}
-
-.onb-btn {
-    height: 38px;
-    min-width: 128px;
-    margin-left: var(--space-4);
-    border-radius: var(--radius-sm);
-    -unity-font-definition: var(--face-data);
-    font-size: var(--size-xs);
-    -unity-font-style: bold;
-    letter-spacing: 1px;
-    transition-property: background-color, border-color, color;
-    transition-duration: var(--dur-base);
-    transition-timing-function: var(--ease-standard);
-}
-
-.onb-btn--ghost {
-    background-color: transparent;
-    border-width: var(--border-width-thin);
-    border-color: var(--border-subtle);
-    color: var(--text-secondary);
-}
-
-.onb-btn--ghost:hover {
-    border-color: var(--border-cyan);
-    color: var(--accent-cyan);
-}
-
-.onb-btn--gold {
-    background-color: var(--accent-gold);
-    border-width: var(--border-width-thin);
-    border-color: var(--accent-gold);
-    color: var(--text-on-gold);
-}
-
-.onb-btn--gold:hover {
-    background-color: var(--accent-gold-hover);
-}
-
-.onb-btn--hidden {
-    visibility: hidden;
-}
-
-/* Прокрутка формы нужна только сенсорной двухколоночной карточке
-   (Touch.uss); здесь она растёт по содержимому и не листается. */
-.auth-form-scroll {
-    flex-grow: 0;
-    flex-shrink: 0;
+/* Первая кнопка подвала — по имени: псевдоклассов порядка в USS нет */
+#OnbPrevButton {
+    margin-left: 0;
 }

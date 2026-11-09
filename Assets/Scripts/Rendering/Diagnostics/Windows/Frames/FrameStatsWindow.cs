@@ -32,17 +32,20 @@ public sealed class FrameStatsWindow : ToolWindow
     private const string InitialFrameMsText = "-- мс на кадр   ·   решений света --/с";
     private const string InitialFrameStatsText = "кадр: сред --  мин --  макс -- мс";
     private const string InitialGPUText = "GPU: --";
-    private const string InitialAllocationsText = "мусор: -- КБ/кадр   -- МБ/с   сборок 0";
+    private const string InitialAllocationsText = "мусор: -- КБ/кадр   -- МБ/с   сборок —";
 
     private string _fpsText = InitialFPSText;
     private string _frameMsText = InitialFrameMsText;
     private string _frameStatsText = InitialFrameStatsText;
     private string _gpuText = InitialGPUText;
     private string _allocationsText = InitialAllocationsText;
+    private bool _allocationTrackingWasAvailable;
+    private bool _hasAllocationSample;
+    private bool _hasFrameSummary;
 
     // FrameTimingManager даёт gpuFrameTime в плеер-билдах без нейтива.
     // Масив один на жизнь окна: GetLatestTimings пишет в него, аллокаций нет.
-    // В Editor PlayMode фича обычно недоступна — показываем прочерк, а не ноль.
+    // Если текущий runtime не отдаёт замер, показываем прочерк, а не ноль.
     private readonly FrameTiming[] _frameTimings = new FrameTiming[1];
     private bool? _gpuTimingsSupported;
 
@@ -64,13 +67,25 @@ public sealed class FrameStatsWindow : ToolWindow
     public override void Tick()
     {
         float delta = Time.unscaledDeltaTime;
-        if (float.IsNaN(delta) || float.IsInfinity(delta) || delta < 0f)
+        if (float.IsNaN(delta) || float.IsInfinity(delta) || delta <= 0f)
         {
-            delta = 0f;
+            return;
         }
 
         _frameTime.Push(delta * 1000f);
-        _allocations.Push(_telemetry.GcAllocPerFrameBytes / 1024f);
+        IFrameAllocationTelemetry? allocationTelemetry = _telemetry as IFrameAllocationTelemetry;
+        bool allocationTrackingAvailable = allocationTelemetry?.IsGcAllocationTrackingAvailable == true;
+        if (!allocationTrackingAvailable && _allocationTrackingWasAvailable)
+        {
+            _allocations.Clear();
+        }
+
+        _allocationTrackingWasAvailable = allocationTrackingAvailable;
+        _hasAllocationSample = allocationTelemetry?.HasGcAllocationSample == true;
+        if (_hasAllocationSample)
+        {
+            _allocations.Push(allocationTelemetry.GcAllocPerFrameBytes / 1024f);
+        }
 
         _fpsFrames++;
         _fpsTimer += delta;
@@ -81,6 +96,7 @@ public sealed class FrameStatsWindow : ToolWindow
 
         _fps = _fpsTimer > 0f ? _fpsFrames / _fpsTimer : 0f;
         _frameMs = _fpsFrames > 0 ? _fpsTimer / _fpsFrames * 1000f : 0f;
+        _hasFrameSummary = _fpsFrames > 0;
 
         ulong solveCount = _lighting?.SolveCount ?? _lastSolveCount;
         _solvesPerSecond = solveCount >= _lastSolveCount
@@ -89,10 +105,14 @@ public sealed class FrameStatsWindow : ToolWindow
         _lastSolveCount = solveCount;
 
         _fpsText = _fps.ToString("F0");
-        _frameMsText = $"{_frameMs:F1} мс на кадр   ·   решений света {_solvesPerSecond:F1}/с";
-        _frameStatsText = $"кадр: сред {_frameTime.Average:F1}  мин {_frameTime.Minimum:F1}  макс {_frameTime.Maximum:F1} мс";
+        _frameMsText = $"{_frameMs:F1} мс/кадр за {_fpsTimer:F2} с   ·   решений света {_solvesPerSecond:F1}/с";
+        _frameStatsText = $"последние {_frameTime.Count} кадров: сред {_frameTime.Average:F1}  мин {_frameTime.Minimum:F1}  макс {_frameTime.Maximum:F1} мс";
         _gpuText = SampleGPUFrameTime();
-        _allocationsText = $"мусор: {_allocations.Last:F1} КБ/кадр   {_telemetry.GcAllocTotalPerSecondBytes / (1024f * 1024f):F2} МБ/с   сборок {_telemetry.GcCollectionCount}";
+        _allocationsText = allocationTelemetry?.HasGcAllocationSample == true
+                ? $"мусор: {_allocations.Last:F1} КБ/кадр   {(allocationTelemetry.HasGcAllocationRateSample ? $"{allocationTelemetry.GcAllocTotalPerSecondBytes / (1024f * 1024f):F2}" : "—")} МБ/с   сборок {allocationTelemetry.GcCollectionCount}"
+            : allocationTelemetry?.IsGcAllocationTrackingAvailable == true
+                ? $"мусор: нет свежей выборки; история графика — {_allocations.Count} кадров   сборок {allocationTelemetry.GcCollectionCount}"
+                : "мусор: замер недоступен";
 
         _fpsFrames = 0;
         _fpsTimer = 0f;
@@ -103,6 +123,9 @@ public sealed class FrameStatsWindow : ToolWindow
         _scroll = default;
         _frameTime.Clear();
         _allocations.Clear();
+        _allocationTrackingWasAvailable = false;
+        _hasAllocationSample = false;
+        _hasFrameSummary = false;
         _frameTime.DestroyTexture();
         _allocations.DestroyTexture();
         _fpsTimer = 0f;
@@ -136,30 +159,40 @@ public sealed class FrameStatsWindow : ToolWindow
 
             // Доля бюджета в 16.7 мс. Число «11 мс» само по себе ничего не
             // говорит; доля бюджета говорит сразу, есть ли ещё запас.
-            ToolChrome.MeterLine(_frameMs / 16.7f, FrameHealthColor());
+            if (_hasFrameSummary)
+            {
+                ToolChrome.MeterLine(_frameMs / 16.7f, FrameHealthColor());
+            }
             GUILayout.Space(4f);
             GUILayout.Label(_frameStatsText, MutedLabelStyle);
             GUILayout.Label(_gpuText, MutedLabelStyle);
 
             // Шкала прибита к 33 мс — двум кадрам при шестидесяти. Без опоры график
             // самонормируется, и ровный участок выглядит так же, как провал.
-            _frameTime.Draw(
-                GUILayoutUtility.GetRect(graphWidth, 70f),
-                ToolTheme.FrameGraphColor,
-                33f);
+            if (_frameTime.Count > 0)
+            {
+                _frameTime.Draw(
+                    GUILayoutUtility.GetRect(graphWidth, 70f),
+                    ToolTheme.FrameGraphColor,
+                    33f);
+            }
 
             ToolChrome.SectionHeader("ПАМЯТЬ");
             GUILayout.Label(_allocationsText, MutedLabelStyle);
 
-            // Опора — килобайт на кадр. Ноль мусора это ровная пустая полоса,
-            // и любой всплеск над ней виден сразу, без чтения чисел.
-            ToolChrome.MeterLine(_allocations.Last / 16f, ToolTheme.AllocationGraphColor);
-            GUILayout.Space(2f);
+            if (_hasAllocationSample)
+            {
+                ToolChrome.MeterLine(_allocations.Last / 16f, ToolTheme.AllocationGraphColor);
+            }
 
-            _allocations.Draw(
-                GUILayoutUtility.GetRect(graphWidth, 70f),
-                ToolTheme.AllocationGraphColor,
-                16f);
+            if (_allocations.Count > 0)
+            {
+                GUILayout.Space(2f);
+                _allocations.Draw(
+                    GUILayoutUtility.GetRect(graphWidth, 70f),
+                    ToolTheme.AllocationGraphColor,
+                    16f);
+            }
         }
     }
 
@@ -195,7 +228,7 @@ public sealed class FrameStatsWindow : ToolWindow
         }
 
         double gpuMs = _frameTimings[0].gpuFrameTime;
-        if (double.IsNaN(gpuMs) || double.IsInfinity(gpuMs) || gpuMs < 0.0)
+        if (double.IsNaN(gpuMs) || double.IsInfinity(gpuMs) || gpuMs <= 0.0)
         {
             return "GPU: — (нет данных)";
         }

@@ -48,8 +48,6 @@ namespace Kern.Game.Events.Playback
         private SpriteAnimationWorldEffect? _heldHealEffect;
         private readonly Queue<VisualPacket> _pendingVisualPackets = new();
         [Inject]
-        private IWorldLabels _worldLabels = null!;
-        [Inject]
         private Kern.Game.Player.Cameras.CameraFollow _cameraFollow = null!;
 
         [Inject]
@@ -211,7 +209,6 @@ namespace Kern.Game.Events.Playback
                 _spriteAnimations,
                 CrystalCollectionVariant,
                 _sceneObjects,
-                _worldLabels,
                 lighting: _lighting);
             _activeEffects.Add(effect);
         }
@@ -231,7 +228,7 @@ namespace Kern.Game.Events.Playback
             _activeEffects.Add(new ServerVisualEvent(
                 packet, _visualEffectService.Acquire(), _robotService, _assetLoader, _mapManager,
                 _visualEffectPool, _operations, _entityBatchRenderer, _spriteAnimations,
-                CrystalCollectionVariant, _sceneObjects, _worldLabels,
+                CrystalCollectionVariant, _sceneObjects,
                 new Vector2Int(serverX, serverY), angle, _lighting));
         }
 

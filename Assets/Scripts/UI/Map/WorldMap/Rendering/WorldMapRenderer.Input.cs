@@ -59,6 +59,40 @@ namespace Kern.UI.Map
             }
         }
 
+        // Масштаб кнопкой: как колесо, с якорем в центре карты
+        public void HandleZoomStep(
+            float delta,
+            float maxCellsPerPixel,
+            ref float cellsPerPixel,
+            ref float viewCenterX,
+            ref float viewCenterY)
+        {
+            if (_panel.Image == null)
+            {
+                return;
+            }
+
+            bool renderRequested = false;
+            _interaction.HandleMouseScroll(
+                _panel.Overlay,
+                _panel.Image,
+                delta,
+                _panel.Image.worldBound.center,
+                _textureController.TexWidth,
+                _textureController.TexHeight,
+                maxCellsPerPixel,
+                ref cellsPerPixel,
+                ref viewCenterX,
+                ref viewCenterY,
+                ref renderRequested,
+                _clampViewCenter);
+
+            if (renderRequested)
+            {
+                _requestRender();
+            }
+        }
+
         public void HandleClick(
             ClickEvent evt,
             float viewCenterX,
@@ -89,7 +123,14 @@ namespace Kern.UI.Map
                 cellsPerPixel,
                 _textureController.TexWidth,
                 _textureController.TexHeight);
-            pathWalker?.TryStartPath(new Vector2Int(Mathf.FloorToInt(server.x), Mathf.FloorToInt(server.y)));
+            var cell = new Vector2Int(Mathf.FloorToInt(server.x), Mathf.FloorToInt(server.y));
+            if (_panel.IsMarking)
+            {
+                _panel.PlaceMark(cell);
+                return;
+            }
+
+            pathWalker?.TryStartPath(cell);
         }
 
         public void HandlePointerDown(PointerDownEvent evt)

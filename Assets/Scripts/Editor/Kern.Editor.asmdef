@@ -11,6 +11,7 @@
         "Kern.World",
         "Kern.AssetPipeline",
         "Kern.Contracts",
+        "Kern.Networking",
         "Kern.Persistence",
         "MinesServer.Data",
         "UniTask",

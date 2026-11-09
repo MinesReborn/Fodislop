@@ -5,6 +5,7 @@
         "UniTask",
         "Kern.Contracts",
         "Kern.Networking",
+        "Kern.Dummy",
         "Kern.AssetPipeline",
         "Kern.World",
         "Kern.UI",

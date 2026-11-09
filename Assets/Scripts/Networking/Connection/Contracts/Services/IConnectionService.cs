@@ -2,6 +2,7 @@
 
 using System;
 using MinesServer.Networking.Client.Packets;
+using MinesServer.Networking.Connection;
 using MinesServer.Networking.Server.Packets;
 
 namespace Kern.Core.Interfaces;
@@ -32,7 +33,7 @@ public interface IConnectionService
     bool IsConnected { get; }
     bool IsAutoReconnecting { get; }
     bool IsWorldStartupPending { get; }
-    bool IsOffline { get; }
+    bool IsDummy { get; }
     void Connect();
     // Пока пакеты удержаны, транспорт подключается и принимает их в очередь, но обработчикам они не отдаются:
     // соединение стартует параллельно инициализации презентации и открывается, когда потребители готовы
@@ -54,7 +55,7 @@ public interface IConnectionService
     event Action? OnReconnectHidden;
 }
 
-public interface IOfflineConnection
+public interface IDummyConnection : IServerConnection
 {
     void TriggerDisconnect(string reason);
     void TriggerReconnect(string reason);

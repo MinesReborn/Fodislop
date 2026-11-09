@@ -41,7 +41,7 @@ public sealed class LocalChatInputPlayModeTests
     public IEnumerator SetUp()
     {
         _authentication = DummyAuthenticationScope.Seed(TestDummyToken);
-        yield return PlayModeHarness.StartAtGateway();
+        yield return PlayModeHarness.StartAtMainMenu();
         _bootstrap = PlayModeHarness.FindBootstrap()!;
         yield return PlayModeHarness.EnterMainGame(_bootstrap);
         _uiInput = PlayModeHarness.RequireInGame<UIInputManager>();

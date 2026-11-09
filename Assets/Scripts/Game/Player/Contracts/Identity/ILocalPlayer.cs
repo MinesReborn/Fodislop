@@ -35,7 +35,10 @@ public interface ILocalPlayer
 
     event Action<bool>? OnAutoDigChanged;
 
-    void UpdateServerPosition(Vector2Int position, bool teleport = false);
+    // rotation — авторитетное направление из RobotPositionPacket. Клиент
+    // держит его наравне с позицией: иначе ручной поворот вслепую считает,
+    // что робот смотрит не туда, и Shift+направление молчит.
+    void UpdateServerPosition(Vector2Int position, bool teleport = false, Direction? rotation = null);
 
     void ResetServerPosition();
 

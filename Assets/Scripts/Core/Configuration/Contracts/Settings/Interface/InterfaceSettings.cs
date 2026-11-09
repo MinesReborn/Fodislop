@@ -25,15 +25,6 @@ public sealed class InterfaceSettings
     [SettingConsumer(SettingConsumerTarget.LocalizationService, "LocalizationService.SetLanguage")]
     public string Language = "ru";
 
-    // Дефолтная схема управления: клавиатура (WASD / стрелки). Используется
-    // кнопкой «Сбросить до стандартных» на вкладке «Управление».
-    public const int DefaultControlScheme = 0;
-
-    [SettingRange(0f, 1f)]
-    [SettingLabel("gateway.onb.controls_scheme_label")]
-    [SettingConsumer(SettingConsumerTarget.Gameplay, "Controls / Onboarding scheme")]
-    public int ControlScheme;
-
     // Помощь в движении: при выключенном автокопании робот сам обходит
     // непроходимую клетку на пути и идёт дальше в удерживаемом направлении.
     public const bool DefaultMovementAssist = true;
@@ -49,7 +40,7 @@ public sealed class InterfaceSettings
     public bool AutoLogin;
 
     [SettingUnbounded("Флаг пройденного онбординга; внутреннего тумблера нет.")]
-    [SettingConsumer(SettingConsumerTarget.UserInterface, "GatewayController onboarding gate")]
+    [SettingConsumer(SettingConsumerTarget.UserInterface, "MenuGate onboarding gate")]
     public bool OnboardingDone;
 
     // Привязки клавиш клавиатурной схемы (вкладка «Управление» настроек
@@ -155,28 +146,6 @@ public sealed class InterfaceSettings
     [SettingConsumer(SettingConsumerTarget.Gameplay, "PlayerInputHandler.WantsToBuildWhite")]
     public string KeyBuildWhite = DefaultKeyBuildWhite;
 
-    // Геометрия перетаскиваемого/растягиваемого окна глобального чата (left,
-    // top, width, height в пикселях панели) с прошлого запуска. Пока игрок не
-    // трогал окно, оно стоит по стилям Chat.uss.
-    [SettingUnbounded("Флаг сохранённой геометрии окна глобального чата; тумблера нет.")]
-    [SettingConsumer(SettingConsumerTarget.UserInterface, "ChatWindowInteractionController.ApplySavedLayout")]
-    public bool HasChatWindowLayout;
-
-    [SettingUnbounded("Пиксели панели UI; разрешение проверяет ChatWindowInteractionController при восстановлении.")]
-    [SettingConsumer(SettingConsumerTarget.UserInterface, "ChatWindowInteractionController.ApplySavedLayout")]
-    public float ChatWindowX;
-
-    [SettingUnbounded("Пиксели панели UI; разрешение проверяет ChatWindowInteractionController при восстановлении.")]
-    [SettingConsumer(SettingConsumerTarget.UserInterface, "ChatWindowInteractionController.ApplySavedLayout")]
-    public float ChatWindowY;
-
-    [SettingUnbounded("Пиксели панели UI; минимум и границы экрана проверяет ChatWindowInteractionController.")]
-    [SettingConsumer(SettingConsumerTarget.UserInterface, "ChatWindowInteractionController.ApplySavedLayout")]
-    public float ChatWindowWidth;
-
-    [SettingUnbounded("Пиксели панели UI; минимум и границы экрана проверяет ChatWindowInteractionController.")]
-    [SettingConsumer(SettingConsumerTarget.UserInterface, "ChatWindowInteractionController.ApplySavedLayout")]
-    public float ChatWindowHeight;
     public bool IsGameplayKey(string keyName) =>
         string.Equals(KeyMoveUp, keyName, StringComparison.OrdinalIgnoreCase) ||
         string.Equals(KeyMoveDown, keyName, StringComparison.OrdinalIgnoreCase) ||

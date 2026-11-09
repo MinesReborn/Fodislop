@@ -19,7 +19,7 @@ using Object = UnityEngine.Object;
 
 using Kern.Bootstrap.Scenes;
 using Kern.Networking.Authentication;
-using Kern.Networking.Offline;
+using Kern.Networking.Dummy;
 using Kern.UI.Menu;
 
 namespace Kern.Tests.PlayMode;
@@ -34,7 +34,7 @@ internal static class PlayModeHarness
     private static string? s_originalClientToken;
     private static HashSet<string>? s_originalDummyTokens;
 
-    public static IEnumerator StartAtGateway()
+    public static IEnumerator StartAtMainMenu()
     {
         yield return Shutdown();
         var gameTokens = new GameTokenStore();
@@ -50,11 +50,11 @@ internal static class PlayModeHarness
             "Bootstrap container was not built.");
         BootstrapLifetimeScope bootstrap = FindBootstrap()!;
         yield return WaitUntil(
-            () => bootstrap.CurrentSceneName == SceneNames.Gateway &&
-                SceneManager.GetSceneByName(SceneNames.Gateway).isLoaded &&
-                HasNamedUIElement(SceneManager.GetSceneByName(SceneNames.Gateway), "GatewayRoot"),
+            () => bootstrap.CurrentSceneName == SceneNames.MainMenu &&
+                SceneManager.GetSceneByName(SceneNames.MainMenu).isLoaded &&
+                HasNamedUIElement(SceneManager.GetSceneByName(SceneNames.MainMenu), "MainMenuRoot"),
             UITimeoutSeconds,
-            "ApplicationBootstrap did not finish Bootstrap -> Gateway with ready UI.",
+            "ApplicationBootstrap did not finish Bootstrap -> MainMenu with ready UI.",
             () => $"Scene='{bootstrap.CurrentSceneName}', " +
                 $"phase='{bootstrap.GetComponent<UIDocument>().rootVisualElement?.Q<Label>("BootstrapLoadingPhase")?.text}', " +
                 $"UniTaskLoop={PlayerLoopHelper.IsInjectedUniTaskPlayerLoop()}");
@@ -65,7 +65,11 @@ internal static class PlayModeHarness
         // PlayMode tests must not inherit the developer's persisted graphics preset.
         // Start world-entry checks with the standard production lighting preset.
         bootstrap.Container.Resolve<IClientConfigManager>().SelectGraphicsPreset(GraphicsPreset.Standard);
-        yield return Await(bootstrap.TransitionAsync(SceneNames.MainMenu), UITimeoutSeconds);
+        if (bootstrap.CurrentSceneName != SceneNames.MainMenu)
+        {
+            yield return Await(bootstrap.TransitionAsync(SceneNames.MainMenu), UITimeoutSeconds);
+        }
+
         yield return Await(bootstrap.TransitionAsync(SceneNames.MainGame), WorldTimeoutSeconds);
     }
 
@@ -127,7 +131,6 @@ internal static class PlayModeHarness
     new() {
 
         SceneNames.Bootstrap,
-        SceneNames.Gateway,
         SceneNames.MainMenu,
         SceneNames.MainGame,
 

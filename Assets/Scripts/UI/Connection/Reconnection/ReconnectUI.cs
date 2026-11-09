@@ -42,6 +42,8 @@ namespace Kern.UI.Connection
         private Label? _reconnectLabel;
         private Label? _disconnectLabel;
         private Button? _disconnectOkButton;
+        private Label? _disconnectTitle;
+        private Label? _disconnectServerReason;
         private string? _disconnectOkTextKey;
         private string? _reconnectStatus;
         private string? _disconnectReason;
@@ -127,7 +129,15 @@ namespace Kern.UI.Connection
             _disconnectOkButton = tree.Q<Button>("DisconnectOkButton") ??
                 throw new InvalidOperationException("[ReconnectUI] DisconnectOkButton is missing from Reconnect.uxml.");
             _disconnectOkTextKey = _disconnectOkButton.text;
-            _disconnectOkButton.clicked += ExitToGateway;
+            _disconnectOkButton.clicked += ExitToMainMenu;
+            _disconnectTitle = tree.Q<Label>("DisconnectTitle") ??
+                throw new InvalidOperationException("[ReconnectUI] DisconnectTitle is missing from Reconnect.uxml.");
+            _disconnectServerReason = tree.Q<Label>("DisconnectReason") ??
+                throw new InvalidOperationException("[ReconnectUI] DisconnectReason is missing from Reconnect.uxml.");
+            Button reconnectMenu = tree.Q<Button>("ReconnectMenuButton") ??
+                throw new InvalidOperationException("[ReconnectUI] ReconnectMenuButton is missing from Reconnect.uxml.");
+            // Пока идёт переподключение, выход в меню остаётся (макет: #netMenu)
+            reconnectMenu.clicked += ExitToMainMenu;
 
             UILocalizer.Apply(tree, _loc);
 
@@ -161,7 +171,7 @@ namespace Kern.UI.Connection
 
             if (_disconnectLabel != null && _disconnectReason != null)
             {
-                _disconnectLabel.text = Resolve(_disconnectReason);
+                ApplyDisconnectText();
             }
 
             if (_disconnectOkButton != null && _disconnectOkTextKey != null)
@@ -218,7 +228,7 @@ namespace Kern.UI.Connection
             HideOverlay(_reconnectOverlay);
 
             _disconnectReason = reason;
-            _disconnectLabel.text = Resolve(_disconnectReason);
+            ApplyDisconnectText();
 
             UIState.Show(_disconnectOverlay);
             _disconnectOverlay.SetEnabled(true);
@@ -251,12 +261,40 @@ namespace Kern.UI.Connection
             }
         }
 
-        private void ExitToGateway()
+        // Обрыв связи — «Связь потеряна» и сообщение клиента; причина от сервера (DisconnectPacket) —
+        // «Отключено сервером», «Сервер закрыл соединение.» и сама причина плашкой (макет: js/events.js showNet)
+        private void ApplyDisconnectText()
+        {
+            if (_disconnectLabel == null || _disconnectTitle == null || _disconnectServerReason == null || _disconnectReason == null)
+            {
+                return;
+            }
+
+            bool lost = _loc == null ||
+                string.Equals(_disconnectReason, _loc.Get("network.error.connection_lost"), StringComparison.Ordinal) ||
+                string.Equals(_disconnectReason, "network.error.connection_lost", StringComparison.Ordinal);
+            if (lost)
+            {
+                _disconnectTitle.text = Caps(Resolve("network.lost_title"));
+                _disconnectLabel.text = Resolve(_disconnectReason);
+                UIState.Hide(_disconnectServerReason);
+                return;
+            }
+
+            _disconnectTitle.text = Caps(Resolve("network.kicked_title"));
+            _disconnectLabel.text = Resolve("network.kicked_text");
+            _disconnectServerReason.text = _loc!.Get("network.kicked_reason", Resolve(_disconnectReason));
+            UIState.Show(_disconnectServerReason);
+        }
+
+        private static string Caps(string text) => text.ToUpperInvariant();
+
+        private void ExitToMainMenu()
         {
             Hide();
             _operations.Run(
-                "reconnect_exit_to_gateway",
-                cancellationToken => _sceneNavigator.TransitionAsync(SceneNames.Gateway, cancellationToken));
+                "reconnect_exit_to_main_menu",
+                cancellationToken => _sceneNavigator.TransitionAsync(SceneNames.MainMenu, cancellationToken));
         }
 
         public void Hide()

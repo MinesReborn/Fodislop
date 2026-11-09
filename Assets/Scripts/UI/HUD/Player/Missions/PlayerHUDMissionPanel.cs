@@ -7,6 +7,8 @@ using Kern;
 using Kern.AssetPipeline.Loading;
 using Kern.Core.Interfaces;
 using Kern.Core.Localization;
+using Kern.UI.Controls;
+using Kern.UI.Motion;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -18,6 +20,9 @@ public sealed class PlayerHUDMissionPanel
 {
     private const int MissionResetHour = 18;
     private const string TimerMacro = "%T%";
+    private const int MissionCells = 10;
+    // Картинка миссии — слева от названия и задания; размер от сервера, не больше строки на две (макет: .mission-img)
+    private const float ImageMax = 40f;
 
     private readonly ILocalizationService _loc;
     private readonly IAssetLoader _assetLoader;
@@ -28,7 +33,7 @@ public sealed class PlayerHUDMissionPanel
     private Label? _missionTitleLabel;
     private VisualElement? _missionImage;
     private Label? _missionDescLabel;
-    private VisualElement? _missionProgressFill;
+    private VisualElement? _missionCells;
     private Label? _missionProgressLabel;
 
     private IVisualElementScheduledItem? _timerSchedule;
@@ -54,7 +59,7 @@ public sealed class PlayerHUDMissionPanel
         _missionTitleLabel = root.Q<Label>("MissionTitleLabel");
         _missionImage = root.Q<VisualElement>("MissionImage");
         _missionDescLabel = root.Q<Label>("MissionDescLabel");
-        _missionProgressFill = root.Q<VisualElement>("MissionProgressFill");
+        _missionCells = root.Q<VisualElement>("MissionCells");
         _missionProgressLabel = root.Q<Label>("MissionProgressLabel");
     }
 
@@ -82,15 +87,20 @@ public sealed class PlayerHUDMissionPanel
         UpdateImage(stats);
         UpdateDescription(stats);
 
+        // Ход задания — 10 ячеек (макет: .mission-cells); счёт «3 / 10», при Max = 1 его нет
         float pct = stats.MissionMaxProgress > 0 ? (float)stats.MissionProgress / stats.MissionMaxProgress : 0f;
-        if (_missionProgressFill != null)
+        if (_missionCells != null)
         {
-            _missionProgressFill.style.width = new Length(Mathf.Clamp01(pct) * 100, LengthUnit.Percent);
+            KernQuant.Set(_missionCells, MissionCells, Mathf.FloorToInt(Mathf.Clamp01(pct) * MissionCells));
         }
 
         if (_missionProgressLabel != null)
         {
-            _missionProgressLabel.text = $"{stats.MissionProgress:N0}/{stats.MissionMaxProgress:N0}";
+            bool counted = stats.MissionMaxProgress > 1;
+            _missionProgressLabel.text = counted
+                ? KernNumbers.Group(stats.MissionProgress) + " / " + KernNumbers.Group(stats.MissionMaxProgress)
+                : string.Empty;
+            _missionProgressLabel.EnableInClassList("is-hidden", !counted);
         }
     }
 
@@ -118,12 +128,16 @@ public sealed class PlayerHUDMissionPanel
             _missionImage.style.width = 0;
             _missionImage.style.height = 0;
             UIState.Hide(_missionImage);
+            _missionPanel?.RemoveFromClassList("has-img");
             return;
         }
 
-        _missionImage.style.width = stats.MissionImageWidth;
-        _missionImage.style.height = stats.MissionImageHeight;
+        float w = stats.MissionImageWidth, h = stats.MissionImageHeight;
+        float k = Mathf.Min(1f, ImageMax / Mathf.Max(1f, Mathf.Max(w, h)));
+        _missionImage.style.width = w * k;
+        _missionImage.style.height = h * k;
         UIState.Show(_missionImage);
+        _missionPanel?.AddToClassList("has-img");
 
         CancellationToken token = _imageCts.Token;
         VisualElement imageElement = _missionImage;
@@ -145,7 +159,7 @@ public sealed class PlayerHUDMissionPanel
         Texture2D? texture;
         try
         {
-            texture = await GetTextureAsync(uri, token);
+            texture = await ServerImageSource.LoadAsync(_assetLoader, _webAssetLoader, uri, token);
         }
         catch (OperationCanceledException)
         {
@@ -163,17 +177,6 @@ public sealed class PlayerHUDMissionPanel
         }
 
         imageElement.style.backgroundImage = new StyleBackground(texture);
-    }
-
-    private async UniTask<Texture2D?> GetTextureAsync(string uri, CancellationToken token)
-    {
-        if (!Uri.TryCreate(uri, UriKind.Absolute, out Uri? absolute) ||
-            (absolute.Scheme != Uri.UriSchemeHttp && absolute.Scheme != Uri.UriSchemeHttps))
-        {
-            return await _assetLoader.GetTextureAsync(uri, token);
-        }
-
-        return await _webAssetLoader.GetTextureAsync(uri, token);
     }
 
     private void UpdateDescription(IPlayerStats stats)

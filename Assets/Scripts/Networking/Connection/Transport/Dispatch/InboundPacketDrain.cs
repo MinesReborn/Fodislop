@@ -20,7 +20,6 @@ using UnityEngine;
 using VContainer;
 using Kern.Diagnostics.Memory;
 using Kern.Networking.Authentication;
-using Kern.Networking.Offline;
 
 namespace Kern.Networking.Connection;
 

@@ -73,11 +73,9 @@ public sealed class ClientConfigRepositoryTests
         Assert.That(exception.Message, Does.Contain(nameof(AudioSettings.SoundEffectsVolume)));
     }
 
-    [TestCase("FisheyeEnabled")]
     [TestCase("DepthEnabled")]
     [TestCase("TextScale")]
     [TestCase("KeyMoveUp")]
-    [TestCase("FisheyeScale")]
     [TestCase("DepthPixels")]
     [TestCase("DepthDarkening")]
     public void Load_CurrentSchemaMissingPresentationField_RemainsAnError(string field)

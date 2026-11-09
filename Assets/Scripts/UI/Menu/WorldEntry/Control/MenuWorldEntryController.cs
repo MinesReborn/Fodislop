@@ -30,8 +30,6 @@ internal sealed class MenuWorldEntryController
     private readonly WindowCommandStream _windowCommands;
     private readonly MenuLoaderPanel _loaderPanel;
     private readonly MenuModalManager _modalManager;
-    private readonly MenuNavigationPresenter _navigationPresenter;
-    private readonly MenuSceneryPresenter _sceneryPresenter;
     private readonly Func<CancellationToken> _destroyToken;
     private VisualElement? _mainMenuContainer;
     private VisualElement? _root;
@@ -43,7 +41,6 @@ internal sealed class MenuWorldEntryController
         IWorldEntryPreparation preparation, IWorldLoadProgress loadProgress,
         IAsyncOperationSupervisor operations, WindowCommandStream windowCommands,
         MenuLoaderPanel loaderPanel, MenuModalManager modalManager,
-        MenuNavigationPresenter navigationPresenter, MenuSceneryPresenter sceneryPresenter,
         Func<CancellationToken> destroyToken)
     {
         _loc = localization;
@@ -55,8 +52,6 @@ internal sealed class MenuWorldEntryController
         _windowCommands = windowCommands;
         _loaderPanel = loaderPanel;
         _modalManager = modalManager;
-        _navigationPresenter = navigationPresenter;
-        _sceneryPresenter = sceneryPresenter;
         _destroyToken = destroyToken;
     }
 
@@ -172,9 +167,6 @@ internal sealed class MenuWorldEntryController
                 OnServerWindowVisibilityChanged(visible: true);
             }
 
-            _navigationPresenter.SetDescentRouteActive();
-
-            _sceneryPresenter.DescentTarget = 1f;
             // Провайдер живёт всё приложение: без сброса второй заход видит Done от первого и сразу отпускает ввод
             _loadProgress?.Report(WorldLoadPhase.Handshake);
             _loadProgress?.ResetAssetSync();
@@ -213,7 +205,7 @@ internal sealed class MenuWorldEntryController
                     Debug.LogError(
                         $"[MainMenu] MainGame startup was interrupted by a disconnected transport; " +
                         $"descent remains active. {exception}");
-                    _loaderPanel.ShowFailure(exception, _loc);
+                    _loaderPanel.ShowFailure(exception);
                 }
             }
             catch (TimeoutException exception) when (IsWaitingForWorldStartup())
@@ -223,7 +215,7 @@ internal sealed class MenuWorldEntryController
                     Debug.LogError(
                         $"[MainMenu] MainGame startup timed out; keeping the descent screen while " +
                         $"waiting for the server. {exception}");
-                    _loaderPanel.ShowFailure(exception, _loc);
+                    _loaderPanel.ShowFailure(exception);
                 }
             }
             catch (Exception exception)
@@ -233,8 +225,20 @@ internal sealed class MenuWorldEntryController
                     return;
                 }
 
-                _loaderPanel.ShowFailure(exception, _loc);
+                _loaderPanel.ShowFailure(exception);
             }
+        }
+
+        // «Повторить» после отказа: прежний спуск уже завершился ошибкой, спуск начинается заново
+        internal void RetryDescent()
+        {
+            if (!_loadingActive || _teardownStarted || !_loaderPanel.HasFailure)
+            {
+                return;
+            }
+
+            _loadingActive = false;
+            OnPlayButtonClicked();
         }
 
         internal bool IsWaitingForWorldStartup() =>
@@ -256,9 +260,6 @@ internal sealed class MenuWorldEntryController
             _descentCancellation?.Cancel();
 
             _loadingActive = false;
-            _sceneryPresenter.DescentTarget = 0f;
-            _sceneryPresenter.ResumeRenderers();
-            _navigationPresenter.ResetDescentRoute();
 
             _loaderPanel.Hide();
             _loaderPanel.Reset();

@@ -32,6 +32,10 @@ public static class DiagnosticArtifactPaths
         ? Path.Combine(Path.GetDirectoryName(Application.dataPath) ?? ".", EditorDirectoryName, ArtifactDirectoryName)
         : Path.Combine(Application.persistentDataPath, ArtifactDirectoryName);
 
+    public static string SettingsDirectory => Application.isEditor
+        ? Path.Combine(Path.GetDirectoryName(Application.dataPath) ?? ".", "Settings", ArtifactDirectoryName)
+        : Path.Combine(Application.persistentDataPath, "Settings", ArtifactDirectoryName);
+
     public static string GetDirectory(string category)
     {
         string directory = Path.Combine(RootDirectory, category);

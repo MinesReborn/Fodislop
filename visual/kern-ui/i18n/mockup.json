@@ -1188,10 +1188,6 @@
   "Build",
   "构建"
  ],
- "Новое": [
-  "New",
-  "新"
- ],
  "Список изменений": [
   "Changelog",
   "更新日志"
@@ -1239,26 +1235,6 @@
  "Проверка файлов": [
   "File check",
   "文件检查"
- ],
- "Проверка файлов…": [
-  "Checking files…",
-  "正在检查文件…"
- ],
- "Проверка доступности файлов клиента.": [
-  "Checking that the client files are available.",
-  "正在检查客户端文件是否可用。"
- ],
- "Проверить": [
-  "Check",
-  "检查"
- ],
- "Проверить ещё раз": [
-  "Check again",
-  "再次检查"
- ],
- "Все ресурсы доступны": [
-  "All resources available",
-  "所有资源可用"
  ],
  "Без него подключиться к серверу нельзя": [
   "You can't connect to the server without it",
@@ -1371,5 +1347,33 @@
  "Копай породу и собирай кристаллы шести цветов. Пиши программы своему роботу, вступай в клан и держи с ним территорию.": [
   "Dig through rock and collect crystals of six colors. Write programs for your robot, join a clan and hold your territory together.",
   "挖掘岩石，收集六种颜色的水晶。为你的机器人编写程序，加入氏族，一起守住领地。"
+ ],
+ "Эксклюзивный полный экран": [
+  "Exclusive fullscreen",
+  "独占全屏"
+ ],
+ "Полный экран в окне": [
+  "Fullscreen window",
+  "全屏窗口"
+ ],
+ "Развёрнутое окно": [
+  "Maximized window",
+  "最大化窗口"
+ ],
+ "Отрисовка пикселей": [
+  "Pixel rendering",
+  "像素渲染"
+ ],
+ "Сглаженная": [
+  "Smoothed",
+  "平滑"
+ ],
+ "Точная по пикселям": [
+  "Pixel-perfect",
+  "像素精确"
+ ],
+ "Без обработки": [
+  "Raw",
+  "原始"
  ]
 }

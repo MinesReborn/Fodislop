@@ -1,0 +1,3 @@
+import {parseRichText} from './rich-text.mjs';
+export const componentLabels={TextPacket:'Текст',ImagePacket:'Изображение',ScrollViewerPacket:'Область прокрутки',DockPanelPacket:'Фрейм с автораскладкой',GridPacket:'Таблица',IntDropdownPacket:'Список чисел',StringDropdownPacket:'Список',SelectablePacket:'Переключатель',TextBoxPacket:'Поле ввода',SliderPacket:'Ползунок',PanelPacket:'Плашка',LinePacket:'Линия',CanvasPacket:'Фрейм'};
+export function layerLabel(node){if(!node)return 'Слой не выбран';if(node.Type==='TextPacket'){const plain=n=>typeof n==='string'?n:(n.Children||[]).map(plain).join('');return plain(parseRichText(node.Text)).trim().slice(0,36)||'Пустой текст';}return componentLabels[node.Type]+(node.Name?' · '+node.Name:'');}

@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="#ffffff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+  <!-- Значок «Выход» макета (mm_icon_exit.png) векторно: открытая скобка и стрелка наружу -->
+  <path d="M8 3H5v18h3"/>
+  <path d="M11 12h10M17 8l4 4-4 4"/>
+</svg>

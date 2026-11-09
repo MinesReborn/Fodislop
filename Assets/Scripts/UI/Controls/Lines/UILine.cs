@@ -73,16 +73,26 @@ namespace Kern.UI.Controls
             paint2D.strokeColor = _color;
             paint2D.lineWidth = _thickness;
 
-            // If direction is set, we use simple line drawing based on element size
+            Rect bounds = contentRect;
             if (_direction == LineDirection.Horizontal)
             {
-                _start = new Vector2(0, layout.height / 2);
-                _end = new Vector2(layout.width, layout.height / 2);
+                _start = new Vector2(bounds.xMin, bounds.center.y);
+                _end = new Vector2(bounds.xMax, bounds.center.y);
             }
             else if (_direction == LineDirection.Vertical)
             {
-                _start = new Vector2(layout.width / 2, 0);
-                _end = new Vector2(layout.width / 2, layout.height);
+                _start = new Vector2(bounds.center.x, bounds.yMin);
+                _end = new Vector2(bounds.center.x, bounds.yMax);
+            }
+            else if (_direction == LineDirection.Diagonal)
+            {
+                _start = bounds.min;
+                _end = bounds.max;
+            }
+            else if (_direction == LineDirection.ReverseDiagonal)
+            {
+                _start = new Vector2(bounds.xMin, bounds.yMax);
+                _end = new Vector2(bounds.xMax, bounds.yMin);
             }
 
             paint2D.BeginPath();

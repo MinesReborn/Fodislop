@@ -13,14 +13,16 @@ using UnityEngine.TestTools;
 using UnityEngine.UIElements;
 
 using Kern.Bootstrap.Scenes;
+using Kern.UI.Gateway;
 using Kern.UI.Menu;
+using VContainer;
 using Kern.UI.Screens;
 
 namespace Kern.Tests.PlayMode.Mobile;
 
 // Каждый экран игры на каждом устройстве матрицы: настоящие сцены, DI и
 // контроллеры, подменён только экран. Нарушения собираются в один отчёт
-// (Logs/Diagnostics/MobileLayout/report.txt), снимки — рядом, по экранам.
+// (общий каталог MobileLayout), снимки — рядом, по экранам.
 [TestFixture]
 public sealed class MobileLayoutPlayModeTests
 {
@@ -78,29 +80,34 @@ public sealed class MobileLayoutPlayModeTests
             Directory.Delete(MobileLayoutProbe.OutputRoot, recursive: true);
         }
 
-        yield return PlayModeHarness.StartAtGateway();
+        yield return PlayModeHarness.StartAtMainMenu();
         BootstrapLifetimeScope bootstrap = PlayModeHarness.FindBootstrap()!;
 
-        yield return CaptureAll("Gateway", SceneNames.Gateway);
-        UIDocument gateway = PlayModeHarness.FindComponentInScene<UIDocument>(
-            PlayModeHarness.Scene(SceneNames.Gateway))!;
+        // Вход и онбординг — слой главного меню (MenuGate): открываем его формой,
+        // как кнопка «Сменить аккаунт», и снимаем каждое состояние.
+        UIDocument menu = PlayModeHarness.FindComponentInScene<UIDocument>(
+            PlayModeHarness.Scene(SceneNames.MainMenu))!;
+        MenuGate gate = PlayModeHarness.FindComponentInScene<MainMenuLifetimeScope>(
+            PlayModeHarness.Scene(SceneNames.MainMenu))!.Container.Resolve<MenuGate>();
+        gate.Open(menu, menu.rootVisualElement, forceForm: true);
+        yield return null;
+        yield return CaptureAll("Gateway", SceneNames.MainMenu);
         yield return CaptureAll(
             "GatewayRegister",
-            SceneNames.Gateway,
-            () => TapAndExpect(gateway, "AuthTabRegister", "AuthRegisterForm"),
-            () => TapOnly(gateway, "AuthTabLogin"));
+            SceneNames.MainMenu,
+            () => TapAndExpect(menu, "AuthTabRegister", "AuthRegisterForm"),
+            () => TapOnly(menu, "AuthTabLogin"));
 
         // Онбординг показывается один раз после первого входа; его состояние —
-        // класс на GatewayRoot, тот же, что ставит GatewayController.
+        // класс на GatewayRoot, тот же, что ставит MenuGate.
         yield return CaptureAll(
             "Onboarding",
-            SceneNames.Gateway,
-            () => SetGatewayState(gateway, onboarding: true),
-            () => SetGatewayState(gateway, onboarding: false));
+            SceneNames.MainMenu,
+            () => SetGatewayState(menu, onboarding: true),
+            () => SetGatewayState(menu, onboarding: false));
+        gate.Dispose();
+        yield return null;
 
-        yield return PlayModeHarness.Await(
-            bootstrap.TransitionAsync(SceneNames.MainMenu),
-            PlayModeHarness.UITimeoutSeconds);
         yield return CaptureAll("MainMenu", SceneNames.MainMenu);
 
         yield return PlayModeHarness.Await(
@@ -135,8 +142,8 @@ public sealed class MobileLayoutPlayModeTests
         yield return CaptureAll(
             "Settings",
             SceneNames.MainGame,
-            () => TapAndExpect(game, "SettingsButton", "SettingsPage"),
-            () => TapOnly(game, "SettingsBack"));
+            () => TapAndExpect(game, "SettingsButton", "SettingsLayer"),
+            () => TapOnly(game, "SettingsClose"));
 
         string report = WriteReport();
         int total = 0;

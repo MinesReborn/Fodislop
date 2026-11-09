@@ -1446,8 +1446,8 @@ window.KERN_TOKENS = {
       "$extensions": {
         "kern.css": "--ls-caps",
         "kern.block": "Роли — компактная раскладка сдвигает их вниз по шкале (touch.css)",
-        "kern.transfer": "uss",
-        "kern.how": "letter-spacing в USS — в px или %, em переводится по кеглю элемента"
+        "kern.transfer": "site",
+        "kern.how": "разрядка в em: letter-spacing в USS — только px или %, переводится в px по кеглю элемента на месте"
       }
     },
     "ls-caps-wide": {
@@ -1457,8 +1457,8 @@ window.KERN_TOKENS = {
       "$extensions": {
         "kern.css": "--ls-caps-wide",
         "kern.block": "Роли — компактная раскладка сдвигает их вниз по шкале (touch.css)",
-        "kern.transfer": "uss",
-        "kern.how": "letter-spacing в USS — в px или %, em переводится по кеглю элемента"
+        "kern.transfer": "site",
+        "kern.how": "разрядка в em: letter-spacing в USS — только px или %, переводится в px по кеглю элемента на месте"
       }
     },
     "ls-mono": {
@@ -1468,8 +1468,8 @@ window.KERN_TOKENS = {
       "$extensions": {
         "kern.css": "--ls-mono",
         "kern.block": "Роли — компактная раскладка сдвигает их вниз по шкале (touch.css)",
-        "kern.transfer": "uss",
-        "kern.how": "letter-spacing в USS — в px или %, em переводится по кеглю элемента"
+        "kern.transfer": "site",
+        "kern.how": "разрядка в em: letter-spacing в USS — только px или %, переводится в px по кеглю элемента на месте"
       }
     }
   },

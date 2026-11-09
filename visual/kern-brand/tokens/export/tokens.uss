@@ -1,5 +1,5 @@
 /* ФАЙЛ МАШИННЫЙ — производная от visual/kern-ui/css/tokens.css (build-tokens.mjs).
-   Это предпросмотр темы для переноса, в игру его подключает генератор tools/Kern.DesignSystem после перенацеливания на kern-ui.
+   В игру его переносит генератор tools/generators/Kern.DesignSystem emit-uss-tokens (Assets/Resources/UI/Theme/Tokens/Styles/KernTokens.uss).
 
    Не переносится переменной USS:
    · канал палитры: в USS нет rgb(var() / a) — переносятся собранные цвета:
@@ -8,6 +8,8 @@
        --money --creds --cry-g --cry-r --cry-b --cry-v --cry-w --cry-c --cargo-low --cargo-low-fill --cargo-normal --cargo-normal-fill --cargo-warn --cargo-warn-fill --cargo-warn-line --cargo-high --cargo-high-fill --cargo-danger-line --cargo-danger --cargo-danger-fill --skill-dig --skill-mining --skill-move --skill-defense --skill-road --skill-green --skill-yellow --skill-red --skill-cooling --skill-road-move --skill-pack --skill-blue-pack --skill-cyan-pack --skill-red-pack --skill-preview --prog-control --prog-action --prog-observer --prog-condition --prog-memory --event-mining --event-xp --build-military --build-road --build-block --build-support --map-background --map-grid --mark-build --mark-spawn --mark-own --pad-xbox-a --pad-xbox-b --pad-xbox-x --pad-xbox-y --pad-ps-a --pad-ps-b --pad-ps-x --pad-ps-y --calib-sand --calib-hp
    · FontAsset (SDF) с выровненной коробкой строки 1.2 em; запасной CJK — fallback-цепочка ассета:
        --cjk --font-text --font-display --font-mono --font
+   · разрядка в em: letter-spacing в USS — только px или %, переводится в px по кеглю элемента на месте:
+       --ls-caps --ls-caps-wide --ls-mono
    · box-shadow в USS нет: inset-линия — border-top, отбивка — отдельный элемент-подложка со смещением:
        --shadow-panel --shadow-float --shadow-pop --shadow-text --press
    · фоновый узор — 9-slice или повторяемая текстура:
@@ -88,9 +90,6 @@
     --fw-semi: 500; /* подписи, кнопки */
     --fw-bold: 600; /* заголовки, выбранное */
     --fw-heavy: 700; /* название, крупные заголовки */
-    --ls-caps: .08em; /* разрядка заглавных */
-    --ls-caps-wide: .14em; /* разрядка подписей капсом */
-    --ls-mono: .02em; /* разрядка моноширинных меток */
 
     /* size */
     --sp-1: 2px; /* 1 × шаг 2 px */

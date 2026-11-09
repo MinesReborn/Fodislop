@@ -1,7 +1,7 @@
 /* События поверх HUD, подписи над роботами, стрелки у края, каналы чата и стенд «текст под нагрузкой» */
 
 /* ── Связь: поверх всего, игра под ней недоступна ── */
-.link-layer { z-index: var(--z-overlay); background: var(--scrim-strong); }
+.link-layer { z-index: var(--z-overlay); }
 .net, .srv-modal { align-items: center; text-align: center; width: 400px; }
 .net-ico { width: var(--ctl-l); height: var(--ctl-l); color: var(--ash); stroke-width: 1.5; }
 .net .dialog-actions, .srv-modal .dialog-actions { align-self: stretch; justify-content: center; }
@@ -14,15 +14,15 @@
 /* ── Ссылка: адрес целиком, домен выделен — видно, куда ведёт ── */
 .link-url { display: flex; align-items: flex-start; gap: var(--sp-5); padding: var(--sp-5) var(--sp-6); background: var(--well); border: 1px solid var(--seam); color: var(--ash) !important; font-size: var(--t-small); overflow-wrap: anywhere; }
 .link-url svg { flex: none; width: 16px; height: 16px; margin-top: 1px; }
-.link-url b { color: var(--bone); }
+.link-url b { color: var(--bone); font-family: var(--font-mono); }
 
 /* ── Подписи у роботов (WorldLabels.uss): ник — верхним левым углом в правый верхний угол клетки ── */
 .world-labels { position: absolute; inset: 0; pointer-events: none; overflow: hidden; }
-.wl-name { position: absolute; display: flex; align-items: center; gap: var(--sp-2); color: var(--bone); font-size: var(--t-5); font-weight: var(--fw-semi); white-space: nowrap; text-shadow: var(--shadow-text); }
+.wl-name { position: absolute; display: flex; align-items: center; gap: var(--sp-2); color: var(--bone); font-size: var(--t-5); font-weight: var(--fw-semi); white-space: nowrap; text-shadow: 0 1px 0 rgb(var(--rgb-black) / .9); }
 .wl-name img { width: 11px; height: 11px; image-rendering: pixelated; }
 /* Облако — спрайт LocalChatBubble 9-slice (сверху 7, справа 12, снизу 22, слева 13), белый тон с альфой .62; хвост слева внизу */
-.wl-chat { position: absolute; height: var(--ctl-s); translate: -6px -100%; border-style: solid; border-width: 7px 12px 22px 13px; border-image: url("../img/ui/bubble.png") 7 12 22 13 fill / 7px 12px 22px 13px; opacity: .62; }
-.wl-chat span { display: block; height: 18px; max-width: 360px; margin: -7px -9px 0 -10px; padding: 0 var(--sp-2); line-height: 18px; color: var(--on-signal); font-size: var(--t-5); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.wl-chat { position: absolute; border-style: solid; border-width: 7px 12px 22px 13px; opacity: .92; translate: -6px calc(-100% - 6px); border-image: none; padding: var(--sp-1) var(--sp-3); }
+.wl-chat span { display: block; max-width: 360px; font-size: var(--t-5); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; padding: 0; line-height: 16px; color: var(--bone); font: var(--fw-normal) var(--t-4)/16px var(--font-text); }
 
 /* ── Кольцо вокруг игрока и значки целей в кадре ── */
 .edge-arrows { position: absolute; inset: 0; pointer-events: none; }
@@ -30,14 +30,14 @@
 .marker-ring .ring-glow { fill: var(--c); filter: drop-shadow(0 0 7px var(--c)) drop-shadow(0 0 2px var(--c)); }
 .marker-ring .ring-core { fill: color-mix(in srgb, var(--c) 35%, var(--white)); }
 .marker-ring .ring-t { fill: var(--c); stroke: rgb(var(--rgb-black) / .75); stroke-width: 3; paint-order: stroke; stroke-linejoin: round; font: var(--fw-semi) var(--t-2)/1 var(--font-mono); letter-spacing: .06em; font-variant-numeric: tabular-nums; }
-.edge-pin span { margin-top: var(--sp-1); padding: 1px var(--sp-3); background: var(--tag); color: var(--c); font-size: var(--t-3); font-weight: var(--fw-semi); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.edge-pin span { margin-top: var(--sp-1); padding: 1px var(--sp-3); background: var(--tag); color: var(--c); font-size: var(--t-3); font-weight: var(--fw-semi); white-space: nowrap; font-variant-numeric: tabular-nums; font: var(--fw-semi) var(--t-2)/1.4 var(--font-mono); letter-spacing: .06em; }
 .edge-pin { position: absolute; translate: -50% -100%; display: flex; flex-direction: column; align-items: center; }
 .edge-pin::after { content: ""; width: 0; height: 0; border-top: 9px solid var(--c); border-left: 6px solid transparent; border-right: 6px solid transparent; }
 
 /* ── Своя метка на карте ── */
 .pin-dot--mark { background: var(--mark-own); border-radius: 0 var(--r-round) var(--r-round) var(--r-round); }
 .map-view.is-marking { cursor: crosshair; }
-.map-tools .icon-btn[aria-pressed="true"] { color: var(--signal); border-color: var(--signal); }
+
 .map-tools .icon-btn[aria-pressed="true"]::after { content: none; }
 .map-places li { display: flex; gap: var(--sp-2); }
 .map-places li > button:first-child { flex: 1; min-width: 0; }
@@ -45,29 +45,48 @@
 .frame.compact .map-places li > button:first-child { grid-template-columns: 12px minmax(0, 1fr); row-gap: 0; }
 .frame.compact .map-places li > button:first-child small { grid-column: 2; }
 .map-places .icon-btn { flex: none; width: var(--ctl-s); height: auto; }
-.map-places .map-hint { display: block; color: var(--ash); font-size: var(--t-small); line-height: 1.5; }
+.map-places .map-hint { display: block; line-height: 1.5; }
 .map-hint svg { width: 14px; height: 14px; vertical-align: -2px; }
 
 /* ── Каналы чата ── */
 .chat-head #chatListBtn { flex: none; }
 .chat-head #chatListBtn .badge { top: 0; right: 0; }
-.chat-list { position: absolute; z-index: 2; left: 0; right: 0; top: var(--chat-head, 44px); bottom: 0; list-style: none; overflow-y: auto; padding: var(--sp-4); background: var(--graphite-solid); display: flex; flex-direction: column; gap: var(--sp-1); }
+.chat-list { position: absolute; z-index: 2; left: 0; right: 0; top: var(--chat-head, 44px); bottom: 0; list-style: none; overflow-y: auto; padding: var(--sp-4); display: flex; flex-direction: column; gap: var(--sp-1); }
 .chat-list[hidden] { display: none; }
-.chat-list button { width: 100%; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--sp-1) var(--sp-4); padding: var(--sp-4) var(--sp-5); text-align: left; }
+.chat-list button { width: 100%; display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: var(--sp-1) var(--sp-4); padding: var(--sp-4) var(--sp-5); text-align: left; border-bottom: 1px dashed var(--seam); }
 .chat-list button:hover { background: var(--plate-hover); }
-.chat-list button.is-on { background: var(--signal-soft); }
-.chat-list b { font-weight: var(--fw-semi); color: var(--bone); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.chat-list b { font-weight: var(--fw-semi); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font: var(--fw-semi) var(--t-6)/1.3 var(--font-text); color: var(--bone); }
 .chat-list i { font-style: normal; min-width: 18px; height: 18px; padding: 0 var(--sp-3); background: var(--danger); color: var(--white); font: var(--fw-bold) var(--t-3)/var(--t-10) var(--font); text-align: center; }
-.chat-list span { grid-column: 1 / -1; color: var(--ash); font-size: var(--t-small); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.chat-list span { grid-column: 1 / -1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-size: var(--t-4); color: var(--ash); }
 /* Счётчик на вкладке — в углу, на месте, которое у вкладки есть всегда: появился или пропал — вкладки не сдвигаются */
-.chat-tabs { gap: var(--sp-1); }
-.chat-tab { padding-right: var(--sp-8) !important; }
+
+
 .chat-tab .chat-badge { position: absolute; top: 1px; right: 0; margin: 0; }
 /* Подчёркивание выбранной вкладки — по тексту, без места под счётчик */
-.chat-tab.is-on { border-bottom-color: transparent; }
-.chat-tab.is-on::after { content: ""; position: absolute; left: 0; right: 16px; bottom: -1px; height: 2px; background: var(--signal); }
+
+.chat-tab.is-on::after { content: ""; position: absolute; left: 0; right: 16px; bottom: -1px; height: 2px; background: var(--bone); }
 .chat-input:disabled { opacity: .6; cursor: not-allowed; }
 
 /* ── Стенд: места текста сервера — текст скрыт, видна его коробка ── */
 .frame.srv-slots [data-srv], .frame.srv-slots [data-srv] * { color: transparent !important; text-shadow: none !important; }
 .frame.srv-slots [data-srv] { outline: 1px dashed var(--ash); outline-offset: -1px; background-color: rgb(var(--rgb-ash) / .08); }
+
+/* ── Обучение (js/tutorial.js): подсказка MN — плашка панели с выноской из угла; линза — просвет у конца выноски ── */
+.tut-layer { position: absolute; inset: 0; z-index: var(--z-float); pointer-events: none; }   /* без обрезки: тень линзы закрывает и безопасные зоны кадра */
+.tut-layer[hidden] { display: none; }
+/* Линза: всё вокруг просвета притушено базальтом; глубина — линией по краю просвета, без размытия */
+.tut-lens { position: absolute; box-shadow: 0 0 0 200vmax rgb(var(--rgb-void) / .62); outline: 1px solid rgb(var(--rgb-bone) / .5); }
+.tut-lens[hidden] { display: none; }
+.tut { position: absolute; max-width: 320px; pointer-events: auto; }
+.tut-box { padding: var(--sp-6) var(--sp-7); }
+.tut-text { font: var(--fw-normal) var(--t-body)/1.4 var(--font-text); color: var(--bone); white-space: pre-line; }
+/* Выноска: линия 22 px под 45° из угла плашки, на конце — квадрат-метка; у правого верхнего угла продолжает диагональ среза */
+.tut-lead { position: absolute; width: 31px; height: 1px; background: var(--bone); }
+.tut-lead::after { content: ""; position: absolute; top: -3px; width: 7px; height: 7px; background: var(--bone); }
+.tut[data-corner="ru"] .tut-lead { left: 100%; top: 0; transform-origin: left center; rotate: -45deg; }
+.tut[data-corner="rd"] .tut-lead { left: 100%; top: 100%; transform-origin: left center; rotate: 45deg; }
+.tut[data-corner="ld"] .tut-lead { right: 100%; top: 100%; transform-origin: right center; rotate: -45deg; }
+.tut[data-corner="lu"] .tut-lead { right: 100%; top: 0; transform-origin: right center; rotate: 45deg; }
+.tut:is([data-corner="ru"], [data-corner="rd"]) .tut-lead::after { right: -3px; }
+.tut:is([data-corner="ld"], [data-corner="lu"]) .tut-lead::after { left: -3px; }

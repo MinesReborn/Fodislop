@@ -18,7 +18,6 @@ using VContainer.Unity;
 
 using Kern.AssetPipeline.Cache;
 using Kern.AssetPipeline.Loading;
-using Kern.Bootstrap.Diagnostics;
 using Kern.Core.Configuration;
 using Kern.Core.Diagnostics;
 using Kern.Core.Rendering;
@@ -28,9 +27,8 @@ using Kern.Game.Player.Stats;
 using Kern.Infrastructure.Audio;
 using Kern.Networking.Authentication;
 using Kern.Networking.Gateways;
-using Kern.Networking.Offline;
+using Kern.Networking.Dummy;
 using Kern.Networking.Processing;
-using Kern.Networking.WorldEntry;
 using Kern.Rendering.Display;
 using Kern.UI.Menu;
 using Kern.Core;
@@ -43,10 +41,6 @@ namespace Kern.Bootstrap.Scenes
     public class BootstrapLifetimeScope : LifetimeScope, IMainMenuNavigation, ISceneNavigator
     {
         private const string MainMenuSceneName = SceneNames.MainMenu;
-
-        // Первой после Bootstrap грузится не меню, а Gateway: вход и онбординг.
-        // Он сам загрузит MainMenu и выгрузится, когда игрок пройдёт ворота.
-        private const string GatewaySceneName = SceneNames.Gateway;
 
         [SerializeField] private Camera _applicationCamera = null!;
         [SerializeField] private ConnectionManager _connectionManager = null!;
@@ -283,7 +277,7 @@ namespace Kern.Bootstrap.Scenes
                     string.Equals(sceneName, SceneNames.MainGame, StringComparison.Ordinal) &&
                     ex is TimeoutException &&
                     _connectionManager.IsWorldStartupPending &&
-                    !_connectionManager.IsOffline &&
+                    !_connectionManager.IsDummy &&
                     _connectionManager.IsConnected;
                 if (worldStartupTimedOut)
                 {
@@ -465,8 +459,6 @@ namespace Kern.Bootstrap.Scenes
             RegisterAuthored(builder, _textureStorageManager, nameof(_textureStorageManager));
             RegisterAuthored(builder, _loadingScreen, nameof(_loadingScreen));
             builder.Register<LocalizationService>(Lifetime.Singleton).AsImplementedInterfaces().AsSelf();
-            // Проверки целостности файлов для окна «Диагностика и целостность файлов».
-            builder.Register<MenuFileDiagnosticsService>(Lifetime.Singleton).As<IMenuFileDiagnosticsService>();
             builder.RegisterEntryPoint<HDROutputReconciler>();
             builder.RegisterEntryPoint<ApplicationBootstrap>();
         }

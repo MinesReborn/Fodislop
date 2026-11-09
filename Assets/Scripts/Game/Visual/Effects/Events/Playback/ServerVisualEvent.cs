@@ -6,6 +6,7 @@ using System.Diagnostics.CodeAnalysis;
 using System.Globalization;
 using System.Threading;
 using Cysharp.Threading.Tasks;
+using Kern.Core;
 using Kern.Core.Interfaces;
 using Kern.Core.Lifecycle;
 using Kern.World;
@@ -81,8 +82,6 @@ public sealed class ServerVisualEvent : IServerWorldEffect
 
     private Sprite[]? _animationFrames;
     private Sprite? _ownedStaticSprite;
-    private IWorldLabel? _collectionLabel;
-    private readonly IWorldLabels? _worldLabels;
     private Sprite? _flightSprite;
     private GameObject? _sourceCollectionSpriteObject;
     private bool _ownedStaticSpriteShared;
@@ -130,6 +129,9 @@ public sealed class ServerVisualEvent : IServerWorldEffect
     private const int BeamSortingOrder = -600;
     private const string BeamShaderName = "Kern/UnlitGunShot";
 
+    // Опциональный ассет: если его нет, рисуется процедурный маркер.
+    private const string PlaceDenyVisualPath = "Visual/placedeny.png";
+
     private bool _beamMode;
     private GameObject? _beamObject;
     private Mesh? _beamMesh;
@@ -167,7 +169,6 @@ public sealed class ServerVisualEvent : IServerWorldEffect
         SpriteAnimationLibrary spriteAnimations,
         CrystalCollectionVisualVariant crystalCollectionVariant,
         ISceneObjectFactory sceneObjects,
-        IWorldLabels? worldLabels = null,
         Vector2Int? localSourceCell = null,
         float? localFacingAngle = null,
         LightingEngine? lighting = null)
@@ -186,7 +187,6 @@ public sealed class ServerVisualEvent : IServerWorldEffect
         _visualEffectPool = visualEffectPool;
         _batchRenderer = batchRenderer;
         _sceneObjects = sceneObjects;
-        _worldLabels = worldLabels;
 
         if (slot != null)
         {
@@ -276,8 +276,6 @@ public sealed class ServerVisualEvent : IServerWorldEffect
 
     public void Dispose()
     {
-        _collectionLabel?.Dispose();
-        _collectionLabel = null;
         if (_isDisposed)
         {
             return;
@@ -559,10 +557,8 @@ public sealed class ServerVisualEvent : IServerWorldEffect
         await CreateCrystalDigitsAsync(token);
     }
 
-    // The counter is always the project's UI Toolkit world label; the crystal
-    // variant selects only the flying sprite. A per-effect Canvas/TMP paid its
-    // first font/shader initialization inside gameplay and blocked the render
-    // thread for about a second.
+    // Счётчик добычи — пиксельные цифры листа CrystalDigitSheet, окрашенные цветом кристалла,
+    // рядом с летящим кристаллом; летят вместе с ним (UpdateFlight). Одиночный кристалл — без числа.
     private UniTask CreateCrystalDigitsAsync(CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
@@ -571,23 +567,40 @@ public sealed class ServerVisualEvent : IServerWorldEffect
             return UniTask.CompletedTask;
         }
 
-        if (_worldLabels == null)
+        if (_gameObject == null)
         {
-            throw new InvalidOperationException("Crystal collection requires world labels.");
+            throw new InvalidOperationException("Crystal collection requires its world root.");
         }
 
-        _digitRowOffset = 0.25f;
+        Texture2D sheet = Resources.Load<Texture2D>(ResourcePaths.CrystalDigitsTexture)
+            ?? throw new InvalidOperationException($"Missing Resources/{ResourcePaths.CrystalDigitsTexture}.");
+        Color tint = CrystalDigitSheet.TintOf(_parsedParams.CrystalColorLetter);
+        string digits = _parsedParams.CrystalCount.ToString(CultureInfo.InvariantCulture);
+
+        _digitRowOffset = CrystalDigitSheet.FirstDigitOffset;
         _digitRowVerticalOffset = 0f;
-        _collectionLabel = _worldLabels.Create(WorldLabelKind.Collection);
-        _collectionLabel.SetText(_parsedParams.CrystalCount.ToString(CultureInfo.InvariantCulture));
-        _collectionLabel.SetPosition(_intendedWorldPosition +
-            new Vector3(_digitRowOffset, _digitRowVerticalOffset, 0f));
-        _collectionLabel.SetVisible(true);
+        _digitStep = CrystalDigitSheet.DigitStep;
+        Vector3 digitBase = _gameObject.transform.position + new Vector3(_digitRowOffset, _digitRowVerticalOffset, 0f);
+        for (int i = 0; i < digits.Length; i++)
+        {
+            int cell = CrystalDigitSheet.CellOf(digits[i] - '0');
+            Sprite sprite = Sprite.Create(
+                sheet,
+                new Rect(cell * CrystalDigitSheet.CellPx, 0f, CrystalDigitSheet.CellPx, CrystalDigitSheet.CellPx),
+                new Vector2(0.5f, 0.5f),
+                RenderingConstants.PIXELS_PER_UNIT);
+            _digitSprites.Add(sprite);
+            GameObject digit = CreateSourceCollectionSpriteObject(_sceneObjects, _gameObject.transform, sprite, tint);
+            digit.GetComponent<SpriteRenderer>().sortingOrder = CrystalDigitSheet.SortingOrder;
+            digit.transform.position = digitBase + (Vector3.right * (_digitStep * i));
+            _digitObjects.Add(digit);
+        }
+
         return UniTask.CompletedTask;
     }
 
     // Reference implementation for the crystal pixel-parity PlayMode harness;
-    // runtime crystal counters use IWorldLabels instead.
+    // runtime crystal counters use the CrystalDigitSheet sprites instead.
     internal static GameObject CreateSourceCollectionCounter(
         ISceneObjectFactory sceneObjects,
         Transform parent,
@@ -674,7 +687,7 @@ public sealed class ServerVisualEvent : IServerWorldEffect
     // процедурный красный круг с чертой — как в легаси-клиенте.
     private async UniTask LoadPlaceDenyVisualAsync(CancellationToken token)
     {
-        if (await TryLoadNamedVisualAsync("Visual/placedeny.png", token))
+        if (await TryLoadNamedVisualAsync(PlaceDenyVisualPath, token))
         {
             return;
         }
@@ -1043,7 +1056,6 @@ public sealed class ServerVisualEvent : IServerWorldEffect
         }
 
         Vector3 digitBase = position + new Vector3(_digitRowOffset, _digitRowVerticalOffset, 0f);
-        _collectionLabel?.SetPosition(digitBase);
         for (int i = 0; i < _digitObjects.Count; i++)
         {
             if (_digitObjects[i] != null)
@@ -1172,8 +1184,6 @@ public sealed class ServerVisualEvent : IServerWorldEffect
     private void ReleaseSlot()
     {
         _light?.Dispose();
-        _collectionLabel?.Dispose();
-        _collectionLabel = null;
         if (_sourceCollectionSpriteObject != null)
         {
             UnityEngine.Object.Destroy(_sourceCollectionSpriteObject);

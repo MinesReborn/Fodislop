@@ -1,9 +1,10 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements">
-    <ui:VisualElement name="MinimapPanel" class="hud-minimap-panel sci-fi-panel" picking-mode="Position">
-        <ui:Label name="MinimapCoordinates" class="hud-minimap-coords" />
+    <!-- Миникарта — макет visual/kern-ui (.panel.minimap): панель со срезанным углом, координаты полосой поверх карты -->
+    <ui:VisualElement name="MinimapPanel" class="hud-minimap-panel panel" picking-mode="Position">
         <ui:VisualElement class="hud-minimap-container">
             <ui:Image name="MinimapImage" class="hud-minimap-image" />
             <ui:VisualElement name="MinimapPlayerMarker" class="hud-minimap-player-marker" picking-mode="Ignore" />
         </ui:VisualElement>
+        <ui:Label name="MinimapCoordinates" class="hud-minimap-coords" picking-mode="Ignore" />
     </ui:VisualElement>
 </ui:UXML>

@@ -14,8 +14,7 @@ public class LinePacketBuilder : PacketUIBuilderBase<LinePacket>
     {
         // Цвет линии приходит стилем — заливкой фона (GUIStylePacket.Background),
         // как и толщина (BorderWidth): цвет задаёт сервер, клиент только
-        // рендерит. Без стиля или с прозрачной заливкой остаётся белый -
-        // так линии рисовались до появления цвета в протоколе.
+        // рендерит. Без стиля используется стандартный белый цвет.
         var line = new UILine
         {
             Direction = packet.Direction,
@@ -29,10 +28,7 @@ public class LinePacketBuilder : PacketUIBuilderBase<LinePacket>
                 line.Thickness = style.BorderWidth;
             }
 
-            if (style.Background.A > 0)
-            {
-                line.LineColor = new Color32(style.Background.R, style.Background.G, style.Background.B, style.Background.A);
-            }
+            line.LineColor = new Color32(style.Background.R, style.Background.G, style.Background.B, style.Background.A);
         }
 
         // Длинная ось тянется на 100% — это константа и живёт в USS.

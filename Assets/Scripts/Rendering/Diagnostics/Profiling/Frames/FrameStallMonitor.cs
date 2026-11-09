@@ -96,7 +96,7 @@ public sealed class FrameStallMonitor : IStartable, ITickable, IDisposable
     {
         double frameMs = Time.unscaledDeltaTime * 1000.0;
         double baselineMs = _baseline.Milliseconds;
-        bool stall = baselineMs > 0.0 && FrameBudget.IsStall(frameMs, baselineMs);
+        bool stall = _baseline.IsReady && FrameBudget.IsStall(frameMs, baselineMs);
         _baseline.Push(frameMs);
         if (stall)
         {
@@ -124,11 +124,11 @@ public sealed class FrameStallMonitor : IStartable, ITickable, IDisposable
         _worstFrameMs = frameMs;
         _worstBaselineMs = baselineMs;
         _worstFrame = Time.frameCount - 1;
-        _worstAllocatedBytes = _allocated.Available ? _allocated.ReadLast() : -1.0;
+        _worstAllocatedBytes = _allocated.TryReadLast(out double allocatedBytes) ? allocatedBytes : -1.0;
         for (int index = 0; index < _probes.Count; index++)
         {
             FrameProbe probe = _probes[index];
-            _worstValues[index] = probe.Available && probe.IsTime ? probe.ReadLast() : -1.0;
+            _worstValues[index] = probe.Available && probe.IsTime && probe.TryReadLast(out double value) ? value : -1.0;
         }
     }
 

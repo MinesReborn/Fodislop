@@ -9,9 +9,11 @@ using Kern.Core;
 namespace Kern.Rendering.PostProcessing;
 public static class PostProcessRuntimeState
 {
-    internal static float FisheyeScale { get; set; }
 
     internal static Camera? MainCamera { get; private set; }
+
+    // Режим для дальтоников (EffectSettings.ColorVision): 0 — выкл., 1–3 — протанопия, дейтеранопия, тританопия
+    internal static int ColorVisionMode { get; set; }
 
     // Explicit production-image observation. The test records a GPU readback in
     // the real pass before its input is discarded. All arguments are borrowed
@@ -75,6 +77,11 @@ public static class PostProcessRuntimeState
 
     internal static float DisplayPaperWhiteNits => s_displayPaperWhiteNits;
 
+    // Уровень чёрного и яркость SDR — ползунки калибровки 0..100, 50 — нейтрально (DisplaySettings)
+    internal static float DisplayBlackLevel { get; private set; } = DisplaySettings.DefaultBlackLevel;
+
+    internal static float DisplayBrightness { get; private set; } = DisplaySettings.DefaultBrightness;
+
     internal static float DisplayPeakBrightnessNits => s_displayPeakBrightnessNits;
 
     // Цветокоррекция кадра — один LUT. Присылает его сервер как эффект;
@@ -110,10 +117,25 @@ public static class PostProcessRuntimeState
 
     public static float CalibrationValue { get; private set; }
 
+    // Места узора — прямоугольники в долях кадра от левого верхнего угла (x, y, ширина, высота): их задаёт
+    // раскладка экрана калибровки, чтобы узор стоял ровно там, где подписи и рамки интерфейса.
+    public static Vector4 CalibrationRect0 { get; private set; }
+
+    public static Vector4 CalibrationRect1 { get; private set; }
+
+    public static Vector4 CalibrationRect2 { get; private set; }
+
     public static void SetCalibrationPattern(CalibrationPattern pattern, float valueNits)
     {
         CalibrationMode = pattern;
         CalibrationValue = valueNits;
+    }
+
+    public static void SetCalibrationRects(Vector4 rect0, Vector4 rect1, Vector4 rect2)
+    {
+        CalibrationRect0 = rect0;
+        CalibrationRect1 = rect1;
+        CalibrationRect2 = rect2;
     }
 
     public static bool TemporaryBypass
@@ -198,7 +220,9 @@ public static class PostProcessRuntimeState
     [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
     private static void ResetForDomainReload()
     {
-        FisheyeScale = 0f;
+        ColorVisionMode = 0;
+        DisplayBlackLevel = DisplaySettings.DefaultBlackLevel;
+        DisplayBrightness = DisplaySettings.DefaultBrightness;
         MainCamera = null;
         DiagnosticOffscreenCamera = null;
         DiagnosticWorldImage = null;
@@ -248,6 +272,12 @@ public static class PostProcessRuntimeState
 
         s_displayPaperWhiteNits = sanitizedPaperWhite;
         s_displayPeakBrightnessNits = sanitizedPeakBrightness;
+    }
+
+    public static void SetDisplayAdjustments(float blackLevel, float brightness)
+    {
+        DisplayBlackLevel = FiniteClamp(blackLevel, DisplaySettings.AdjustmentMin, DisplaySettings.AdjustmentMax, DisplaySettings.DefaultBlackLevel);
+        DisplayBrightness = FiniteClamp(brightness, DisplaySettings.AdjustmentMin, DisplaySettings.AdjustmentMax, DisplaySettings.DefaultBrightness);
     }
 
     // null или нулевая сила выключают LUT; проход вывода тогда не тратит на

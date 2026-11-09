@@ -10,11 +10,13 @@ map when a production root or assembly boundary changes.
 | --- | --- | --- |
 | `Assets/` | Unity-authored game code, assets, scenes, and runtime resources | Keep Unity GUIDs by moving each asset together with its `.meta` file. Never edit serialized Unity assets as text. |
 | `Packages/` | Embedded Unity packages | Keep vendor package code and assets inside their package; do not mix game code into it. |
+| `Packages/MinesServerNetworking/` | Local submodule supplying `darkar25.kern.*` packages | Treat as an external dependency; do not move its code into `Assets/Scripts/`. |
 | `ProjectSettings/` | Unity project configuration | Change only for a requested project-setting change; avoid mass-formatting. |
 | `KernAudio/` | FMOD Studio project, metadata, source audio, and built banks | Follow the `fmod-sync` skill when synchronizing banks. |
 | `tools/` | Standalone .NET tools, harnesses, and test projects | Keep generated `bin/` and `obj/` out of source. |
 | `scripts/` | Small project automation and asset-generation entry points | Use for thin scripts; put substantial tools and their code in `tools/`. |
-| `visual/` | Independent UI lab and visual generators | This is not production UI unless a production integration is explicit. |
+| `Scripts/` | Compatibility entry points for CI and Git-hook setup | The CI wrapper mirrors `scripts/run-ci.sh`; use the lowercase `scripts/` entry point for local checks. |
+| `visual/` | UI/brand design references, prototypes, token sources, and visual generators | Prototypes are not runtime markup. Generated production outputs and their source-of-truth workflows are documented below. |
 | `docs/` | Architecture, planning, operations, design, and research documents | Put new project documents in the matching subdirectory, not at repository root. |
 | `.agents/` | Agent guidance, skills, and repository context | Never put runtime code here. |
 
@@ -39,6 +41,7 @@ definitions are:
 | `Kern.Diagnostics` | `Diagnostics` | Runtime capture, telemetry, logging and world diagnostic primitives |
 | `Kern.Application` | `Game` | Game and player application behavior |
 | `Kern.Networking` | `Networking` | Transport, packet processing, and network-facing models |
+| `Kern.Dummy` | `Dummy` | In-process dummy server: scenarios, world simulation, local map data; sources live under `Networking/Dummy` through an asmref |
 | `Kern.Presentation` | `Rendering` | Rendering and post-processing presentation code |
 | `Kern.UI` | `UI` | UI Toolkit presentation and controllers |
 | `Kern.World` | `World` | World, terrain, lighting, streaming, and storage integration |
@@ -52,6 +55,12 @@ definitions are:
 third-party code belongs under `Assets/Plugins/` or `Packages/`, according to
 how that dependency is integrated. Folder names do not grant assembly ownership;
 check the nearest `.asmdef` or `.asmref` before moving C# files.
+
+Unity tests are split across `Kern.Tests.Editor`, `Kern.Tests.PlayMode`, and
+`Kern.Tests.Shared`; their asmdefs are under `Assets/Scripts/Tests/`, while
+editor-only test source also joins the editor test assembly through an asmref.
+Standalone .NET projects target `net10.0`; their supported local entry point is
+`scripts/run-ci.sh`. Its exact coverage is maintained in `tools/README.md`.
 
 `Assets/Scripts/Rendering/UrpIntegration` contains an explicit asmref into
 `Unity.RenderPipelines.Universal.Runtime`. Its attachment adapter owns only the
@@ -72,6 +81,21 @@ reference game assemblies, use reflection, or modify camera components or assets
   Shared tokens and styles live in `Assets/Resources/UI/Theme/`; panel and theme
   assets stay under `Assets/UI/Toolkit/`. Each feature owns its Templates,
   Styles, Icons, and Sprites categories as needed.
+- `Assets/Resources/Fonts/` contains runtime font files and TMP SDF assets.
+  The Kern theme currently uses Exo 2 for display text, Onest for body/UI text,
+  and JetBrains Mono for numeric/data labels; localized Noto Sans CJK assets are
+  also present. Keep font licenses with their corresponding font assets.
+- `Assets/Resources/Localization/Locales/` contains the runtime JSON dictionaries
+  `ru`, `en`, `zh`, and `zh-hant`. The settings language selector is maintained
+  separately in `SettingsChoices.Languages`; keep its entries aligned with the
+  dictionary resources.
+- `Assets/Resources/UI/Theme/Tokens/Styles/KernTokens.uss` is generated from
+  `visual/kern-ui/css/tokens.css` through
+  `tools/generators/Kern.DesignSystem emit-uss-tokens`; use its `--check` mode
+  to verify generated tokens. `Assets/Resources/UI/Theme/Kern/Styles/Icons.uss`
+  is emitted from the visual HUD icon source by
+  `visual/kern-ui/tools/emit-hud-icons.py`. Edit source inputs and regenerate
+  these outputs instead of hand-editing generated files.
 - `Assets/Textures/` contains authored, directly referenced/imported art. Group
   by stable domain (cells, items, UI, VFX, etc.). Numeric or legacy names that
   are identifiers must be mapped/documented rather than renamed for aesthetics.
@@ -92,8 +116,14 @@ reference game assemblies, use reflection, or modify camera components or assets
 - Platform-independent harnesses and .NET tests live under `tools/` in a
   named project directory. They supplement, but do not replace, Unity tests
   when production Unity behavior is the subject of verification.
-- `scripts/` is for small entry points; reusable or multi-file implementation
-  belongs under `tools/`.
+- `scripts/` is the canonical lower-case entry point for local CI and hook setup;
+  top-level `Scripts/` retains compatibility wrappers. Reusable or multi-file
+  implementation belongs under `tools/`.
+- Current tool categories are `tools/architecture/` (linter, tests and
+  repository taxonomy), `tools/tests/` (standalone tests), `tools/harness/`
+  (capture analysis and benchmarks), `tools/generators/` (asset/data generators),
+  and `tools/lib/` (shared external assemblies). Use `tools/README.md` as the
+  maintained project list rather than copying a second inventory here.
 
 ## Taxonomy
 
@@ -129,3 +159,15 @@ UI references and project shader includes. Inventories live beside that tool.
 Do not include local or generated trees such as `Library/`, `Temp/`, `Logs/`,
 `Build/`, `LightingDumps/`, `ProfilerCaptures/`, `UserSettings/`, `bin/`, and
 `obj/` in source inventories or repository maps.
+
+## Review log
+
+- **2026-11-08:** Rechecked production `.asmdef`/`.asmref` roots, test/tool
+  locations, and generated UI token/icon ownership. A read-only run of the
+  taxonomy validator exited 1: it reported 62 missing move targets, 122 missing
+  asset/metadata records, and 12 authored-byte mismatches. The move and asset
+  inventories were left unchanged; the output does not establish when or why
+  those differences entered the working tree. A scan of 114 Markdown/HTML
+  documents against all 1,119 old move paths found one occurrence, inside the
+  historical `docs/design/surface-original-improvement.html` report; current
+  guidance and README files do not reference those old paths.

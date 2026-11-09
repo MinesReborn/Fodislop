@@ -1,38 +1,38 @@
-/* ═══════════════════════════════════════════════════════════
-   Input — стили полей ввода
-   ═══════════════════════════════════════════════════════════ */
 
-.text-field {
-    background-color: var(--surface-shelf-solid);
-    border-color: var(--border-subtle);
-    border-width: var(--border-width-thin);
-    border-radius: var(--radius-sm);
-    padding: var(--space-3) var(--space-5);
-    color: var(--text-primary);
-    font-size: var(--size-md);
+
+/* ── Поле макета (visual/kern-ui: screens.css .input, micro.css .input) ──
+   Углубление: поле well, рамка seam-strong, подсказка дымом. В фокусе — рамка сигналом и полоса 2 px слева
+   (inset 2px 0 0 в макете: здесь левая граница 3 px, поле сдвинуто на 2 px, чтобы текст не прыгал). */
+.input {
+    height: var(--hit);
+    margin: 0;
+    padding: 0;
 }
 
-.text-field:focus {
-    border-color: var(--accent-gold);
+.input > .unity-base-text-field__input {
+    margin: 0;
+    padding: 0 var(--sp-7);
+    border-width: 1px;
+    border-radius: 0;
+    border-color: var(--seam-strong);
+    background-color: var(--well);
+    color: var(--bone);
+    -unity-font-definition: var(--face-text);
+    font-size: var(--t-body);
+    -unity-text-align: middle-left;
 }
 
-.text-field-label {
-    color: var(--text-secondary);
-    font-size: var(--size-sm);
-    margin-bottom: var(--space-2);
+.input:focus > .unity-base-text-field__input {
+    border-color: var(--signal);
+    border-left-width: 3px;
+    padding-left: 12px;
 }
 
-/* Поле не приняло ввод: RegexTextField навешивает класс invalid при
-   несовпадении с шаблоном и снимает при совпадении. Правила под классом не
-   было вовсе — отказ ввода происходил молча, значение откатывалось без
-   единого признака. Приём взят из макета (components.css, модификатор
-   danger): рамка и текст красятся в цвет опасности, заливка не трогается. */
-
-.text-field.invalid {
-    border-color: var(--state-danger-glow);
-    color: var(--state-danger);
+.input .unity-base-text-field__input--placeholder,
+.input > .unity-base-text-field__input > .unity-text-element--placeholder {
+    color: var(--smoke);
 }
 
-.text-field.invalid:focus {
-    border-color: var(--state-danger);
+.input.invalid > .unity-base-text-field__input {
+    border-color: var(--danger);
 }

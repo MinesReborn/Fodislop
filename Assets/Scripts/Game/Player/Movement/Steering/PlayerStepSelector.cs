@@ -111,9 +111,14 @@ public static class PlayerStepSelector
     }
 
     // Сервер поправил клетку на соседнюю (отказ шага, догоняющий снимок).
-    // Обход сбрасываем, но фазу змейки сохраняем: иначе следующая диагональ
-    // снова начинается с Primary и идёт ВВЕРХ-ВВЕРХ-ВЛЕВО вместо ВВЕРХ-ВЛЕВО.
-    public static void Resync(PlayerStepSelectorState state) => Release(state);
+    // Сбрасываем только обход и кэш шага: удерживаемое намерение, его таймер
+    // и фаза змейки остаются. Иначе каждая коррекция сервера заново взводила
+    // задержку обхода на AssistHoldDelay, и помощь в движении замолкала.
+    public static void Resync(PlayerStepSelectorState state)
+    {
+        state.LastDetourStep = Vector2Int.zero;
+        state.HasCachedStep = false;
+    }
 
     private static Vector2Int SelectStraight(
         PlayerStepSelectorState state,
@@ -152,9 +157,10 @@ public static class PlayerStepSelector
         StepCell secondCell = Classify(position, second, mapDataProvider, storage, ignoreCollision);
 
         // Автокопание: змейка строгая, порода на очередной оси бурится.
+        // Ось за границей мира пропускаем в пользу второй.
         if (autoDig)
         {
-            return firstCell != StepCell.OutOfWorld || secondCell == StepCell.OutOfWorld ? first : second;
+            return firstCell == StepCell.OutOfWorld ? second : first;
         }
 
         if (firstCell is StepCell.Open or StepCell.Unknown)

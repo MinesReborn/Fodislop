@@ -15,6 +15,7 @@ using UnityEngine.TestTools;
 using UnityEngine.UI;
 using Object = UnityEngine.Object;
 
+using Kern.Diagnostics.Artifacts;
 using Kern.Game.Visual.Effects.Events.Playback;
 using Kern.Game.Visual.Effects.Sprites;
 
@@ -54,8 +55,7 @@ public sealed class CrystalCollectionPixelParityPlayModeTests
         var ownedRenderTextures = new List<RenderTexture>();
         SpriteAnimationLibrary? productionLibrary = null;
         string outputDirectory = Path.Combine(
-            Directory.GetParent(Application.dataPath)!.FullName,
-            "Logs/Diagnostics/CrystalPixelParity",
+            DiagnosticArtifactPaths.GetDirectory("CrystalPixelParity"),
             Guid.NewGuid().ToString("N"));
         string sourceDirectory = Path.Combine(outputDirectory, "source");
         string productionDirectory = Path.Combine(outputDirectory, "production");

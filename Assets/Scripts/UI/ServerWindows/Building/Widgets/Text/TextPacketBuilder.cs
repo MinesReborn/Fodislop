@@ -25,7 +25,10 @@ public class TextPacketBuilder : PacketUIBuilderBase<TextPacket>
             // Кнопка канваса — тот же кликабельный текст, но с геометрией
             // (Canvas.X/Y/Width/Height задаёт сервер): фикс-минимум обычного
             // экшена сбрасывается, размер кнопки приходит из пакета.
-            if (AttachedProperties.Has(packet, "Canvas.X"))
+            if (AttachedProperties.Has(packet, "Canvas.X") ||
+                AttachedProperties.Has(packet, "Canvas.Y") ||
+                AttachedProperties.Has(packet, "Canvas.Width") ||
+                AttachedProperties.Has(packet, "Canvas.Height"))
             {
                 button.AddToClassList("packet-window-action--canvas");
             }
@@ -39,18 +42,7 @@ public class TextPacketBuilder : PacketUIBuilderBase<TextPacket>
         // Некликабельный текст не ловит мышь: плашки уровней и подписи лежат
         // поверх кликабельных иконок канваса и не должны съедать их клики.
         label.pickingMode = PickingMode.Ignore;
-        // Выравнивание в приёме legacy-клиента: текст по центру; префикс "@@"
-        // (две собачки) — маркер автора страницы, такой текст прижат влево.
-        bool leftAligned = packet.Text.StartsWith("@@", StringComparison.Ordinal);
-        if (leftAligned)
-        {
-            label.text = packet.Text[2..];
-            label.AddToClassList("packet-text--left");
-        }
-        else
-        {
-            label.AddToClassList("packet-text--center");
-        }
+        label.AddToClassList("packet-text--center");
 
         return label;
     }

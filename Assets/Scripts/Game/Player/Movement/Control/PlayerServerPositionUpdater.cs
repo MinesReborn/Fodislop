@@ -5,13 +5,18 @@ using Kern.Core;
 using Kern.Core.Interfaces;
 using Kern.Game.Entities.Robots;
 using Kern.World;
+using MinesServer.Data;
 using UnityEngine;
 
 namespace Kern.Game.Player.Movement;
 
 internal sealed class PlayerServerPositionUpdater
 {
-        public void UpdateServerPosition(IPlayerMovementActionContext context, Vector2Int position, bool teleport)
+        public void UpdateServerPosition(
+            IPlayerMovementActionContext context,
+            Vector2Int position,
+            bool teleport,
+            Direction? rotation)
         {
             if (context.MapDataProvider == null)
             {
@@ -25,6 +30,15 @@ internal sealed class PlayerServerPositionUpdater
                 throw new InvalidOperationException(
                     $"[PlayerMovementController] Cannot apply server position {position}: " +
                     $"world height is {worldHeight}.");
+            }
+
+            // Direction в снимке авторитетен: сервер сам выводит ориентацию
+            // из принятого шага и подтверждает поворот. Клиентское
+            // предсказание угла живёт только до этого пакета.
+            if (rotation.HasValue)
+            {
+                context.LastServerRotation = rotation.Value;
+                context.LastSentDirection = rotation.Value;
             }
 
             bool shouldSnap = !context.HasServerPosition ||

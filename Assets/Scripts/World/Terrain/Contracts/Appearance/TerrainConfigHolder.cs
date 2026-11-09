@@ -86,12 +86,12 @@ public static class TerrainConfigHolder
     // 0.51 — не подбор на глаз. В оригинале тень на полу это 1 - z² при
     // z = 0.7, то есть ровно 0.51, и глубже пол там не темнеет никогда.
     public const float AmbientOcclusionStrength = 0.9f;
-    public const float AmbientOcclusionFloor = 0.51f;
+    public const float AmbientOcclusionFloor = 0.50f;
     // Максимальная ширина поля контактного затенения за геометрией, в клетках.
     public const float AmbientOcclusionDistanceCells = 0.60f;
 
     // Радиус скруглённого силуэта loose-террейна, в клетках.
-    public const float RoundableCornerRadiusCells = 0.51f;
+    public const float RoundableCornerRadiusCells = 0.50f;
 
     // Фаска открытых сторон клетки: масштаб расстояния от геометрического
     // ребра и максимальная доля затемнения у самого ребра.

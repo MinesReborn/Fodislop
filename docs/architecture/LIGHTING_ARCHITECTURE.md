@@ -19,8 +19,10 @@ StreamingGovernor → resident window / target origin
 MapRegionProcessor → WorldLayer.SetRegion
     ↓
 TerrainRenderer cache + mesh + textures
-    ↓
-TerrainLightingFrameSnapshot → LightingEngine.LateUpdate
+    ↓ publish committed frame/change records
+ITerrainLightingExchange
+    ↓ consume fresh committed frame
+LightingEngine.LateUpdate
     ↓
 LightingUpdateCoordinator
     ↓
@@ -51,49 +53,45 @@ WorldLightTexture
 
 ## Статус миграции границы
 
-Gate A: DTO, `ILightingGeometryContributor`, purpose-specific field contexts и
-`ITerrainLightingExchange` находятся в `Kern.Contracts`; `TerrainLightingExchange`
-зарегистрирован одним VContainer singleton в `GameLifetimeScope`. Проверка
-`TerrainLightingExchangeTests` компилирует production contract/exchange без Unity
-Editor, проверяет ровно одну DI binding-декларацию, VContainer singleton identity,
-границы `Kern.Contracts`, поколения, последовательности, ack/retry, reset и
-неизменяемость значений. Gate A source/tests готовы; Unity assembly/DI compile не выполнялся.
+Требования, записи изменений и committed frame snapshots передаются через
+`ITerrainLightingExchange` в `Kern.Contracts`. Единственная реализация
+`TerrainLightingExchange` зарегистрирована в `GameLifetimeScope`; Terrain публикует
+изменения после commit, а Lighting подтверждает их после успешного переноса в своё
+состояние. Terrain не вызывает конкретный `LightingEngine`. Порядок и владение
+описаны нормативно в `TERRAIN_LIGHTING_STANDARD.md`.
 
-Gate B подключил Terrain journal к Lighting-owned pending invalidation state.
-Terrain публикует region и named full-reset записи после успешной обработки
-геометрии; Lighting принимает их перед текущим solve-вызовом и подтверждает
-каждую запись только после переноса в своё состояние. Прямые вызовы
-`LightingEngine.InvalidateRegion` и `InvalidateStaticCache` удалены из Terrain.
-Тесты pump/applier проверяют retry, contiguous acknowledgement, world replacement,
-полное сбрасывание старых участков, сохранение соседних sequence identities,
-stable-region filtering и forced-full-reanchor policy.
+Исторические результаты Gate A–D ниже относятся к проверочному снимку 2026-09-24,
+описанному в прежней редакции архитектурных заметок. Указанные рядом отдельные
+evidence-файлы в текущем checkout отсутствуют. Результаты описывают состояние на
+дату проверки и не являются результатом текущего прогона:
 
-Gate C source integration подключает требования до Terrain planning, committed
-change/frame publication, generation-scoped frame snapshots, Lighting-owned
-LateUpdate tick, success-only acknowledgements и output publication. Terrain protocol
-sequence/pending-reset ownership вынесено в `TerrainLightingFramePublisher`; оно не
-меняет очередь и порядок Terrain commit/plan/process. `dotnet test
-tools/tests/Kern.WorldLightingExchangeTests/Kern.WorldLightingExchangeTests.csproj
---no-restore` прошёл: 21 tests. Production Unity compile/PlayMode проверки frame
-order, teleport presentation, GPU output rect и material binding не запускались,
-поэтому acceptance Gate C остаётся pending.
+- **Gate A:** DTO, contributor interface, field contexts и exchange contract были
+  проверены standalone suite; Unity assembly/DI compile на тот момент не запускался.
+- **Gate B:** Terrain journal был подключён к Lighting-owned pending invalidation;
+  записи подтверждались после применения. Вызовы `InvalidateRegion` и
+  `InvalidateStaticCache` из Terrain были удалены.
+- **Gate C:** исходная интеграция включала planning requirements, committed
+  publication, generation-scoped snapshots, Lighting-owned tick и success-only
+  acknowledgement. Unity frame-order, teleport presentation, GPU output rect и
+  material binding остались непроверенными.
+- **Gate D:** targeted boundary lint и полный architecture linter проходили на
+  том снимке; зафиксированные 15 warnings относятся только к нему.
 
-Gate D boundary rule добавлено и автоматически обнаруживается default rule catalog;
-fixtures для namespace imports, alias chains, fully qualified references, neutral
-contract, nested UXML localization, и relocated composition roots проходят: 10 linter
-tests passed. Targeted boundary lint на production source завершился с 0 нарушений.
-Localization scanner теперь учитывает вложенные UXML: 202 ложных dead-key findings
-исчезли без удаления ключей. Pattern rule применяет те же точечные исключения к
-перенесённым файлам в `Core/Bootstrap/Scopes`: семь ложных Bootstrap findings
-исчезли без изменения scope кода. Полный architecture linter проверил 54 rules и
-завершился с exit code 0, 0 errors и 15 warnings. Полный вывод и классификация
-сохранены в
-`docs/architecture/evidence/terrain-lighting-architecture-linter-2026-09-24.txt` и
-`docs/architecture/evidence/terrain-lighting-linter-classification-2026-09-24.md`.
-Начальные 209 findings сохранены отдельно в
+Текущая проверка кода на 2026-11-08: standalone
+`Kern.WorldLightingExchangeTests` — 54 теста прошли; ручные поиски запрещённых
+Terrain → concrete LightingEngine references совпадений не нашли. Общий
+`scripts/run-ci.sh` остановился на source lint: 5 ошибок локализационных ключей и
+25 предупреждений. Это не повторяет Gate D full-linter acceptance и не меняет
+записанную историю Gate A–D. Taxonomy inventory также расходится с текущим деревом;
+его результат описан в `.agents/project-context.md`. Ни текущий source lint, ни
+standalone suite не заменяют Unity compile/PlayMode и GPU-проверки, которые не
+выполнялись.
+
+Исторические отчёты: `docs/architecture/evidence/terrain-lighting-architecture-linter-2026-09-24.txt`,
+`docs/architecture/evidence/terrain-lighting-linter-classification-2026-09-24.md` и
 `docs/architecture/evidence/terrain-lighting-architecture-linter-initial-2026-09-24.txt`.
-Boundary, naming, forbidden API и full-linter checks проходят; Gate D принят. Остаток
-15 warnings перечислен в classification evidence.
+Эти файлы в текущем checkout отсутствуют; их имена сохранены только как след
+первоначальных заметок, поэтому проверить по ним исторические результаты нельзя.
 
 ## Terrain/Lighting lifecycle evidence (`TL-LIFE`)
 
@@ -432,8 +430,8 @@ recorded collection without synthesizing a pipeline descriptor.
 `Kern.Lighting.AmbientOcclusionField.Full` and `.Partial` expose the two recording
 paths; `PrimeClearPipeline` marks the full-rebuild initialization draw; `FrameEventLog` records bounding dimensions, summed pixel area, draw count and full target
 size. Scissoring reduces fragment coverage; mesh vertex work repeats per rectangle and target
-load/store bandwidth remain. Runtime correctness and timing are pending:
-[regional AO evidence](evidence/ao-regional-update-2026-10-02.html).
+load/store bandwidth remain. Runtime correctness and timing are pending. The
+previously referenced regional AO evidence HTML is absent from this checkout.
 The surface pass preserves its existing hard physical occupancy; only terrain
 geometry currently supplies distance-based contact beyond its visible edge.
 
@@ -511,9 +509,8 @@ only then does each angular sample integrate the continuous emitter analytically
 Mixed boxes retain DDA. The existing geometry-cache owner binds the prefix buffer
 to <code>SolveDynamicLighting</code>; no resource, dispatch, invalidation source,
 or polar-cache format is added. The experiment is disabled by default pending
-production GPU/image gates. See the
-<a href="evidence/lighting-uniform-source-2026-10-06.html">change contract,
-cost comparison, opt-in grouped dispatch prototype and outstanding verification</a>.</p>
+production GPU/image gates. The previously referenced 2026-10-06 change-contract
+HTML is absent from this checkout; production verification remains outstanding.</p>
 
 Source edits invalidate upload-set evaluation, not the whole composite. After
 reach/capacity filtering, an unchanged uploaded set leaves the GPU result valid;
@@ -686,9 +683,9 @@ this can require candidate checks across the whole chain; the GPU changed-entry
 mask still avoids unnecessary DDA. It is not a dense retrace of every candidate.
 The placed/removed-emitter regression compares the exact packed atlas against a
 full solve with bilinear correction both enabled and disabled. Reinstating the
-old local-only rectangles must fail. Source/numerical evidence and the pending
-production-path gates are recorded in
-<a href="evidence/placed-emitter-square-halo-2026-10-28.html">the square-halo evidence bundle</a>.
+old local-only rectangles must fail. The previously referenced 2026-10-28
+source/numerical evidence bundle is absent from this checkout; production-path
+gates remain outstanding.
 
 Reanchor stage ownership, lifecycle, invalidation proof and validation results are tracked in
 [`WORLD_RENDER_GRID_EVIDENCE.html`](WORLD_RENDER_GRID_EVIDENCE.html). Reanchors dispatch every
@@ -974,8 +971,8 @@ unchanged. No new light resource or source is introduced.
 uniforms without a lighting reset. `SubmittedDepthCarrierQuads` retains its API
 name and now counts actual submitted side quads. Topology/mesh logs report reason,
 version, edge/vertex counts, CPU construction time and payload bytes. Verification
-and outstanding production-image/GPU evidence are in
-[the volume evidence bundle](evidence/terrain-depth-2026-10-27.html).
+and outstanding production-image/GPU evidence are not available in this checkout;
+production-path verification remains outstanding.
 
 ### Bloom extraction and reconstruction (2026-10-27)
 
@@ -985,8 +982,8 @@ with point filtering. Pyramid reduction uses a normalized 3×3 tent at fixed
 source-texel radius 1; reconstruction uses the authored radius with the same
 center/axis/diagonal weights. Additive RGB composition, HDR formats and the
 existing energy normalization remain unchanged. This increases shader work
-without changing texture allocations or pass count; see the
-[bloom evidence record](evidence/bloom-prefilter-reconstruction-2026-10-27.html).
+without changing texture allocations or pass count. The previously referenced
+2026-10-27 bloom evidence record is absent from this checkout.
 
 ### Transient mining, heal and hurt sources (2026-10-27)
 
@@ -997,5 +994,5 @@ clips reuse their source pixels at import. TransientEffectLight owns source
 lifetime and shares negative IDs with cell-destruction sources. Active effects
 resubmit every Update; unchanged values are deduplicated by the existing light
 manager, and generation resets are repaired without advancing the animation.
-No static glow or geometry revision is added. See the
-[effect emission evidence](evidence/effect-world-emission-2026-10-27.html).
+No static glow or geometry revision is added. The previously referenced
+2026-10-27 effect-emission evidence record is absent from this checkout.

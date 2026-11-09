@@ -34,9 +34,6 @@ namespace Kern.UI.HUD
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, sourceNamespace: "Kern.UI.HUD.Player.View", sourceAssembly: null, sourceClassName: "PlayerHUDView")]
     public class PlayerHUDView : MonoBehaviour, ILocalizableUI
     {
-        private Color _hpBarFillColor = new Color(0.2f, 0.8f, 0.2f, 1f);
-        private Color _hpBarLowColor = new Color(0.9f, 0.2f, 0.2f, 1f);
-
         private readonly PlayerHUDStatusPanel _statusPanel = new();
         private readonly PlayerHUDSkillGrid _skillGrid = new();
         private readonly PlayerHUDBasketView _basketView = new();
@@ -51,24 +48,13 @@ namespace Kern.UI.HUD
         private Kern.Core.Interfaces.IInputBlocker _inputBlocker = null!;
         [Inject]
         private Kern.Core.Interfaces.ILocalPlayerState _localPlayer = null!;
-        private readonly PlayerHUDSkeletonPulse _skeletonPulse = new();
         private PlayerHUDModeController? _modeController;
         private VisualElement? _hudContent;
         private TemplateContainer? _hudRoot;
         private bool _isVisible = true;
 
-        private Label? _nicknameLabel;
-        private Label? _levelLabel;
-        private Label? _hpCountLabel;
-        private VisualElement? _hpBarFill;
-        private Label? _moneyLabel;
-        private Label? _creditsLabel;
-        private Label? _geologyLabel;
-        private Label? _basketPercentLabel;
-        private VisualElement? _basketSeparator;
-        private VisualElement? _basketRow;
-        private Button? _dropBoxButton;
-        private VisualElement? _basketContainer;
+        private VisualElement? _clanIcon;
+        private int _clanIconId;
         private VisualElement? _skillContainer;
 
         private ProgrammatorGrid? _programmatorGrid;
@@ -205,14 +191,8 @@ namespace Kern.UI.HUD
                 return;
             }
 
-            _basketView.RebuildRows();
-
-            // Гонка первого захода: пакет корзины приходит с сервера раньше,
-            // чем асинхронно загрузятся текстуры кристаллов. RebuildRows
-            // пересоздаёт строки скрытыми, а Refresh по ним ещё не бегал -
-            // без перерисовки корзина пуста до первого обновления статов
-            // (первого копания). Перерисовываем сразу после построения строк.
-            _statsPresenter.Refresh();
+            // Значки кристаллов догружаются после первых данных груза: ряд уже стоит, ставим им картинки
+            _basketView.ApplyTextures();
         }
 
         public void ApplyLocalizedText()
@@ -248,13 +228,12 @@ namespace Kern.UI.HUD
 
             _programmatorGrid?.Dispose();
             _programmatorGrid = null;
-            _skeletonPulse.Stop();
             _skillGrid.ClearSchedules();
             _statusPanel.ClearSchedules();
 
             if (_model != null)
             {
-                _model.OnStatsChanged -= _statsPresenter.Refresh;
+                _model.OnStatsChanged -= OnStatsChanged;
                 _model.OnSkillProgress -= OnSkillProgress;
                 _model.OnStatusLinesChanged -= OnStatusLinesChanged;
                 _model.OnMissionChanged -= OnMissionChanged;
@@ -267,6 +246,39 @@ namespace Kern.UI.HUD
         }
 
         private void OnStatusLinesChanged() => _statusPanel.Rebuild(_model);
+
+        private void OnStatsChanged()
+        {
+            _statsPresenter.Refresh();
+            RefreshClanIcon();
+        }
+
+        // Знак клана — картинка Visual/Clan/{id}.png, как над роботами (RobotAssetLoader.ClanPath); без клана рамка пустая
+        private void RefreshClanIcon()
+        {
+            if (_clanIcon == null || _model == null || _model.ClanId == _clanIconId)
+            {
+                return;
+            }
+
+            int clanId = _model.ClanId;
+            _clanIconId = clanId;
+            _clanIcon.style.backgroundImage = StyleKeyword.Null;
+            if (clanId <= 0 || clanId > byte.MaxValue)
+            {
+                return;
+            }
+
+            _operations.Run("player_hud_clan_icon", async token =>
+            {
+                Texture2D? texture = await _assetLoader.GetTextureAsync(
+                    Kern.Game.Entities.Robots.RobotAssetLoader.ClanPath((byte)clanId), token);
+                if (_clanIcon != null && _clanIconId == clanId && texture != null)
+                {
+                    _clanIcon.style.backgroundImage = new StyleBackground(texture);
+                }
+            });
+        }
         private void OnMissionChanged() => _missionPanel.Update(_model);
         private void InitializeHUD()
         {
@@ -290,18 +302,10 @@ namespace Kern.UI.HUD
                 _model.OnSkillProgress += OnSkillProgress;
                 _model.OnStatusLinesChanged += OnStatusLinesChanged;
                 _model.OnMissionChanged += OnMissionChanged;
-                _model.OnStatsChanged += _statsPresenter.Refresh;
+                _model.OnStatsChanged += OnStatsChanged;
             }
 
-
-            _basketView.RebuildRows();
-
-            if (!_statsPresenter.IsLoaded && _hudRoot != null)
-            {
-                _skeletonPulse.Start(_hudRoot);
-            }
-
-            _statsPresenter.Refresh();
+            OnStatsChanged();
 
             var root = _doc.rootVisualElement;
 
@@ -340,51 +344,28 @@ namespace Kern.UI.HUD
 
             UILocalizer.Apply(tree, _loc);
 
-            _nicknameLabel = tree.Q<Label>("NicknameLabel") ??
-                throw new InvalidOperationException("[PlayerHUD] NicknameLabel is missing from PlayerHUD.uxml.");
-            _levelLabel = tree.Q<Label>("LevelLabel") ??
-                throw new InvalidOperationException("[PlayerHUD] LevelLabel is missing from PlayerHUD.uxml.");
             Button clanButton = tree.Q<Button>("ClanButton") ??
                 throw new InvalidOperationException("[PlayerHUD] ClanButton is missing from PlayerHUD.uxml.");
             clanButton.clicked += () => _networkService?.Send(new OpenClanClickPacket());
+            _clanIcon = tree.Q<VisualElement>("ClanIcon") ??
+                throw new InvalidOperationException("[PlayerHUD] ClanIcon is missing from PlayerHUD.uxml.");
 
-            _hpCountLabel = tree.Q<Label>("HPCountLabel") ??
-                throw new InvalidOperationException("[PlayerHUD] HPCountLabel is missing from PlayerHUD.uxml.");
-            _hpBarFill = tree.Q<VisualElement>("HPBarFill") ??
-                throw new InvalidOperationException("[PlayerHUD] HPBarFill is missing from PlayerHUD.uxml.");
-
-            _moneyLabel = tree.Q<Label>("MoneyLabel") ??
-                throw new InvalidOperationException("[PlayerHUD] MoneyLabel is missing from PlayerHUD.uxml.");
-            _creditsLabel = tree.Q<Label>("CreditsLabel") ??
-                throw new InvalidOperationException("[PlayerHUD] CreditsLabel is missing from PlayerHUD.uxml.");
-            _basketPercentLabel = tree.Q<Label>("BasketPercentLabel") ??
-                throw new InvalidOperationException("[PlayerHUD] BasketPercentLabel is missing from PlayerHUD.uxml.");
-            _basketSeparator = tree.Q<VisualElement>("BasketSeparator") ??
-                throw new InvalidOperationException("[PlayerHUD] BasketSeparator is missing from PlayerHUD.uxml.");
-            _basketRow = tree.Q<VisualElement>("BasketRow") ??
-                throw new InvalidOperationException("[PlayerHUD] BasketRow is missing from PlayerHUD.uxml.");
-            _dropBoxButton = tree.Q<Button>("DropBoxButton") ??
+            Button dropBoxButton = tree.Q<Button>("DropBoxButton") ??
                 throw new InvalidOperationException("[PlayerHUD] DropBoxButton is missing from PlayerHUD.uxml.");
-            _dropBoxButton.clicked += () => _networkService?.Send(new DropBoxClickPacket());
+            dropBoxButton.clicked += () => _networkService?.Send(new DropBoxClickPacket());
             Button donateButton = tree.Q<Button>("DonateButton") ??
                 throw new InvalidOperationException("[PlayerHUD] DonateButton is missing from PlayerHUD.uxml.");
             donateButton.clicked += () => _networkService?.Send(
                 new ElementClickPacket("donate", 0, Array.Empty<StringPairPacket>()));
-            _geologyLabel = tree.Q<Label>("GeologyLabel") ??
-                throw new InvalidOperationException("[PlayerHUD] GeologyLabel is missing from PlayerHUD.uxml.");
 
-            _skeletonPulse.Register(_nicknameLabel);
-            _skeletonPulse.Register(_levelLabel);
-            _skeletonPulse.Register(_hpCountLabel);
-            _skeletonPulse.Register(_hpBarFill);
-            _skeletonPulse.Register(_moneyLabel);
-            _skeletonPulse.Register(_creditsLabel);
-            _skeletonPulse.Register(_geologyLabel);
-            _skeletonPulse.Register(_basketPercentLabel);
+            // «Меню» — пауза: тот же запрос, что у клавиши Esc и кнопки меню на пальце (PauseMenu)
+            Button menuButton = tree.Q<Button>("SysMenuButton") ??
+                throw new InvalidOperationException("[PlayerHUD] SysMenuButton is missing from PlayerHUD.uxml.");
+            menuButton.clicked += () => _touchCommands?.RequestPause();
 
-            _basketContainer = tree.Q<VisualElement>("BasketContainer") ??
+            VisualElement basketContainer = tree.Q<VisualElement>("BasketContainer") ??
                 throw new InvalidOperationException("[PlayerHUD] BasketContainer is missing from PlayerHUD.uxml.");
-            _basketView.Initialize(_basketContainer);
+            _basketView.Initialize(basketContainer);
 
             _skillContainer = tree.Q<VisualElement>("SkillContainer") ??
                 throw new InvalidOperationException("[PlayerHUD] SkillContainer is missing from PlayerHUD.uxml.");
@@ -407,24 +388,7 @@ namespace Kern.UI.HUD
             _missionPanel = new PlayerHUDMissionPanel(_loc, _assetLoader, _webAssetLoader, _operations);
             _missionPanel.Initialize(tree);
 
-            _statsPresenter = new PlayerHUDStatsPresenter(
-                _model,
-                _loc,
-                _skeletonPulse,
-                _basketView,
-                _hpBarFillColor,
-                _hpBarLowColor,
-                _nicknameLabel,
-                _levelLabel,
-                _hpCountLabel,
-                _hpBarFill,
-                _moneyLabel,
-                _creditsLabel,
-                _geologyLabel,
-                _basketPercentLabel,
-                _basketSeparator,
-                _basketRow,
-                _isLoadedInitially: _model.Health > 0 || _model.Level > 0);
+            _statsPresenter = new PlayerHUDStatsPresenter(_model, _basketView, tree);
 
             _programControls.Initialize(tree, _programmatorGrid, _programmatorProtocol, _loc, _tooltip!);
         }

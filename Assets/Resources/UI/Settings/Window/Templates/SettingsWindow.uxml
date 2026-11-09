@@ -1,0 +1,29 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <!-- Окно настроек — одно на меню и игру, макет visual/kern-ui (#settingsDialog, css/screens.css .settings):
+         шапка с заголовком и закрытием, вкладки слева, строки «название — значение» справа; всё применяется сразу.
+         Строки собирает код (SettingsGraphicsPage, SettingsAudioPage, SettingsInterfacePage, SettingsControlsPage). -->
+    <ui:VisualElement name="SettingsLayer" class="dialog-layer settings-layer" picking-mode="Position">
+        <ui:VisualElement name="SettingsPanel" class="panel settings">
+            <ui:VisualElement class="settings-head">
+                <ui:Label class="settings-head__title caps" text="settings.window.title" />
+                <ui:Button name="SettingsClose" class="icon-btn win-close" tooltip="hud.close" picking-mode="Position">
+                    <ui:VisualElement class="ico ico--close" picking-mode="Ignore" />
+                </ui:Button>
+            </ui:VisualElement>
+            <ui:VisualElement class="settings-main">
+                <ui:VisualElement class="settings-tabs">
+                    <ui:Button name="SettingsTabGraphics" class="settings-tab is-on" text="settings.tab.graphics" />
+                    <ui:Button name="SettingsTabAudio" class="settings-tab" text="settings.tab.audio" />
+                    <ui:Button name="SettingsTabInterface" class="settings-tab" text="settings.tab.interface" />
+                    <ui:Button name="SettingsTabControls" class="settings-tab" text="settings.tab.controls" />
+                </ui:VisualElement>
+                <ui:ScrollView name="SettingsBody" class="settings-body" mode="Vertical" horizontal-scroller-visibility="Hidden" vertical-scroller-visibility="Auto">
+                    <ui:VisualElement name="SettingsPageGraphics" class="set-page is-on" />
+                    <ui:VisualElement name="SettingsPageAudio" class="set-page" />
+                    <ui:VisualElement name="SettingsPageInterface" class="set-page" />
+                    <ui:VisualElement name="SettingsPageControls" class="set-page" />
+                </ui:ScrollView>
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

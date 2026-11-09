@@ -18,6 +18,9 @@ public sealed class MainMenuUxmlContractTests
         "LoaderPhaseLabel",
         "LoaderPhaseCount",
         "LoaderPhaseList",
+        "LoaderExplain",
+        "LoaderTip",
+        "RetryDescentButton",
         "CancelDescentButton",
 
     };

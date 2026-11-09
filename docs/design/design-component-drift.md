@@ -1,8 +1,12 @@
 # Расхождения компонентов с макетом
 
-ФАЙЛ МАШИННЫЙ. Правки будут затёрты.
-Генератор: `dotnet run --project tools/generators/Kern.DesignSystem -- compare-components`.
-Карта пар: `visual/kern-ui-lab/component-map.json`.
+Исторический машинный снимок; таблицы ниже не описывают текущее состояние UI.
+Ранее отчёт строился командой
+`dotnet run --project tools/generators/Kern.DesignSystem -- compare-components`
+по карте `visual/kern-ui-lab/component-map.json`. Сейчас этого каталога нет.
+Текущий генератор ищет `component-map.json` в `visual/kern-ui`, но файл и каталог
+`visual/kern-ui/css/screens/` отсутствуют, поэтому этот снимок нельзя
+перегенерировать из текущего дерева. Сохранённые числа — исторические.
 
 ## Что это
 

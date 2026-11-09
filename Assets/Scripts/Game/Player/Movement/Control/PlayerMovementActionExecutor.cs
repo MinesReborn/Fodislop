@@ -139,15 +139,6 @@ internal sealed class PlayerMovementActionExecutor
                 return;
             }
 
-            // The authoritative dig cooldown gates movement as well as
-            // repeated digging. Without this check auto-dig used the
-            // current terrain cell's movement delay and could send a
-            // BzPacket every movement tick, ignoring ServerConfig.
-            if (context.ActionDispatcher is { IsDigOnCooldown: true } or { IsDigAwaitingConfirmation: true })
-            {
-                return;
-            }
-
             Direction packetDirection = PlayerDirectionMapping.ToPacketDirection(direction);
 
             ushort currentX = (ushort)Mathf.Clamp(context.Position.x, 0, ushort.MaxValue);
@@ -249,6 +240,14 @@ internal sealed class PlayerMovementActionExecutor
             }
             else if (context.AutoDig)
             {
+                // Кулдаун бура ограничивает именно бур, а не шаг: иначе
+                // автокопание замораживало движение на всё время отката
+                // после каждой вскрытой клетки.
+                if (context.ActionDispatcher is { IsDigOnCooldown: true } or { IsDigAwaitingConfirmation: true })
+                {
+                    return;
+                }
+
                 // Сервер доворачивает к буримой клетке сам (ClickCellHandler);
                 // локальный коммит нужен визуалу и HandleDig, чтобы направление
                 // соответствовало отправленному действию.
@@ -256,7 +255,12 @@ internal sealed class PlayerMovementActionExecutor
                 context.Robot.TargetAngle = PlayerDirectionMapping.DirectionToAngle(direction);
                 context.ActionDispatcher?.NotifyDug(targetPosition, packetDirection);
                 context.NetworkService?.Send(new ActionClientPacket(targetServerX, targetServerY, new BzPacket()));
-                context.NextMoveTime = Time.time + cooldown;
+                // Темп задаёт откат бура, а не шаг: множитель «медленного
+                // движения» не должен замедлять копку. Фазу змейки бур не
+                // двигает: ось меняется только после шага в открытую клетку,
+                // иначе робот заранее вскрывает клетку по второй оси и вместо
+                // лесенки роет тоннель шириной в две клетки.
+                context.NextMoveTime = Time.time + GameplayActionDefaults.DefaultDigCooldown;
             }
             else
             {
@@ -297,11 +301,6 @@ internal sealed class PlayerMovementActionExecutor
         private void StepClickPath(IPlayerMovementActionContext context)
         {
             if (context.Robot is null || context.ClickPath is null)
-            {
-                return;
-            }
-
-            if (context.ActionDispatcher is { IsDigOnCooldown: true })
             {
                 return;
             }
@@ -366,14 +365,11 @@ internal sealed class PlayerMovementActionExecutor
             Vector2Int direction = new Vector2Int(serverDelta.x, -serverDelta.y);
             Direction packetDirection = PlayerDirectionMapping.ToPacketDirection(direction);
 
-            if (context.LastServerRotation != packetDirection)
-            {
-                TryRotate(context, direction);
-                context.NextMoveTime = Time.time + cooldown;
-                return;
-            }
-
-            context.Robot.TargetAngle = PlayerDirectionMapping.DirectionToAngle(direction);
+            // Поворот перед шагом не нужен: клетка в MovePacket задаёт
+            // направление, и сервер выводит из неё ориентацию. Отдельный
+            // RotatePacket тратил такт и приходил снимком позиции ДО шага,
+            // который клиент принимал за коррекцию маршрута. Угол ставим
+            // только вместе с шагом или буром, как в ручном движении.
 
             if (!PlayerMovementValidator.TryEvaluateStep(
                     context.Position,
@@ -393,20 +389,33 @@ internal sealed class PlayerMovementActionExecutor
 
             if (isPassable || context.IgnoreCollision)
             {
+                context.Robot.TargetAngle = PlayerDirectionMapping.DirectionToAngle(direction);
                 context.Robot.TargetPosition = WorldCoordinateConverter.ServerToUnityPos(targetServerX, targetServerY, mapDataProvider.WorldHeight, context.OwnerTransform.position.z);
                 Vector2Int oldPos = context.Position;
                 context.Position = targetPosition;
                 context.PublishPlayerMoved(oldPos, context.Position);
                 context.NextMoveTime = Time.time + cooldown;
+                context.LastSentDirection = packetDirection;
+                // Шаг ждёт подтверждения сервера так же, как ручной: без этого
+                // маршрут уходил на клетку вперёд предсказания, сервер видел
+                // не-соседний MovePacket и откатывал робота снимком позиции.
+                context.AwaitingMoveConfirmation = true;
                 context.NetworkService?.SendAction(new MovePacket(targetServerX, targetServerY));
             }
             else if (context.AutoDig)
             {
                 // Сплошная клетка на маршруте: бурим, как WASD при включённом
-                // автокопании.
-                context.NetworkService?.Send(new ActionClientPacket(targetServerX, targetServerY, new BzPacket()));
-                context.NextMoveTime = Time.time + cooldown;
+                // автокопании. Кулдаун ограничивает бур, а не шаг.
+                if (context.ActionDispatcher is { IsDigOnCooldown: true } or { IsDigAwaitingConfirmation: true })
+                {
+                    return;
+                }
+
+                context.LastSentDirection = packetDirection;
+                context.Robot.TargetAngle = PlayerDirectionMapping.DirectionToAngle(direction);
                 context.ActionDispatcher?.NotifyDug(targetPosition, packetDirection);
+                context.NetworkService?.Send(new ActionClientPacket(targetServerX, targetServerY, new BzPacket()));
+                context.NextMoveTime = Time.time + GameplayActionDefaults.DefaultDigCooldown;
             }
             else
             {

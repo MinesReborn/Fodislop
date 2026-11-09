@@ -58,13 +58,23 @@
 .pk-box:focus { outline: 0; border-color: var(--signal); box-shadow: inset 2px 0 0 var(--signal); }
 .pk-drop { min-width: 0; height: 36px; padding: 0 var(--sp-5); border: 1px solid var(--seam-strong); background: var(--plate); color: var(--bone); font: var(--fw-semi) var(--t-5)/1 var(--font-text); }
 
-/* Сокращённое число (длиннее пяти знаков — K, KK, KKK, KKKK): пунктир снизу — знак, что есть полное; полное — плашкой над числом */
-.pk-cut { position: relative; text-decoration: underline dotted rgb(var(--rgb-bone) / .45); text-underline-offset: 3px; text-decoration-thickness: 1px; cursor: help; outline: 0; }
-.pk-cut:hover::after, .pk-cut:focus::after { content: attr(data-full); position: absolute; z-index: 5; right: -7px; bottom: calc(100% + 6px); padding: var(--sp-3) var(--sp-4);
-  background: var(--well-solid); border: 1px solid var(--seam-strong); color: var(--bone); font: var(--fw-semi) var(--t-4)/1 var(--font-mono); letter-spacing: .02em; white-space: nowrap; text-decoration: none; }
-/* В панелях HUD подсказку режет контур панели (clip-path со срезом): она стоит внутри — у денег от левого края суммы, у кредитов от правого */
-.wallet .money .pk-cut:is(:hover, :focus)::after { left: -4px; right: auto; }
-.wallet .creds .pk-cut:is(:hover, :focus)::after { right: -4px; left: auto; }
+/* Сокращённое число (от 10 000 — K, M, B, T, Q, js/numbers.js): пунктир снизу — знак, что есть полное.
+   Полное — плашкой над числом, одним слоем на кадре (.pk-tip): внутри панели её резал бы контур со срезом */
+.pk-cut { text-decoration: underline dotted rgb(var(--rgb-bone) / .45); text-underline-offset: 3px; text-decoration-thickness: 1px; cursor: help; outline: 0; }
+.pk-tip { position: absolute; z-index: calc(var(--z-overlay) + 1);   /* над окнами и калибровкой, под вырезом телефона */
+   pointer-events: none; padding: var(--sp-3) var(--sp-4);
+  background: var(--well-solid); border: 1px solid var(--seam-strong); color: var(--bone); font: var(--fw-semi) var(--t-4)/1 var(--font-mono); letter-spacing: .02em; white-space: nowrap; }
+.pk-tip[hidden] { display: none; }
+
+/* ── Пополнение (донат): пакеты кредитов плитками 3×2, выбранный — светлой рамкой и нажатой клавишей цены ── */
+.pk--packs { grid-template-columns: repeat(3, 1fr) !important; gap: var(--sp-4); padding: var(--sp-2) 0; }
+.pk--pack { display: flex; flex-direction: column; align-items: center; gap: var(--sp-4); padding: var(--sp-7) var(--sp-5) var(--sp-5); border: 1px solid var(--seam); background: var(--plate); }
+.pk--pack:has(.pk-btn.is-on) { border-color: var(--bone); }
+.pk--pack .pk-img { image-rendering: pixelated; }
+.pk--pack .pk--big { display: flex; flex-direction: column; align-items: center; gap: var(--sp-3); }
+.pk--pack .pk--big b { margin: 0; }
+.pk--pack .pk--bonus { color: var(--ok); }
+.pk--pack .pk-btn { align-self: stretch; }
 
 /* ── Роли внутри окон зданий ── */
 /* Строка здания: «Здание ···· координаты» — во всю ширину окна над шапкой */

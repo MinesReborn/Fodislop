@@ -17,7 +17,6 @@ using VContainer;
 using VContainer.Unity;
 using Kern.AssetPipeline.Cache;
 using Kern.AssetPipeline.Loading;
-using Kern.Bootstrap.Diagnostics;
 using Kern.Core.Configuration;
 using Kern.Core.Diagnostics;
 using Kern.Core.Rendering;
@@ -27,9 +26,8 @@ using Kern.Game.Player.Stats;
 using Kern.Infrastructure.Audio;
 using Kern.Networking.Authentication;
 using Kern.Networking.Gateways;
-using Kern.Networking.Offline;
+using Kern.Networking.Dummy;
 using Kern.Networking.Processing;
-using Kern.Networking.WorldEntry;
 using Kern.Rendering.Display;
 using Kern.UI.Menu;
 using Kern.Core;
@@ -64,13 +62,13 @@ internal static class BootstrapServiceRegistration
                 _ => new RuntimeAssetPaths(),
                 Lifetime.Singleton).As<IRuntimeAssetPaths>();
 
-            // DummyConnection emulates the game server in offline mode. External
+            // DummyConnection emulates the game server in dummy mode. External
             // identity providers do not route authentication through it.
             builder.Register<RealtimeDummyClock>(Lifetime.Singleton).As<IDummyClock>();
             builder.Register<DummyConnection>(Lifetime.Singleton).AsSelf().AsImplementedInterfaces();
             builder.Register<ConnectionTransportFactory>(Lifetime.Singleton);
             builder.Register<DummyWorldMapSource>(Lifetime.Singleton);
-            builder.RegisterEntryPoint<Kern.Networking.WorldEntry.WorldEntryPreparation>()
+            builder.RegisterEntryPoint<Kern.Networking.Dummy.WorldEntryPreparation>()
                 .As<IWorldEntryPreparation>();
             builder.Register<GameTokenStore>(Lifetime.Singleton).As<IGameTokenStore>();
             builder.Register<RuntimeDebugSettings>(Lifetime.Singleton).As<IRuntimeDebugSettings>();
@@ -90,6 +88,9 @@ internal static class BootstrapServiceRegistration
                 .AsImplementedInterfaces()
                 .AsSelf();
             builder.RegisterEntryPoint<Kern.Networking.Processing.PlayerIdentityProcessor>().AsSelf();
+            // Совет экрана входа: присылает сервер, показывает меню
+            builder.Register<LoadingTip>(Lifetime.Singleton).As<ILoadingTip>();
+            builder.RegisterEntryPoint<Kern.Networking.Processing.LoadingTipProcessor>().AsSelf();
 
             // World-load phases and server-window visibility are published by
             // the Game scope but consumed by the MainMenu sibling scope, so

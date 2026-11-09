@@ -48,12 +48,20 @@ DisplayTests, TerrainTests, WorldLightingExchangeTests и FrameHarness.Tests;
 
 ## Генераторы ассетов
 
-- `generators/Kern.UIAssets` — единая точка входа генерации UI-ассетов. Команды
-  `all`, `menu` и `sidebar-icons` запускают профильные реализации в соседних
-  проектах `Kern.MenuAssetsGenerator` и `Kern.SidebarIconsGenerator`.
+- `generators/Kern.UIAssets` — wrapper с режимами `all`, `menu` и
+  `sidebar-icons`. Сейчас его `Kern.MenuAssetsGenerator` dependency отсутствует
+  (`tools/generators/Kern.MenuAssetsGenerator/Kern.MenuAssetsGenerator.csproj`);
+  при этом поиск корня требует этот файл для любого режима. Поэтому все режимы
+  wrapper завершаются ошибкой до запуска генератора. Не считать приведённые ниже
+  команды рабочими в текущем checkout.
 - `generators/Kern.DesignSystem` — анализ и генерация данных дизайн-системы.
 - `generators/Kern.SidebarIconsGenerator` — генерация иконок боковой панели.
 - `generators/Kern.CellPalette` — обновление цветов клеток в конфигурации мира.
+
+Команды `Kern.DesignSystem compare-components` и `check-fit` требуют карту
+`visual/kern-ui/component-map.json`. В текущем checkout её нет, поэтому они не
+пересобирают отчёты component drift/layout fit; сохранённые отчёты в
+`docs/design/` помечены как исторические.
 
 ```sh
 dotnet run --project tools/generators/Kern.UIAssets/Kern.UIAssets.csproj -- all
@@ -61,13 +69,17 @@ dotnet run --project tools/generators/Kern.UIAssets/Kern.UIAssets.csproj -- menu
 dotnet run --project tools/generators/Kern.UIAssets/Kern.UIAssets.csproj -- sidebar-icons
 ```
 
+`Kern.SidebarIconsGenerator` как отдельный проект в дереве присутствует, но
+wrapper не обходит отсутствующую menu dependency даже в режиме `sidebar-icons`.
+
 ## Terrain и lighting
 
-Принципы оптимизации, проверяемые сценарии и спецификация единого harness:
-[`TERRAIN_LIGHTING_OPTIMIZATION.html`](../docs/architecture/TERRAIN_LIGHTING_OPTIMIZATION.html).
-Первый слой реализован в `Kern.FrameHarness`: анализ captures и сравнение
-before/after, опциональный JSON-экспорт существующего PlayMode benchmark.
-Полный replay и production/GPU-проверки пока не реализованы.
+Нормативные Terrain/Lighting требования и review gates описаны в
+[`TERRAIN_LIGHTING_STANDARD.md`](../docs/architecture/TERRAIN_LIGHTING_STANDARD.md).
+Первый исполняемый слой сравнительного harness реализован в `Kern.FrameHarness`:
+он анализирует captures и сравнивает before/after; опциональный JSON-экспорт
+существующего PlayMode benchmark. Полный replay и production/GPU-проверки пока
+не реализованы.
 
 - [`harness/Kern.FrameHarness`](harness/Kern.FrameHarness/README.md) — проверка captures,
   счётчиковые правила OPT-1 для S0/S1/S4, отдельные CPU/GPU-бюджеты, PASS/FAIL/INCOMPLETE.

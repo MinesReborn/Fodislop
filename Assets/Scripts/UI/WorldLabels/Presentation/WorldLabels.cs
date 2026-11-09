@@ -2,7 +2,6 @@
 
 using System;
 using System.Collections.Generic;
-using Kern.Core;
 using Kern.Core.Interfaces;
 using Unity.Profiling;
 using UnityEngine;
@@ -15,7 +14,7 @@ public sealed class WorldLabels : IWorldLabels, IPostLateTickable, IDisposable
 {
     private const string TAG = "[WorldLabels]";
     private const string BubbleTextClass = "world-label-chat-text";
-    private static readonly Color s_frameTint = new(1f, 1f, 1f, 0.6156863f);
+    private const string BubbleTailClass = "world-label-chat__tail";
 
     private static readonly ProfilerMarker s_postLateTickMarker =
         new("Kern.WorldLabels.PostLateTick");
@@ -52,9 +51,11 @@ public sealed class WorldLabels : IWorldLabels, IPostLateTickable, IDisposable
         {
             frame = new VisualElement { pickingMode = PickingMode.Ignore };
             frame.AddToClassList("world-label-chat");
-            ApplyBubbleFrame(frame);
             label.AddToClassList(BubbleTextClass);
             frame.Add(label);
+            var tail = new VisualElement { pickingMode = PickingMode.Ignore };
+            tail.AddToClassList(BubbleTailClass);
+            frame.Add(tail);
         }
         else
         {
@@ -69,20 +70,6 @@ public sealed class WorldLabels : IWorldLabels, IPostLateTickable, IDisposable
         var entry = new Entry(this, frame, label, kind);
         _entries.Add(entry);
         return entry;
-    }
-
-    private static void ApplyBubbleFrame(VisualElement frame)
-    {
-        Sprite sprite = Resources.Load<Sprite>(ResourcePaths.LocalChatBubbleSprite)
-            ?? throw new InvalidOperationException("Missing local chat bubble sprite.");
-        frame.style.backgroundImage = new StyleBackground(sprite);
-        frame.style.unityBackgroundImageTintColor = s_frameTint;
-        Vector4 border = sprite.border;
-        frame.style.unitySliceLeft = (int)border.x;
-        frame.style.unitySliceBottom = (int)border.y;
-        frame.style.unitySliceRight = (int)border.z;
-        frame.style.unitySliceTop = (int)border.w;
-        frame.style.backgroundSize = new BackgroundSize(Length.Percent(100f), Length.Percent(100f));
     }
 
     // После всех LateUpdate, а не в LateTick: VContainer ставит LateTick перед
@@ -170,16 +157,13 @@ public sealed class WorldLabels : IWorldLabels, IPostLateTickable, IDisposable
         private readonly WorldLabelKind _kind;
         private const float PositionApplyEpsilonPx = 0.5f;
 
-        // Зум квантуется пиксельной сеткой (PixelGrid.QuantizeOrthographicSize),
-        // поэтому у камеры лишь несколько дискретных значений и запись кегля
-        // случается на соседних шагах зума, а не каждый кадр. Порог оставлен
-        // тем же приёмом, что и у позиции: дробная подстройка кегля ни на что
-        // не влияет, а стиль без нужды помечается грязным.
-        private const float ScaleApplyEpsilon = 0.002f;
         private const string OffscreenClass = "world-label-offscreen";
 
-        // Source sprite tail tip is 8 px from its left edge.
-        private const float TailAnchorSourceX = 8f;
+        // Хвост облака — черта 1×6 от внутренней нижней грани рамки, в 5 px от левого края
+        // (макет: .wl-chat::after, top: 100%); ниже рамки она выступает на 5 px, и её нижний
+        // конец стоит на верхней грани клетки робота.
+        private const float TailAnchorX = 5.5f;
+        private const float TailHeight = 5f;
 
         public VisualElement Frame { get; }
         public Label Label { get; }
@@ -190,12 +174,6 @@ public sealed class WorldLabels : IWorldLabels, IPostLateTickable, IDisposable
         private bool _lastAppliedVisible;
         private bool _hasApplied;
 
-        // База берётся из USS один раз, до первой записи: пока кегль не
-        // переопределён, resolvedStyle отдаёт ровно то, что задано стилями,
-        // и число 12 не дублируется в коде. Ноль означает «база ещё не
-        // разложена» — тогда запись откладывается до следующего кадра.
-        private float _baseFontSize;
-        private TextShadow _baseShadow;
         private float _lastScale = -1f;
         private bool _sizeDirty;
 
@@ -212,61 +190,16 @@ public sealed class WorldLabels : IWorldLabels, IPostLateTickable, IDisposable
         public void SetVisible(bool visible) => Visible = visible;
         public void SetOpacity(float opacity) => Frame.style.opacity = Mathf.Clamp01(opacity);
 
-        // Никнейм и пузырь масштабируются целиком: текст и 9-slice остаются
-        // согласованы. У метки добычи масштабируются кегль и тень.
+        // Никнейм и облако масштабируются целиком: текст, рамка и хвост остаются согласованы.
         public void ApplyScale(float scale)
         {
-            if (_kind is WorldLabelKind.Nickname or WorldLabelKind.ChatBubble)
+            if (_lastScale <= 0f || !Mathf.Approximately(scale, _lastScale))
             {
-                if (_lastScale <= 0f || !Mathf.Approximately(scale, _lastScale))
-                {
-                    Frame.style.scale = new Scale(new Vector3(scale, scale, 1f));
-                    _lastScale = scale;
-                    _sizeDirty = true;
-                }
-
-                return;
+                Frame.style.scale = new Scale(new Vector3(scale, scale, 1f));
+                _lastScale = scale;
+                _sizeDirty = true;
             }
-
-            if (_baseFontSize <= 0f && !TryCaptureBase())
-            {
-                return;
-            }
-
-            if (_lastScale > 0f && Mathf.Abs(scale - _lastScale) <= ScaleApplyEpsilon)
-            {
-                return;
-            }
-
-            Label.style.fontSize = _baseFontSize * scale;
-            TextShadow shadow = _baseShadow;
-            shadow.offset *= scale;
-            Label.style.textShadow = shadow;
-
-            _lastScale = scale;
-
-            // Смена кегля меняет бокс, а якорь облака задан его размером:
-            // пересчёт смещения обязан повториться на кадре, где раскладка уже
-            // отдаёт новые width/height. Пока этого не случилось, смещение
-            // записано по старому размеру, и ApplyVisible его не запоминает.
-            _sizeDirty = true;
         }
-
-        private bool TryCaptureBase()
-        {
-            IResolvedStyle style = Label.resolvedStyle;
-            if (!IsResolved(style.fontSize) || style.fontSize <= 0f)
-            {
-                return false;
-            }
-
-            _baseFontSize = style.fontSize;
-            _baseShadow = style.textShadow;
-            return true;
-        }
-
-        private static bool IsResolved(float value) =>
-            !float.IsNaN(value) && !float.IsInfinity(value);
 
         // Запись в style.translate помечает стили элемента грязными без
         // сравнения значений, поэтому безусловная запись каждый кадр держала
@@ -303,12 +236,10 @@ public sealed class WorldLabels : IWorldLabels, IPostLateTickable, IDisposable
                 return;
             }
 
-            // Якорь пузыря — кончик хвоста спрайта; никнейма — нижний левый угол.
+            // Якорь облака — нижний конец хвоста; никнейма — нижний левый угол.
             Vector3 offset = _kind == WorldLabelKind.ChatBubble
-                ? new Vector3(position.x - (TailAnchorSourceX * _lastScale), position.y - (size.y * _lastScale))
-                : _kind == WorldLabelKind.Nickname
-                    ? new Vector3(position.x, position.y - size.y * _lastScale)
-                    : position;
+                ? new Vector3(position.x - (TailAnchorX * _lastScale), position.y - ((size.y + TailHeight) * _lastScale))
+                : new Vector3(position.x, position.y - size.y * _lastScale);
             Frame.style.translate = new Translate(offset.x, offset.y);
             if (_sizeDirty)
             {
@@ -351,12 +282,6 @@ public sealed class WorldLabels : IWorldLabels, IPostLateTickable, IDisposable
 
         private bool TryResolveSize(out Vector2 size)
         {
-            if (_kind != WorldLabelKind.ChatBubble && _kind != WorldLabelKind.Nickname)
-            {
-                size = Vector2.zero;
-                return true;
-            }
-
             IResolvedStyle style = Frame.resolvedStyle;
             if (float.IsNaN(style.width) || float.IsNaN(style.height) ||
                 style.width <= 0f || style.height <= 0f)

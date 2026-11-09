@@ -21,6 +21,13 @@ public sealed class DisplaySettings
     public const float PeakBrightnessMin = 400f;
     public const float PeakBrightnessMax = 2000f;
 
+    // Уровень чёрного и яркость SDR — ползунки калибровки 0..100 с нейтральной серединой (как в больших играх):
+    // 50 не меняет картинку, шаг 1. Что они делают с кадром — PostProcess.compute, ToDisplayOutput.
+    public const float AdjustmentMin = 0f;
+    public const float AdjustmentMax = 100f;
+    public const float DefaultBlackLevel = 50f;
+    public const float DefaultBrightness = 50f;
+
     // Дефолти — авторська калібровка, єдиний дім у PostProcessLook.
     public const float DefaultPaperWhite = PostProcessLook.DisplayCalibration.PaperWhiteNits;
     public const float DefaultPeakBrightness = PostProcessLook.DisplayCalibration.PeakBrightnessNits;
@@ -84,6 +91,16 @@ public sealed class DisplaySettings
     [SettingLabel("settings.display.peak_brightness")]
     [SettingConsumer(SettingConsumerTarget.DisplayManager, "DisplayManager.SetPeakBrightnessNits / PostProcessRuntimeState.SetDisplayCalibration")]
     public float PeakBrightnessNits = DefaultPeakBrightness;
+
+    [SettingRange(AdjustmentMin, AdjustmentMax)]
+    [SettingLabel("settings.calibration.black")]
+    [SettingConsumer(SettingConsumerTarget.DisplayManager, "DisplayManager.SetBlackLevel / PostProcessRuntimeState.SetDisplayAdjustments")]
+    public float BlackLevel = DefaultBlackLevel;
+
+    [SettingRange(AdjustmentMin, AdjustmentMax)]
+    [SettingLabel("settings.calibration.brightness")]
+    [SettingConsumer(SettingConsumerTarget.DisplayManager, "DisplayManager.SetBrightness / PostProcessRuntimeState.SetDisplayAdjustments")]
+    public float Brightness = DefaultBrightness;
 
     // Пиковую яркость сообщает сам дисплей, пока человек не сдвинул ползунок:
     // авторская 1300 у XDR-экрана занижает пики, у HDR400-монитора завышает.

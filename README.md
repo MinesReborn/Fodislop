@@ -19,18 +19,24 @@ git submodule update --init --recursive
 Unity разрешает зависимости из [`Packages/manifest.json`](Packages/manifest.json);
 сетевые `file:`-пакеты требуют предварительно загруженного подмодуля.
 
-Открой `Assets/Scenes/Bootstrap.unity` и жми **Play**. Обычный путь запуска:
-`Bootstrap` → `Gateway` → `MainMenu` → `MainGame`. Переходами управляет
-`BootstrapLifetimeScope`: следующая сцена загружается аддитивно, предыдущая
-остаётся до готовности её замены. Порядок сцен в Build Settings: 0, 1, 2, 3
-соответственно. В Editor старт из другой сцены может передать её как целевую
-через `PlayModeSceneBootstrapper`.
+Открой `Assets/Scenes/Bootstrap.unity` и жми **Play**. Runtime-путь начинается
+с `Bootstrap`, затем загружается `MainMenu`; вход и онбординг (`MenuGate`) —
+слой меню, отдельной Gateway-сцены нет. После входа загружается `MainGame`.
+`BootstrapLifetimeScope` управляет переходами аддитивно и оставляет предыдущую
+сцену загруженной до готовности замены. В Build Settings production-сцены должны
+идти в порядке `Bootstrap` (index 0), `MainMenu` (index 1), `MainGame` (index 2).
+В Editor `PlayModeSceneBootstrapper` может выбрать целевую production-сцену при
+запуске из другой сцены.
 
 В чистой конфигурации включён **dummy/offline transport**. Для реального
 подключения выбери серверный транспорт и задай `ServerHost`/`ServerPort`;
 текущие сетевые дефолты — `127.0.0.1:8090`, HTTP API — порт `5460`.
-Это параметры разработки, а не публичный production endpoint. Автоматического
-release-гейта, запрещающего dummy/localhost, в текущем build-коде нет.
+Это параметры разработки, а не публичный production endpoint. Для Windows и
+macOS pre-build callback `ProductionServerEndpointValidator` отклоняет не-
+Development сборку, если `DefaultUseDummyConnection` включён либо compile-time
+endpoint пустой, loopback или имеет недопустимый порт. Проверка использует
+константы defaults, а не сохранённую конфигурацию конкретного пользователя;
+Android, Linux, iOS и Development-сборки этим callback не проверяются.
 
 ## Технологии
 

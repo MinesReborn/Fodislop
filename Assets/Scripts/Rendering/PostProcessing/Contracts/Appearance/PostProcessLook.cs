@@ -7,14 +7,6 @@ namespace Kern.Rendering.PostProcessing;
 
 public static class PostProcessLook
 {
-    public static class Fisheye
-    {
-        // Signed radial distortion; zero leaves the frame unchanged.
-        public const float Strength = 0.001f;
-        // World-space half-height at which Strength is measured, in cells.
-        public const float ReferenceHalfHeightCells = 14f;
-    }
-
     public static class Effects
     {
         public const bool Bloom = false;
@@ -58,6 +50,13 @@ public static class PostProcessLook
         public static Color Color => new(0f, 0f, 0f, 1f);
 
         public static Vector2 Center => new(0.5f, 0.5f);
+    }
+
+    // 4b. Хроматическая аберрация объектива: радиальное расхождение каналов.
+    // Сила 0..1; центр кадра остаётся чистым, к краям дужка растёт.
+    public static class ChromaticAberration
+    {
+        public const float Intensity = 0.6f;
     }
 
     // 5. Eigengrau добавляется после виньетки в DisplayFinal.

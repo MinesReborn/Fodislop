@@ -15,8 +15,3 @@ public interface IDummyScenarioSettings
 {
     DummyScenario Scenario { get; set; }
 }
-
-public sealed class DummyScenarioSettings : IDummyScenarioSettings
-{
-    public DummyScenario Scenario { get; set; } = DummyScenario.HappyPath;
-}

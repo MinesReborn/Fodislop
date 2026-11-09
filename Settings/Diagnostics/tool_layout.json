@@ -1,0 +1,113 @@
+{
+    "Windows": [
+        {
+            "Title": "Инструменты  ·  F1",
+            "X": 97.0,
+            "Y": 42.0,
+            "Width": 260.0,
+            "Height": 426.5,
+            "Visible": true,
+            "Collapsed": false
+        },
+        {
+            "Title": "Производительность",
+            "X": 1299.0,
+            "Y": 96.0,
+            "Width": 380.0,
+            "Height": 350.0,
+            "Visible": false,
+            "Collapsed": false
+        },
+        {
+            "Title": "Мир и клиент",
+            "X": 628.0,
+            "Y": 16.0,
+            "Width": 520.0,
+            "Height": 560.0,
+            "Visible": false,
+            "Collapsed": false
+        },
+        {
+            "Title": "Диагностика рендера",
+            "X": 16.0,
+            "Y": 382.0,
+            "Width": 260.0,
+            "Height": 390.0,
+            "Visible": false,
+            "Collapsed": false
+        },
+        {
+            "Title": "Цена света",
+            "X": 431.0,
+            "Y": 85.5,
+            "Width": 541.5,
+            "Height": 446.0,
+            "Visible": false,
+            "Collapsed": false
+        },
+        {
+            "Title": "Разбор кадра",
+            "X": 628.0,
+            "Y": 377.0,
+            "Width": 470.0,
+            "Height": 560.0,
+            "Visible": false,
+            "Collapsed": false
+        },
+        {
+            "Title": "Пакеты сервера",
+            "X": 292.0,
+            "Y": 517.0,
+            "Width": 380.0,
+            "Height": 420.0,
+            "Visible": false,
+            "Collapsed": false
+        },
+        {
+            "Title": "Цвет и вывод",
+            "X": 288.0,
+            "Y": 16.0,
+            "Width": 300.0,
+            "Height": 430.0,
+            "Visible": false,
+            "Collapsed": false
+        },
+        {
+            "Title": "Отладка террейна",
+            "X": 129.0,
+            "Y": 16.0,
+            "Width": 300.0,
+            "Height": 420.0,
+            "Visible": false,
+            "Collapsed": false
+        },
+        {
+            "Title": "Логи",
+            "X": 292.0,
+            "Y": 300.0,
+            "Width": 520.0,
+            "Height": 320.0,
+            "Visible": false,
+            "Collapsed": false
+        },
+        {
+            "Title": "LUT",
+            "X": 16.0,
+            "Y": 16.0,
+            "Width": 410.0,
+            "Height": 230.0,
+            "Visible": false,
+            "Collapsed": false
+        },
+        {
+            "Title": "Приборы изображения",
+            "X": 738.0,
+            "Y": 16.0,
+            "Width": 446.0,
+            "Height": 720.0,
+            "Visible": false,
+            "Collapsed": false
+        }
+    ],
+    "Scale": 0.0
+}
