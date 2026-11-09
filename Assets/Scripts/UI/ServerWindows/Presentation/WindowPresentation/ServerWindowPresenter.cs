@@ -159,7 +159,14 @@ public sealed class ServerWindowPresenter : IDisposable
 
     private void OpenCore(OpenWindowPacket packet)
     {
-        ServerWindowPacketValidator.Validate(packet);
+        if (packet.Content == null || packet.Width == 0 || packet.Height == 0)
+        {
+            throw new InvalidOperationException(
+                $"[PacketUI] Invalid OpenWindowPacket tag='{packet.WindowTag}', " +
+                $"size={packet.Width}x{packet.Height}, " +
+                $"root={packet.Content?.GetType().Name ?? "null"}: " +
+                "missing content or zero window dimensions.");
+        }
 
         // UIDocument може бути вимкненим (BypassGameUI). Серверне вікно потребує
         // активного дерева — вмикаємо документ перед додаванням елемента.
