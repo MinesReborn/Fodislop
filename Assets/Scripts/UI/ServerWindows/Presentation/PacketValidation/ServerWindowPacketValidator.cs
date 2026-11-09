@@ -9,6 +9,8 @@ namespace Kern.UI.ServerWindows;
 
 internal static class ServerWindowPacketValidator
 {
+    // OpenWindowPacket is a value type and can arrive in its default state; reject
+    // malformed server data at the boundary before building the UI tree.
     public static void Validate(OpenWindowPacket packet)
     {
         if (packet.Content == null || packet.Width == 0 || packet.Height == 0)
