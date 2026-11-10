@@ -182,6 +182,13 @@ namespace Kern.Game.Player.Movement
 
         protected void Start()
         {
+            // ExecuteAlways: в режиме редактирования DI-поля не заполнены,
+            // а сборка игрока загружает сцену и вызывает Start.
+            if (!Application.isPlaying)
+            {
+                return;
+            }
+
             if (_presentationState == null)
             {
                 throw new InvalidOperationException(
@@ -228,7 +235,7 @@ namespace Kern.Game.Player.Movement
                 HasServerPosition && (!Application.isPlaying || IsGameplayVisible),
                 _inputBlocker != null && _inputBlocker.IsInputBlockedExcludingMapMode);
 
-            if (!_presentationState.IsStable)
+            if (_presentationState == null || !_presentationState.IsStable)
             {
                 return;
             }
