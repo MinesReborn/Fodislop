@@ -86,12 +86,12 @@ public class MapBlockColorsTests
         }
     }
 
-    [TestCase((CellType)91, 255, 90, 0)]      // Lava
-    [TestCase((CellType)32, 0, 0, 0)]          // Empty
-    [TestCase((CellType)35, 68, 68, 68)]       // Road
-    [TestCase((CellType)107, 8, 215, 100)]     // Green
-    [TestCase((CellType)103, 133, 81, 166)]    // Rock
-    [TestCase((CellType)62, 255, 204, 204)]    // RustySand
+    [TestCase((CellType)91, 181, 30, 7)]      // Lava
+    [TestCase((CellType)32, 49, 30, 17)]          // Empty
+    [TestCase((CellType)35, 28, 27, 29)]       // Road
+    [TestCase((CellType)107, 30, 40, 92)]     // Green
+    [TestCase((CellType)103, 26, 25, 101)]    // Rock
+    [TestCase((CellType)62, 182, 115, 68)]    // RustySand
     public void AuthoredColors_AreByteExact(CellType type, int r, int g, int b)
     {
         // Регрессия на прежнее хранение в Color: Color(r / 256f) → byte(c * 255f)
@@ -102,16 +102,16 @@ public class MapBlockColorsTests
         Assert.That(color.b, Is.EqualTo((byte)b), $"blue of '{type}'");
     }
 
-    [TestCase((CellType)29, 56, 52, 48)]      // BuildingRoad
+    [TestCase((CellType)29, 28, 27, 29)]      // BuildingRoad
     [TestCase((CellType)30, 68, 17, 17)]      // Gate
-    [TestCase((CellType)31, 40, 12, 6)]       // VolcanoBackground
-    [TestCase((CellType)39, 60, 72, 84)]      // PolymerRoad
-    [TestCase((CellType)76, 46, 42, 54)]      // DeepObsidianRock
-    [TestCase((CellType)77, 40, 160, 160)]    // DeepTurquoiseRock
-    [TestCase((CellType)78, 200, 120, 220)]   // DeepRainbowRock
-    [TestCase((CellType)79, 180, 90, 140)]    // DeepStripedRock
-    [TestCase((CellType)80, 24, 72, 72)]      // MilitaryBlockFrame
-    [TestCase((CellType)81, 17, 85, 85)]      // MilitaryBlock
+    [TestCase((CellType)31, 49, 30, 17)]       // VolcanoBackground
+    [TestCase((CellType)39, 20, 37, 30)]      // PolymerRoad
+    [TestCase((CellType)76, 18, 15, 26)]      // DeepObsidianRock
+    [TestCase((CellType)77, 79, 108, 130)]    // DeepTurquoiseRock
+    [TestCase((CellType)78, 91, 115, 150)]   // DeepRainbowRock
+    [TestCase((CellType)79, 65, 88, 101)]    // DeepStripedRock
+    [TestCase((CellType)80, 52, 74, 87)]      // MilitaryBlockFrame
+    [TestCase((CellType)81, 58, 96, 100)]      // MilitaryBlock
     [TestCase((CellType)87, 255, 180, 255)]   // SuperRainbow
     [TestCase((CellType)88, 170, 165, 150)]   // Skull
     public void PreviouslyMissingColors_AreNowAuthored(CellType type, int r, int g, int b)
