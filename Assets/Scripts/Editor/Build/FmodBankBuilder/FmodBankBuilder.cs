@@ -2,6 +2,7 @@
 
 using System;
 using System.IO;
+using System.Linq;
 using System.Threading.Tasks;
 using UnityEditor;
 using UnityEditor.Build;
@@ -18,6 +19,7 @@ public sealed class FmodBankBuilder : IPreprocessBuildWithReport
     // Явный режим CI: банки уже лежат в KernAudio/Build/Desktop, FMOD Studio
     // на агенте нет, поэтому компиляция проекта пропускается осознанно.
     private const string SkipCompileEnvironmentVariable = "KERN_FMOD_SKIP_COMPILE";
+    private const string SkipCompileArgument = "-kernFmodSkipCompile";
     private static readonly string[] s_requiredBanks = new[] {
 "Master.bank", "Master.strings.bank"
  };
@@ -46,9 +48,9 @@ public sealed class FmodBankBuilder : IPreprocessBuildWithReport
         var sourceDir = Path.Combine(projectRoot, FmodSourceBuildPath);
         var targetDir = Path.Combine(projectRoot, StreamingAssetsAudioPath);
 
-        if (Environment.GetEnvironmentVariable(SkipCompileEnvironmentVariable) == "1")
+        if (SkipCompileRequested())
         {
-            Log($"[FmodBankBuilder] {SkipCompileEnvironmentVariable}=1: using committed banks without compiling.");
+            Log($"[FmodBankBuilder] Compilation skipped: using committed banks from '{sourceDir}'.");
         }
         else
         {
@@ -92,6 +94,10 @@ public sealed class FmodBankBuilder : IPreprocessBuildWithReport
         AssetDatabase.Refresh();
         Log($"Successfully synchronized {syncedCount} FMOD bank(s) to '{StreamingAssetsAudioPath}'.");
     }
+
+    private static bool SkipCompileRequested() =>
+        Environment.GetCommandLineArgs().Contains(SkipCompileArgument) ||
+        Environment.GetEnvironmentVariable(SkipCompileEnvironmentVariable) == "1";
 
     private static bool RequiredBanksExist(string directory)
     {

@@ -113,6 +113,8 @@ jobs:
           customImage: ${{ vars.UNITY_CI_IMAGE }}
           targetPlatform: StandaloneWindows64
           buildMethod: Kern.Editor.BuildScript.BuildWindows
+          # CI собирает development-сборку и не пересобирает FMOD-банки (их нет на агенте).
+          customParameters: -kernDev -kernFmodSkipCompile
 
       - name: Upload build
         if: success()

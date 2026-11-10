@@ -15,7 +15,7 @@ namespace Kern.Editor;
 
 public sealed class LocalizationDictionaryValidator : IPreprocessBuildWithReport
 {
-    private const string LocalizationDirectory = "Assets/Resources/Localization";
+    private const string LocalizationDirectory = "Assets/Resources/Localization/Locales";
     private const string ReferenceLanguage = "ru";
     private static readonly string[] s_languages = new[] {
 "en", "ru", "zh", "zh-hant"
