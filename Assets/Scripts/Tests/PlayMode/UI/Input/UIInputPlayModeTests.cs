@@ -13,7 +13,7 @@ using UnityEngine.TestTools;
 using VContainer;
 
 using Kern.Bootstrap.Scenes;
-using Kern.Networking.Offline;
+using Kern.Networking.Dummy;
 using Kern.UI.Input;
 using Kern.UI.Map;
 
@@ -39,7 +39,7 @@ public sealed class UIInputPlayModeTests
     public IEnumerator SetUp()
     {
         _authentication = DummyAuthenticationScope.Seed(TestDummyToken);
-        yield return PlayModeHarness.StartAtGateway();
+        yield return PlayModeHarness.StartAtMainMenu();
         _bootstrap = PlayModeHarness.FindBootstrap()!;
         yield return PlayModeHarness.EnterMainGame(_bootstrap);
         _uiInput = PlayModeHarness.RequireInGame<UIInputManager>();

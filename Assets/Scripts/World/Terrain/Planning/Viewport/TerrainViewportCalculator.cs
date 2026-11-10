@@ -210,7 +210,8 @@ public sealed class TerrainViewportCalculator
                 cameraViewport,
                 retainedLightingViewport,
                 holdingPublishedView);
-            if (lightingViewport.width <= 0 || lightingViewport.height <= 0)
+            if (lightingViewport.width <= 0 || lightingViewport.height <= 0 ||
+                !Contains(committedWindow, lightingViewport))
             {
                 lightingViewport = ClampInto(cameraViewport, committedWindow);
             }
@@ -247,9 +248,14 @@ public sealed class TerrainViewportCalculator
         // него), пока не доедет запрошенное окно.
         if (cellsCommitted)
         {
-            if (retainedLightingViewport.width <= 0 || retainedLightingViewport.height <= 0)
+            RectInt lightingViewport = TerrainLightingViewportPolicy.ResolveLightingViewport(
+                cameraViewport,
+                retainedLightingViewport,
+                holdingPublishedView);
+            if (lightingViewport.width <= 0 || lightingViewport.height <= 0 ||
+                !Contains(committedWindow, lightingViewport))
             {
-                retainedLightingViewport = ClampInto(cameraViewport, committedWindow);
+                lightingViewport = ClampInto(cameraViewport, committedWindow);
             }
 
             return new TerrainFramePlan(
@@ -257,7 +263,7 @@ public sealed class TerrainViewportCalculator
                 committedWindow,
                 committedWindow,
                 cameraViewport,
-                retainedLightingViewport,
+                lightingViewport,
                 DimensionsChanged: false,
                 ShouldProcess: true);
         }
@@ -285,4 +291,10 @@ public sealed class TerrainViewportCalculator
         int y = Mathf.Clamp(rect.y, window.Origin.y, window.Origin.y + window.Size.y - height);
         return new RectInt(x, y, width, height);
     }
+
+    private static bool Contains(StreamingWindow window, RectInt viewport) =>
+        viewport.width > 0 && viewport.height > 0 &&
+        viewport.x >= window.Origin.x && viewport.y >= window.Origin.y &&
+        (long)viewport.x + viewport.width <= (long)window.Origin.x + window.Size.x &&
+        (long)viewport.y + viewport.height <= (long)window.Origin.y + window.Size.y;
 }

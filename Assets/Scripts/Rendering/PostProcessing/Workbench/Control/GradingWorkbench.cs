@@ -47,8 +47,6 @@ public sealed class GradingWorkbench : IDisposable
             ToolWindows.Register(_scopesWindow);
         }
 
-        HandleWorkspaceShortcut();
-
         bool workspaceActive = ToolWindows.Enabled &&
             (_lutWindow.Visible || _scopesWindow.Visible);
         if (workspaceActive && !_workspaceActive)
@@ -120,30 +118,6 @@ public sealed class GradingWorkbench : IDisposable
         _scopesWereVisible = false;
         _hiddenForWorkspace.Clear();
         ResetPreviewTools();
-    }
-
-    private void HandleWorkspaceShortcut()
-    {
-        Keyboard? keyboard = Keyboard.current;
-        if (keyboard == null ||
-            ToolWindows.HasKeyboardCapture ||
-            !keyboard.f5Key.wasPressedThisFrame)
-        {
-            return;
-        }
-
-        bool open = !ToolWindows.Enabled || !_lutWindow.Visible;
-        ToolWindows.Enabled = true;
-        _lutWindow.Visible = open;
-        if (open)
-        {
-            ToolWindows.RequestFocus(_lutWindow);
-        }
-
-        if (!open)
-        {
-            ToolWindows.ReleaseInputCapture();
-        }
     }
 
     public void Deactivate()

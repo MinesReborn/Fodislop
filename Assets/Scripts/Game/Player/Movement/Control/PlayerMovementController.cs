@@ -31,7 +31,7 @@ namespace Kern.Game.Player.Movement
     [ExecuteAlways]
     [RequireComponent(typeof(Robot))]
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, sourceNamespace: "Kern.Player.Logic", sourceAssembly: null, sourceClassName: "PlayerMovementController")]
-    public class PlayerMovementController : MonoBehaviour, ILocalPlayer, IClickPathWalker
+    public class PlayerMovementController : MonoBehaviour, ILocalPlayer, IClickPathWalker, IPlayerMovementActionContext
     {
         [Header("Movement Settings")]
         [SerializeField]
@@ -48,103 +48,46 @@ namespace Kern.Game.Player.Movement
         // камера подписывается и щёлкает на новое место мгновенно.
         public event Action? OnPlayerTeleported;
 
-        // ═══ Клик-маршрут (ЛКМ): путь до цели + авто-движение по нему ═══
-        // Остаток пути в серверных координатах (от следующего шага до цели)
-        // и индекс следующей клетки. null - маршрут не активен.
-        private List<Vector2Int>? _clickPath;
-        private int _clickPathIndex;
-        private ClickPathRenderer? _clickPathRenderer;
+        private readonly PlayerClickPathState _clickPathState = new();
 
-        public bool IsPathActive => _clickPath != null;
+        public bool IsPathActive => _clickPathState.Path != null;
 
-        public IReadOnlyList<Vector2Int>? Path => _clickPath;
+        public IReadOnlyList<Vector2Int>? Path => _clickPathState.Path;
 
-        public int PathIndex => _clickPathIndex;
+        public int PathIndex => _clickPathState.Index;
 
-        public event Action<IReadOnlyList<Vector2Int>?>? OnPathChanged;
-
-        public bool TryStartPath(Vector2Int target)
+        public event Action<IReadOnlyList<Vector2Int>?>? OnPathChanged
         {
-            if (_movementLockedByProgram)
-            {
-                return false;
-            }
-
-            if (!HasServerPosition ||
-                _storage == null || !_storage.IsReady ||
-                _mapDataProvider == null)
-            {
-                return false;
-            }
-
-            if (!PlayerMovementValidator.IsWithinWorldBounds(
-                    target, _mapDataProvider.WorldWidth, _mapDataProvider.WorldHeight))
-            {
-                Vector2Int delta = target - Position;
-                Vector2Int direction = Mathf.Abs(delta.x) > Mathf.Abs(delta.y)
-                    ? new Vector2Int(Math.Sign(delta.x), 0)
-                    : new Vector2Int(0, -Math.Sign(delta.y));
-                CancelClickPath();
-                TryRotate(direction);
-                return false;
-            }
-
-            List<Vector2Int>? path;
-            try
-            {
-                path = ClickPathfinder.FindPath(_storage, _mapDataProvider, Position, target);
-            }
-            catch (Exception)
-            {
-                return false;
-            }
-
-            if (path == null || path.Count == 0)
-            {
-                return false;
-            }
-
-            _clickPath = path;
-            _clickPathIndex = 0;
-            OnPathChanged?.Invoke(_clickPath);
-            _clickPathRenderer?.EnsureView(_sceneObjects);
-            _clickPathRenderer?.Show(_clickPath, 0, _mapDataProvider, transform.position.z);
-            return true;
+            add => _clickPathState.PathChanged += value;
+            remove => _clickPathState.PathChanged -= value;
         }
 
-        public void CancelPath()
-        {
-            CancelClickPath();
-        }
+        public bool TryStartPath(Vector2Int target) => _clickPathState.TryStart(
+            target,
+            _movementLockedByProgram,
+            HasServerPosition,
+            _storage,
+            _mapDataProvider,
+            Position,
+            CancelClickPath,
+            TryRotate,
+            _sceneObjects,
+            transform);
 
-        private void CancelClickPath()
-        {
-            if (_clickPath == null)
-            {
-                return;
-            }
+        public void CancelPath() => CancelClickPath();
 
-            _clickPath = null;
-            _clickPathIndex = 0;
-            OnPathChanged?.Invoke(null);
-            _clickPathRenderer?.Hide();
-        }
+        private void CancelClickPath() => _clickPathState.Cancel();
 
         private Robot? _robot;
         private IPlayerInput? _input;
         private PlayerActionDispatcher? _actionDispatcher;
         private SpriteRenderer[] _playerRenderers = Array.Empty<SpriteRenderer>();
 
-        private bool _autoDig = false;
-        private bool _ignoreCollision = false;
-        private float _lastMoveTime;
+        private readonly PlayerMovementOptions _movementOptions = new();
+        private readonly PlayerStepSelectorState _stepState = new();
+        private float _nextMoveTime;
         private float _lastRotateTime;
         private Direction? _lastSentDirection;
-        // Направление, до которого сервер реально дошёл пакетом Rotate
-        // (IntendedDirection). MovePacket направление не передаёт (структура
-        // (X, Y)), поэтому это единственный источник правды о том, куда
-        // сервер повернёт робота на следующем шаге. _lastSentDirection этим
-        // быть не может: он коммитится оптимистично на каждый шаг/бур.
         private Direction _lastServerRotation = Direction.Down;
         private bool _movementValidationFailed;
         private bool _awaitingMoveConfirmation;
@@ -152,13 +95,19 @@ namespace Kern.Game.Player.Movement
         private IWorldDataStorage _storage = null!;
 
         [Inject]
-        private IServerVFXService _vfx = null!;
+        private IServerVisualEffectService _visualEffect = null!;
+
+        [Inject]
+        private IServerAudioService _audio = null!;
 
         [Inject]
         private INetworkService _networkService = null!;
 
         [Inject]
         private IMapDataProvider _mapDataProvider = null!;
+
+        [Inject]
+        private IWorldPresentationState _presentationState = null!;
 
         [Inject]
         private IConnectionService _connectionService = null!;
@@ -173,27 +122,30 @@ namespace Kern.Game.Player.Movement
         private IRuntimeDebugSettings _debugSettings = null!;
 
         [Inject]
+        private Kern.Core.Interfaces.IClientConfigManager _clientConfig = null!;
+
+        [Inject]
         private Kern.Core.Lifecycle.ISceneObjectFactory _sceneObjects = null!;
 
         [Inject]
         private Kern.Networking.Processing.ProgrammatorProcessor _programmator = null!;
 
-        // Пока выполняется программа (флаг из ProgramStatePacket 43), ручной
-        // ввод закрыт целиком: ни WASD, ни клик-путь, ни копание, ни хоткеи —
-        // сервер их всё равно отвергнет, а клиент без гейта рисовал путь и
-        // делал предсказанный шаг (G3-C). Живёт в PlayerMovementController:
-        // Update() гейтит всё одной точкой выхода.
+        // Пока выполняется программа (и не HandMode), ручное движение
+        // закрыто: ни WASD, ни клик-путь — сервер их всё равно отвергнет,
+        // а клиент без гейта рисовал путь и делал предсказанный шаг.
         private bool _movementLockedByProgram;
+        private readonly PlayerMovementActionExecutor _movementExecutor = new();
+        private readonly PlayerServerPositionUpdater _serverPositionUpdater = new();
 
         protected void Awake()
         {
             _robot = GetComponent<Robot>();
-            _clickPathRenderer = GetComponent<ClickPathRenderer>();
+            _clickPathState.BindRenderer(GetComponent<ClickPathRenderer>());
             // ExecuteAlways: в редакторе Awake срабатывает при открытии сцены,
             // и AddComponent записал бы компонент в сцену. Добавлять только в игре.
-            if (_clickPathRenderer == null && Application.isPlaying)
+            if (_clickPathState.Renderer == null && Application.isPlaying)
             {
-                _clickPathRenderer = gameObject.AddComponent<ClickPathRenderer>();
+                _clickPathState.BindRenderer(gameObject.AddComponent<ClickPathRenderer>());
             }
 
             if (_robot is not null)
@@ -230,7 +182,14 @@ namespace Kern.Game.Player.Movement
 
         protected void Start()
         {
+            if (_presentationState == null)
+            {
+                throw new InvalidOperationException(
+                    "PlayerMovementController requires IWorldPresentationState before Start.");
+            }
+
             _lastSentDirection = null;
+            _movementOptions.BindDebugSettings(_debugSettings);
 
             // Field injection completes during scope build, before Start runs:
             // this is the first point where publishing is guaranteed to reach
@@ -238,7 +197,7 @@ namespace Kern.Game.Player.Movement
             _localPlayerState?.Publish(this);
             if (_input != null)
             {
-                _actionDispatcher = new PlayerActionDispatcher(_input, _networkService, _vfx);
+                _actionDispatcher = new PlayerActionDispatcher(_input, _networkService, _audio, _visualEffect);
             }
             _programmator.StateChanged += OnProgramStateChanged;
         }
@@ -269,6 +228,11 @@ namespace Kern.Game.Player.Movement
                 HasServerPosition && (!Application.isPlaying || IsGameplayVisible),
                 _inputBlocker != null && _inputBlocker.IsInputBlockedExcludingMapMode);
 
+            if (!_presentationState.IsStable)
+            {
+                return;
+            }
+
             if (!HasServerPosition || (Application.isPlaying && !IsGameplayVisible))
             {
                 return;
@@ -294,10 +258,8 @@ namespace Kern.Game.Player.Movement
                 return;
             }
 
-            // Пока выполняется программа, ручной ввод закрыт целиком: WASD,
-            // click-маршрут, копание и хоткеи уходят в один gating единственный
-            // ранний выход (G3-C). TryStartPath держит собственный барьер:
-            // он внешнее API, его зовёт PlayerInteractionController.
+            // Block all manual gameplay input together: movement, digging and hotkeys.
+            // TryStartPath keeps its own guard because callers can invoke that public API directly.
             if (_movementLockedByProgram)
             {
                 return;
@@ -305,7 +267,7 @@ namespace Kern.Game.Player.Movement
 
             try
             {
-                ApplyMovement();
+                _movementExecutor.ApplyMovement(this);
             }
             catch (InvalidOperationException exception)
             {
@@ -324,6 +286,75 @@ namespace Kern.Game.Player.Movement
             _actionDispatcher?.DispatchHotkeys();
         }
 
+        private void TryRotate(Vector2Int direction) => _movementExecutor.TryRotate(this, direction);
+
+        Robot? IPlayerMovementActionContext.Robot => _robot;
+        IPlayerInput? IPlayerMovementActionContext.Input => _input;
+        Kern.Core.Interfaces.IInputBlocker IPlayerMovementActionContext.InputBlocker => _inputBlocker;
+        IReadOnlyList<Vector2Int>? IPlayerMovementActionContext.ClickPath => _clickPathState.Path;
+        int IPlayerMovementActionContext.ClickPathIndex
+        {
+            get => _clickPathState.Index;
+            set => _clickPathState.Index = value;
+        }
+        ClickPathRenderer? IPlayerMovementActionContext.ClickPathRenderer => _clickPathState.Renderer;
+        IMapDataProvider IPlayerMovementActionContext.MapDataProvider => _mapDataProvider;
+        IWorldDataStorage IPlayerMovementActionContext.Storage => _storage;
+        bool IPlayerMovementActionContext.AwaitingMoveConfirmation
+        {
+            get => _awaitingMoveConfirmation;
+            set => _awaitingMoveConfirmation = value;
+        }
+        PlayerActionDispatcher? IPlayerMovementActionContext.ActionDispatcher => _actionDispatcher;
+        bool IPlayerMovementActionContext.AutoDig => _movementOptions.AutoDig;
+        bool IPlayerMovementActionContext.IgnoreCollision => _movementOptions.IgnoreCollision;
+        // Живой конфиг: тумблер на вкладке «Управление» действует сразу.
+        bool IPlayerMovementActionContext.MovementAssist => _clientConfig.Config.Interface.MovementAssist;
+        PlayerStepSelectorState IPlayerMovementActionContext.StepState => _stepState;
+        float IPlayerMovementActionContext.NextMoveTime
+        {
+            get => _nextMoveTime;
+            set => _nextMoveTime = value;
+        }
+        Direction? IPlayerMovementActionContext.LastSentDirection
+        {
+            get => _lastSentDirection;
+            set => _lastSentDirection = value;
+        }
+        Direction IPlayerMovementActionContext.LastServerRotation
+        {
+            get => _lastServerRotation;
+            set => _lastServerRotation = value;
+        }
+        float IPlayerMovementActionContext.LastRotateTime
+        {
+            get => _lastRotateTime;
+            set => _lastRotateTime = value;
+        }
+        INetworkService IPlayerMovementActionContext.NetworkService => _networkService;
+        Transform IPlayerMovementActionContext.OwnerTransform => transform;
+        bool IPlayerMovementActionContext.HasServerPosition
+        {
+            get => HasServerPosition;
+            set => HasServerPosition = value;
+        }
+        bool IPlayerMovementActionContext.IsGameplayVisible
+        {
+            get => IsGameplayVisible;
+            set => IsGameplayVisible = value;
+        }
+        SpriteRenderer[] IPlayerMovementActionContext.PlayerRenderers => _playerRenderers;
+        IWorldPresentationState IPlayerMovementActionContext.PresentationState => _presentationState;
+        void IPlayerMovementActionContext.PublishPlayerTeleported() => OnPlayerTeleported?.Invoke();
+        Vector2Int IPlayerMovementActionContext.Position
+        {
+            get => Position;
+            set => Position = value;
+        }
+        void IPlayerMovementActionContext.CancelClickPath() => CancelClickPath();
+        void IPlayerMovementActionContext.PublishPlayerMoved(Vector2Int oldPosition, Vector2Int newPosition) =>
+            OnPlayerMoved?.Invoke(oldPosition, newPosition);
+
         public void Initialize(uint botId)
         {
             BotId = botId;
@@ -332,9 +363,10 @@ namespace Kern.Game.Player.Movement
             _awaitingMoveConfirmation = false;
             _lastSentDirection = null;
             _lastServerRotation = Direction.Down;
-            _lastMoveTime = 0f;
+            _nextMoveTime = 0f;
             _lastRotateTime = 0f;
             CancelClickPath();
+            PlayerStepSelector.Reset(_stepState);
             _actionDispatcher?.ResetDigCooldown();
             foreach (SpriteRenderer renderer in _playerRenderers)
             {
@@ -349,106 +381,50 @@ namespace Kern.Game.Player.Movement
 
         public bool AutoDig
         {
-            get => _autoDig;
-            set
-            {
-                _autoDig = value;
-                OnAutoDigChanged?.Invoke(value);
-            }
+            get => _movementOptions.AutoDig;
+            set => _movementOptions.AutoDig = value;
         }
 
-        public event Action<bool>? OnAutoDigChanged;
+        public event Action<bool>? OnAutoDigChanged
+        {
+            add => _movementOptions.AutoDigChanged += value;
+            remove => _movementOptions.AutoDigChanged -= value;
+        }
 
         public bool IgnoreCollision
         {
-            get => _ignoreCollision;
-            set
-            {
-                _ignoreCollision = value;
-                _debugSettings.IgnoreCollision = value;
-                OnCollisionChanged?.Invoke(value);
-            }
+            get => _movementOptions.IgnoreCollision;
+            set => _movementOptions.IgnoreCollision = value;
         }
 
-        public event Action<bool>? OnCollisionChanged;
-
-        public static bool IsWithinWorldBounds(Vector2Int position, int worldWidth, int worldHeight)
+        public event Action<bool>? OnCollisionChanged
         {
-            return PlayerMovementValidator.IsWithinWorldBounds(position, worldWidth, worldHeight);
+            add => _movementOptions.CollisionChanged += value;
+            remove => _movementOptions.CollisionChanged -= value;
         }
+
+        public static bool IsWithinWorldBounds(Vector2Int position, int worldWidth, int worldHeight) =>
+            PlayerMovementRules.IsWithinWorldBounds(position, worldWidth, worldHeight);
 
         public void ResetServerPosition()
         {
             HasServerPosition = false;
             Position = default;
             _awaitingMoveConfirmation = false;
+            IsGameplayVisible = false;
+            CancelClickPath();
+            PlayerStepSelector.Reset(_stepState);
+            ResetDirection();
+            foreach (SpriteRenderer renderer in _playerRenderers)
+            {
+                renderer.enabled = false;
+            }
+
+            _robot?.SetBatchedBodyVisible(false);
         }
 
-        public void UpdateServerPosition(Vector2Int position, bool teleport = false)
-        {
-            if (_mapDataProvider == null)
-            {
-                throw new InvalidOperationException(
-                    "[PlayerMovementController] IMapDataProvider is required before applying server position.");
-            }
-
-            int worldHeight = _mapDataProvider.WorldHeight;
-            if (worldHeight <= 0)
-            {
-                throw new InvalidOperationException(
-                    $"[PlayerMovementController] Cannot apply server position {position}: " +
-                    $"world height is {worldHeight}.");
-            }
-
-            bool shouldSnap = !HasServerPosition ||
-                Mathf.Abs(Position.x - position.x) > 1 ||
-                Mathf.Abs(Position.y - position.y) > 1;
-            Vector2Int oldPos = Position;
-            if (shouldSnap && HasServerPosition)
-            {
-                // Рывок робота (а за ним и камеры): сервер прислал клетку
-                // дальше соседней. Источник ищется по этой строке в логе.
-                Debug.LogWarning(
-                    $"[PlayerMovementController] Server moved the player {oldPos} -> {position} " +
-                    $"(frame {Time.frameCount}).");
-            }
-
-            _awaitingMoveConfirmation = false;
-            Position = position;
-            HasServerPosition = true;
-            Vector3 targetWorldPos = WorldCoordinateConverter.ServerToUnityPos(position.x, position.y, worldHeight, transform.position.z);
-            transform.position = targetWorldPos;
-            if (_robot is not null)
-            {
-                if (shouldSnap || teleport)
-                {
-                    _robot.SnapTo(targetWorldPos);
-                    if (teleport)
-                    {
-                        // Телепорт: визуал робота (тело + сегменты-щупальца) снапится
-                        // в точку мгновенно, иначе Robot.Update тянет transform назад
-                        // к сглаженной позиции, и камера медленно "плывёт" за ним.
-                        _robot.SnapVisualToTarget();
-                    }
-                }
-                else
-                {
-                    _robot.TargetPosition = targetWorldPos;
-                }
-            }
-
-            if (oldPos != Position)
-            {
-                OnPlayerMoved?.Invoke(oldPos, Position);
-            }
-
-            if (teleport)
-            {
-                // Респаун/ТП: маршрут до старой цели теряет смысл.
-                CancelClickPath();
-                OnPlayerTeleported?.Invoke();
-            }
-        }
+        public void UpdateServerPosition(Vector2Int position, bool teleport = false, Direction? rotation = null) =>
+            _serverPositionUpdater.UpdateServerPosition(this, position, teleport, rotation);
 
         public void SetGameplayVisible()
         {
@@ -481,367 +457,6 @@ namespace Kern.Game.Player.Movement
             return _actionDispatcher != null && _actionDispatcher.TryGetDigDirection(x, y, out direction);
         }
 
-        private void ApplyMovement()
-        {
-            if (_robot is null || _input is null)
-            {
-                return;
-            }
-
-            if (_inputBlocker != null && _inputBlocker.IsInputBlockedExcludingMapMode)
-            {
-                return;
-            }
-
-            Vector2 moveInput = _input.MoveInput;
-            if (moveInput != Vector2.zero && _clickPath != null)
-            {
-                CancelClickPath();
-            }
-
-            Vector2Int direction = PlayerDirectionMapping.InputToDirection(moveInput);
-
-            // Шаг MovePacket не несёт направление (структура (X, Y)); сервер
-            // доворачивает робота к IntendedDirection внутри TryMove, а само
-            // IntendedDirection меняется только пакетом Rotate. Поэтому
-            // RotatePacket отправляется при коммите ШАГА в новом направлении
-            // (см. TryRotate перед SendAction MovePacket ниже) - доворот по
-            // сырому вводу недопустим: миллисекундный тап боковой клавиши
-            // поворачивал робота без шага, обратный гасился кулдауном.
-            // Исключение - явный поворот на месте: Shift гасит отправку
-            // шага, повернуться иначе нельзя.
-            if (direction != Vector2Int.zero && _input.IsShiftPressed && !_awaitingMoveConfirmation)
-            {
-                TryRotate(direction);
-            }
-
-            // Поворот к грани мира не должен ждать кулдауна шага или бура:
-            // шага за границу всё равно не будет, но робот обязан смотреть
-            // на видимую WorldEdge-клетку.
-            if (direction != Vector2Int.zero && _mapDataProvider != null &&
-                !PlayerMovementValidator.IsWithinWorldBounds(
-                    Position + PlayerDirectionMapping.MovementToDeltaServer(direction),
-                    _mapDataProvider.WorldWidth,
-                    _mapDataProvider.WorldHeight))
-            {
-                TryRotate(direction);
-                if (_autoDig && !_input.IsShiftPressed && !_awaitingMoveConfirmation)
-                {
-                    _actionDispatcher?.HandleBoundaryDig(Position, PlayerDirectionMapping.ToPacketDirection(direction));
-                }
-
-                return;
-            }
-
-            if (_awaitingMoveConfirmation)
-            {
-                return;
-            }
-
-            if (moveInput == Vector2.zero)
-            {
-                // Ручного ввода нет - ведём робота по клик-маршруту (ЛКМ).
-                if (_clickPath != null)
-                {
-                    StepClickPath();
-                }
-
-                return;
-            }
-
-            // The authoritative dig cooldown gates movement as well as
-            // repeated digging. Without this check auto-dig used the
-            // current terrain cell's movement delay and could send a
-            // BzPacket every movement tick, ignoring ServerConfig.
-            if (_actionDispatcher is { IsDigOnCooldown: true } or { IsDigAwaitingConfirmation: true })
-            {
-                return;
-            }
-
-            Direction packetDirection = PlayerDirectionMapping.ToPacketDirection(direction);
-
-            ushort currentX = (ushort)Mathf.Clamp(Position.x, 0, ushort.MaxValue);
-            ushort currentServerY = (ushort)Mathf.Clamp(Position.y, 0, ushort.MaxValue);
-
-            var storage = _storage;
-            if (storage == null || !storage.IsReady)
-            {
-                return;
-            }
-
-            // Клетка под игроком может быть ещё не получена: карту присылает
-            // сервер, и он же решает, можно ли идти. Ранний выход здесь
-            // оставлял клиент без MovePacket, пока не придёт регион, а
-            // настоящий сервер регион без движения не шлёт.
-            CellType currentCellType = storage.TryGetCell(
-                currentX,
-                currentServerY,
-                out CellType residentCurrentCellType)
-                ? residentCurrentCellType
-                : CellType.Unloaded;
-
-            var mapDataProvider = _mapDataProvider ?? throw new InvalidOperationException(
-                "[PlayerMovementController] IMapDataProvider is required for movement validation.");
-            float cooldown = PlayerMovementValidator.CalculateMoveCooldown(
-                mapDataProvider,
-                currentCellType,
-                _input.IsCtrlPressed,
-                _ignoreCollision);
-
-            if (cooldown > 0)
-            {
-                _robot.MoveSpeed = 1f / cooldown;
-            }
-
-            if (Time.time - _lastMoveTime < cooldown)
-            {
-                return;
-            }
-
-            if (_input.IsShiftPressed)
-            {
-                return;
-            }
-
-            if (!PlayerMovementValidator.TryEvaluateStep(
-                Position,
-                direction,
-                mapDataProvider,
-                storage,
-                out Vector2Int targetPosition,
-                out CellType targetCellType,
-                out bool isPassable))
-            {
-                // Цель не загружена: предсказывать шаг не по чему, но запрос
-                // уходит серверу как есть. Позицию он вернёт RobotPositionPacket,
-                // и UpdateServerPosition переставит робота.
-                if (storage.CellLayer != null &&
-                    PlayerMovementValidator.IsWithinWorldBounds(
-                        targetPosition,
-                        mapDataProvider.WorldWidth,
-                        mapDataProvider.WorldHeight) &&
-                    (!storage.TryGetCell(
-                        (ushort)targetPosition.x,
-                        (ushort)targetPosition.y,
-                        out CellType residentTargetCellType) ||
-                        residentTargetCellType is CellType.Unloaded or CellType.Pregener))
-                {
-                    _lastMoveTime = Time.time;
-                    _lastSentDirection = packetDirection;
-                    _robot.TargetAngle = PlayerDirectionMapping.DirectionToAngle(direction);
-                    TryRotate(direction);
-                    _awaitingMoveConfirmation = true;
-                    _networkService?.SendAction(new MovePacket((ushort)targetPosition.x, (ushort)targetPosition.y));
-                }
-
-                return;
-            }
-
-            ushort targetServerX = (ushort)targetPosition.x;
-            ushort targetServerY = (ushort)targetPosition.y;
-
-            if (isPassable || _ignoreCollision)
-            {
-                _robot.TargetAngle = PlayerDirectionMapping.DirectionToAngle(direction);
-                _robot.TargetPosition = WorldCoordinateConverter.ServerToUnityPos(
-                    targetServerX,
-                    targetServerY,
-                    mapDataProvider.WorldHeight,
-                    transform.position.z);
-                Vector2Int oldPos = Position;
-                Position = targetPosition;
-                OnPlayerMoved?.Invoke(oldPos, Position);
-                _lastMoveTime = Time.time;
-                _lastSentDirection = packetDirection;
-                TryRotate(direction);
-                _awaitingMoveConfirmation = true;
-                _networkService?.SendAction(new MovePacket(targetServerX, targetServerY));
-            }
-            else if (_autoDig)
-            {
-                // Сервер доворачивает к буримой клетке сам (ClickCellHandler);
-                // локальный коммит нужен визуалу и HandleDig, чтобы направление
-                // соответствовало отправленному действию.
-                _lastSentDirection = packetDirection;
-                _robot.TargetAngle = PlayerDirectionMapping.DirectionToAngle(direction);
-                _actionDispatcher?.NotifyDug(targetPosition, packetDirection);
-                _networkService?.Send(new ActionClientPacket(targetServerX, targetServerY, new BzPacket()));
-                _lastMoveTime = Time.time;
-            }
-            else
-            {
-                // Сплошная клетка по направлению при выключенном автокопании:
-                // ни шага, ни бура не будет, но повернуться к породе нужно -
-                // иначе робот упорно смотрит мимо неё, если изначально был
-                // развёрнут в другую сторону, и ручной бур (HandleDig идёт по
-                // направлению взгляда) уходит в старую клетку. Поворот на
-                // месте - тот же троттлённый путь, что Shift+направление.
-                TryRotate(direction);
-            }
-        }
-
-        // Поворот на месте (Shift + направление) и доворот при коммите шага
-        // в новом направлении: пакет уходит сразу, не ожидая кулдауна клетки,
-        // и не трогает _lastMoveTime, так что шаг в новую сторону происходит
-        // в обычном ритме клетки. "Знает ли сервер направление" - проверяем
-        // через _lastServerRotation (последний фактически отправленный
-        // Rotate); _lastRotateTime гасит дрожь аналогового ввода у диагонали
-        // квантования (|x| == |y|), чтобы смены направления туда-обратно
-        // не флудили сервером.
-        private void TryRotate(Vector2Int direction)
-        {
-            if (_robot is null)
-            {
-                return;
-            }
-
-            Direction packetDirection = PlayerDirectionMapping.ToPacketDirection(direction);
-            if (_lastServerRotation == packetDirection ||
-                Time.time - _lastRotateTime < MovementDefaults.MinRotateInterval)
-            {
-                return;
-            }
-
-            _lastRotateTime = Time.time;
-            _lastServerRotation = packetDirection;
-            _lastSentDirection = packetDirection;
-            // Предсказание угла, как при шаге движения: сервер подтвердит
-            // поворот ответным снимком позиции, но визуал не должен ждать
-            // его до следующего шага.
-            _robot.TargetAngle = PlayerDirectionMapping.DirectionToAngle(direction);
-            _networkService?.SendAction(new RotatePacket(packetDirection));
-        }
-
-        // Один тик клик-маршрута: та же механика, что у ручного движения -
-        // поворот (тратит такт), затем шаг MovePacket или бур BzPacket
-        // сплошной клетки. Вызывается из ApplyMovement при нулевом вводе.
-        private void StepClickPath()
-        {
-            if (_robot is null || _clickPath is null)
-            {
-                return;
-            }
-
-            if (_actionDispatcher is { IsDigOnCooldown: true })
-            {
-                return;
-            }
-
-            // Продвигаем индекс мимо уже пройденных клеток: предсказание
-            // клиента и коррекции сервера сходятся здесь.
-            int previousIndex = _clickPathIndex;
-            while (_clickPathIndex < _clickPath.Count && _clickPath[_clickPathIndex] == Position)
-            {
-                _clickPathIndex++;
-            }
-
-            if (_clickPathIndex >= _clickPath.Count)
-            {
-                CancelClickPath();
-                return;
-            }
-
-            // Пройденные клетки гаснут: перерисовываем линию по остатку.
-            if (_clickPathIndex != previousIndex)
-            {
-                _clickPathRenderer?.Show(_clickPath, _clickPathIndex, _mapDataProvider, transform.position.z);
-            }
-
-            Vector2Int next = _clickPath[_clickPathIndex];
-            Vector2Int serverDelta = next - Position;
-            if (Mathf.Abs(serverDelta.x) + Mathf.Abs(serverDelta.y) != 1)
-            {
-                // Робот не рядом с ожидаемой клеткой (коррекция сервера) -
-                // остаток маршрута недействителен.
-                CancelClickPath();
-                return;
-            }
-
-            var storage = _storage;
-            var mapDataProvider = _mapDataProvider;
-            if (storage == null || !storage.IsReady || mapDataProvider == null)
-            {
-                return;
-            }
-
-            ushort currentX = (ushort)Mathf.Clamp(Position.x, 0, ushort.MaxValue);
-            ushort currentServerY = (ushort)Mathf.Clamp(Position.y, 0, ushort.MaxValue);
-            CellType currentCellType = storage.GetCell(currentX, currentServerY);
-
-            float cooldown = PlayerMovementValidator.CalculateMoveCooldown(
-                mapDataProvider,
-                currentCellType,
-                isCtrlPressed: false,
-                _ignoreCollision);
-            if (cooldown > 0)
-            {
-                _robot.MoveSpeed = 1f / cooldown;
-            }
-
-            if (Time.time - _lastMoveTime < cooldown)
-            {
-                return;
-            }
-
-            // Дельта маршрута в серверных координатах -> направление в Unity.
-            Vector2Int direction = new Vector2Int(serverDelta.x, -serverDelta.y);
-            Direction packetDirection = PlayerDirectionMapping.ToPacketDirection(direction);
-
-            // Доворот - через общий TryRotate: знает ли сервер направление,
-            // сверяем с _lastServerRotation, а не с оптимистичным
-            // _lastSentDirection (его коммитят шаги WASD, которые направление
-            // не передают). Поворот тратит такт маршрута: шаг уйдёт только
-            // после отправленного Rotate.
-            if (_lastServerRotation != packetDirection)
-            {
-                TryRotate(direction);
-                _lastMoveTime = Time.time;
-                return;
-            }
-
-            _robot.TargetAngle = PlayerDirectionMapping.DirectionToAngle(direction);
-
-            if (!PlayerMovementValidator.TryEvaluateStep(
-                    Position,
-                    direction,
-                    mapDataProvider,
-                    storage,
-                    out Vector2Int targetPosition,
-                    out CellType targetCellType,
-                    out bool isPassable))
-            {
-                // Клетка маршрута ещё не загружена - ждём данные региона.
-                return;
-            }
-
-            ushort targetServerX = (ushort)targetPosition.x;
-            ushort targetServerY = (ushort)targetPosition.y;
-
-            if (isPassable || _ignoreCollision)
-            {
-                _robot.TargetPosition = WorldCoordinateConverter.ServerToUnityPos(targetServerX, targetServerY, mapDataProvider.WorldHeight, transform.position.z);
-                Vector2Int oldPos = Position;
-                Position = targetPosition;
-                OnPlayerMoved?.Invoke(oldPos, Position);
-                _lastMoveTime = Time.time;
-                _networkService?.SendAction(new MovePacket(targetServerX, targetServerY));
-            }
-            else if (_autoDig)
-            {
-                // Сплошная клетка на маршруте: бурим, как WASD при включённом
-                // автокопании.
-                _networkService?.Send(new ActionClientPacket(targetServerX, targetServerY, new BzPacket()));
-                _lastMoveTime = Time.time;
-                _actionDispatcher?.NotifyDug(targetPosition, packetDirection);
-            }
-            else
-            {
-                // Автокопание выключили посреди маршрута: вскрывать породу
-                // нельзя - остаток маршрута недействителен, робот останавливается.
-                CancelClickPath();
-            }
-        }
-
         public void ResetDirection()
         {
             _lastSentDirection = null;
@@ -859,32 +474,16 @@ namespace Kern.Game.Player.Movement
         public static bool IsDigCooldownActive(
             float currentTime,
             float lastDigTime,
-            float cooldown = GameplayActionDefaults.DefaultDigCooldown)
-        {
-            return currentTime - lastDigTime < cooldown;
-        }
+            float cooldown = GameplayActionDefaults.DefaultDigCooldown) =>
+            PlayerMovementRules.IsDigCooldownActive(currentTime, lastDigTime, cooldown);
 
 #if UNITY_EDITOR
-        protected void OnDrawGizmos()
-        {
-            if (_mapDataProvider == null || _mapDataProvider.WorldHeight <= 0 || !HasServerPosition)
-            {
-                return;
-            }
-
-            Gizmos.color = Color.cyan;
-            int worldHeight = _mapDataProvider.WorldHeight;
-            Vector3 gridPos = WorldCoordinateConverter.ServerToUnityPos(Position.x, Position.y, worldHeight, transform.position.z);
-            Gizmos.DrawWireCube(gridPos, new Vector3(1f, 1f, 0.1f));
-
-            if (Application.isPlaying && _robot != null)
-            {
-                Gizmos.color = Color.green;
-                Gizmos.DrawLine(transform.position, _robot.TargetPosition);
-                Gizmos.DrawWireSphere(_robot.TargetPosition, 0.2f);
-                KernGizmos.DrawLabel(gridPos + (Vector3.down * 0.7f), $"Grid: {Position.x}, {Position.y}", Color.cyan);
-            }
-        }
+        protected void OnDrawGizmos() => PlayerMovementGizmoRenderer.Draw(
+            transform,
+            _mapDataProvider,
+            HasServerPosition,
+            Position,
+            _robot);
 #endif
     }
 }

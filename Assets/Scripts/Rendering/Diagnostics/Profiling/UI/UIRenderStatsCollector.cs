@@ -13,7 +13,7 @@ public sealed class UIRenderStatsCollector
     private static readonly HashSet<string> s_clipClasses = new(StringComparer.Ordinal)
     {
         "ui-panel", "ui-scroll-viewport", "hud-minimap-container", "sci-fi-bar-track",
-        "world-labels", "chat-message", "gchat-message", "fit-clip", "fit-clamp", "fit-shrink",
+        "world-labels", "chat-message", "chat-line", "fit-clip", "fit-clamp", "fit-shrink",
         "mm-root", "mm-loader-progress-track", "mm-ticker-text", "mm-settings-layout",
         "unity-scroll-view__content-viewport",
     };

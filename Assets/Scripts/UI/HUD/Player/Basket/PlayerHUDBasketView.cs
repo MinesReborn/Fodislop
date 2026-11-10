@@ -1,174 +1,114 @@
 #nullable enable
 
 using System;
-using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using Kern.Core.Interfaces;
-using Kern.Game.Player.Stats;
+using Kern.UI.Controls;
 using MinesServer.Data;
 using UnityEngine;
 using UnityEngine.UIElements;
 
 namespace Kern.UI.HUD;
 
+// Кристаллы груза — шесть в ряд (visual/kern-ui css/hud.css .crystals): значок, под ним число цветом кристалла;
+// пустой приглушён, ряд не прыгает от состава груза. Число — до «9 999» целиком, дальше сокращение, полное — подсказкой.
 public sealed class PlayerHUDBasketView
 {
-    private readonly List<Texture2D> _crystalTextures = new();
-    private readonly List<VisualElement> _basketCrystalFills = new();
-    private readonly List<Label> _basketCrystalCounts = new();
-    private readonly List<VisualElement> _basketRows = new();
+    private const int CountDigits = 5;
 
-    private VisualElement? _basketContainer;
-
-    public void Initialize(VisualElement basketContainer)
+    // Порядок ряда — как в макете (CRYSTALS: g r b v w c); класс задаёт цвет (--cry-*)
+    private static readonly (CrystalType Type, string Class)[] Order =
     {
-        _basketContainer = basketContainer;
+        (CrystalType.Green, "crystal--g"),
+        (CrystalType.Red, "crystal--r"),
+        (CrystalType.Blue, "crystal--b"),
+        (CrystalType.Violet, "crystal--v"),
+        (CrystalType.White, "crystal--w"),
+        (CrystalType.Cyan, "crystal--c"),
+    };
+
+    private readonly Texture2D?[] _textures = new Texture2D?[Order.Length];
+    private readonly VisualElement[] _items = new VisualElement[Order.Length];
+    private readonly VisualElement[] _icons = new VisualElement[Order.Length];
+    private readonly Label[] _counts = new Label[Order.Length];
+    private VisualElement? _container;
+
+    public void Initialize(VisualElement container)
+    {
+        _container = container;
+        _container.Clear();
+        for (int i = 0; i < Order.Length; i++)
+        {
+            var item = new VisualElement { pickingMode = PickingMode.Position };
+            item.AddToClassList("crystal");
+            item.AddToClassList(Order[i].Class);
+            item.AddToClassList("is-zero");
+            var icon = new VisualElement { pickingMode = PickingMode.Ignore };
+            icon.AddToClassList("crystal__icon");
+            var count = new Label("0") { pickingMode = PickingMode.Ignore };
+            count.AddToClassList("crystal__count");
+            item.Add(icon);
+            item.Add(count);
+            _container.Add(item);
+            _items[i] = item;
+            _icons[i] = icon;
+            _counts[i] = count;
+        }
     }
 
     public async UniTask LoadCrystalTextures(IAssetLoader assetLoader, CancellationToken cancellationToken)
     {
-        _crystalTextures.Clear();
-        foreach (CrystalType ct in Enum.GetValues(typeof(CrystalType)))
+        for (int i = 0; i < Order.Length; i++)
         {
-            if (ct == CrystalType.Unknown)
-            {
-                continue;
-            }
-
-            string name = ct.ToString().ToLowerInvariant();
-            Texture2D? tex;
+            string name = Order[i].Type.ToString().ToLowerInvariant();
             try
             {
-                tex = await assetLoader.GetTextureAsync(
-                    "Crystals/" + name,
-                    cancellationToken);
+                _textures[i] = await assetLoader.GetTextureAsync("Visual/Crystals/" + name + ".png", cancellationToken);
             }
             catch (OperationCanceledException)
             {
-                // The loader can be torn down before the HUD receives its own
-                // destroy cancellation during a scene transition. In that case
-                // the request is intentionally abandoned, not an optional asset
-                // failure worth reporting as a warning.
+                // Загрузчик может уйти раньше HUD при смене сцены: запрос брошен намеренно, это не сбой ассета
                 return;
             }
             catch (Exception exception)
             {
-                Debug.LogWarning(
-                    $"[PlayerHUD] Optional crystal texture '{name}' was skipped: " +
-                    exception.Message);
-                continue;
+                Debug.LogWarning($"[PlayerHUD] Optional crystal texture '{name}' was skipped: " + exception.Message);
             }
 
             if (cancellationToken.IsCancellationRequested)
             {
                 return;
             }
-
-            if (tex != null)
-            {
-                _crystalTextures.Add(tex);
-            }
         }
     }
 
-    public void RebuildRows()
+    public void ApplyTextures()
     {
-        if (_basketContainer == null)
+        for (int i = 0; i < Order.Length; i++)
         {
-            return;
-        }
-
-        _basketContainer.Clear();
-        _basketCrystalFills.Clear();
-        _basketCrystalCounts.Clear();
-        _basketRows.Clear();
-
-        for (int i = 0; i < _crystalTextures.Count; i++)
-        {
-            var row = new VisualElement();
-            row.AddToClassList("hud-crystal-row");
-
-            var dot = new Image();
-            dot.AddToClassList("hud-crystal-dot");
-            if (_crystalTextures[i] != null)
+            if (_icons[i] != null && _textures[i] != null)
             {
-                dot.style.backgroundImage = new StyleBackground(_crystalTextures[i]);
+                _icons[i].style.backgroundImage = new StyleBackground(_textures[i]);
             }
-
-            row.Add(dot);
-
-            // Полоса с тонированным зоной треком и числом внутри по центру:
-            // белый жирный текст с плотной чёрной обводкой читается и на
-            // светлой заливке, и на тёмной части трека.
-            var bar = new VisualElement();
-            bar.AddToClassList("hud-crystal-bar");
-
-            var fill = new VisualElement();
-            fill.AddToClassList("hud-crystal-fill");
-            bar.Add(fill);
-
-            var count = new Label("0/0");
-            count.AddToClassList("hud-crystal-count");
-            count.pickingMode = PickingMode.Ignore;
-            bar.Add(count);
-            row.Add(bar);
-
-            // Строка создаётся скрытой: появится, только когда Refresh
-            // подтвердит наличие кристаллов этого цвета в корзине.
-            row.style.display = DisplayStyle.None;
-
-            _basketCrystalFills.Add(fill);
-            _basketCrystalCounts.Add(count);
-            _basketRows.Add(row);
-            _basketContainer.Add(row);
         }
     }
 
     public void Refresh(IPlayerStats stats)
     {
-        for (int i = 0; i < _basketCrystalFills.Count && i < stats.BasketContents.Length; i++)
+        if (_container == null)
         {
-            // Кристаллов с нулевым количеством в корзине нет - строка скрывается,
-            // чтобы не оставлять пустое пространство.
-            bool show = stats.BasketContents[i] > 0;
-            _basketRows[i].style.display = show ? DisplayStyle.Flex : DisplayStyle.None;
-            if (!show)
-            {
-                continue;
-            }
-
-            long content = stats.BasketContents[i];
-            uint capacity = stats.BasketCapacity;
-            _basketCrystalCounts[i].text = $"{FormatCompact(content)}/{FormatCompact(capacity)}";
-
-            int percent = capacity > 0 ? (int)(content * 100 / capacity) : 0;
-
-            // Зона красит сразу всю строку: число, трек и заливку.
-            // <100% лайм, 100-114% жёлтый, 114%+ коралл (перегруз).
-            VisualElement row = _basketRows[i];
-            row.EnableInClassList("hud-crystal-row--ok", percent < 100);
-            row.EnableInClassList("hud-crystal-row--warn", percent is >= 100 and <= 114);
-            row.EnableInClassList("hud-crystal-row--over", percent > 114);
-
-            // В перегрузе полоса заполнена целиком, состояние передаёт цвет.
-            VisualElement fill = _basketCrystalFills[i];
-            fill.style.width = new StyleLength(Length.Percent(Mathf.Clamp(percent, 0, 100)));
-        }
-    }
-
-    private static string FormatCompact(long val)
-    {
-        if (val >= 1_000_000)
-        {
-            return $"{val / 1_000_000f:F1}M";
+            return;
         }
 
-        if (val >= 10_000)
+        long[] contents = stats.BasketContents;
+        for (int i = 0; i < Order.Length; i++)
         {
-            return $"{val / 1_000}K";
+            int index = (int)Order[i].Type;
+            long value = index >= 0 && index < contents.Length ? contents[index] : 0;
+            _items[i].EnableInClassList("is-zero", value <= 0);
+            _counts[i].text = KernNumbers.Cut(value, CountDigits);
+            _items[i].tooltip = KernNumbers.Short(value, CountDigits) != null ? KernNumbers.Group(value) : string.Empty;
         }
-
-        return val.ToString("N0");
     }
 }

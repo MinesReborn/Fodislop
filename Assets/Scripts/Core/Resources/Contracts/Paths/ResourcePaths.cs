@@ -8,6 +8,7 @@ public static class ResourcePaths
     public const string WorldLightingCompute = "Shaders/Lighting/Pipeline/WorldLighting";
     public const string WorldMapCompute = "Shaders/UI/Map/Rendering/WorldMap";
     public const string PostProcessCompute = "Shaders/PostProcessing/Display/PostProcess";
+    public const string CalibrationMarkTexture = "Rendering/Calibration/Textures/CalibrationMark";
     public const string ScopesCompute = "Shaders/PostProcessing/Scopes/Scopes";
 
     // Трасса состояний графического конвейера. Ассет проекта, а не файл в
@@ -15,6 +16,7 @@ public static class ResourcePaths
     // а ассет едет со сборкой сам и приезжает к игроку.
     public const string GraphicsStateCollection = "Rendering/Warmup/States/GraphicsStates";
     public const string MissionVirtualRingShader = "Shaders/UI/Missions/Arrow/MissionVirtualRing";
+    public const string CellDestructionShader = "Shaders/Effects/Cells/Destruction/CellDestruction";
     public const string GatewayUxml = "UI/Gateway/Templates/Gateway";
     public const string MainMenuUxml = "UI/Menu/Templates/MainMenu";
     public const string AssetLoadingIndicatorUxml = "UI/Loading/Assets/Templates/AssetLoadingIndicator";
@@ -27,14 +29,15 @@ public static class ResourcePaths
     public const string ProgrammatorUxml = "UI/Programmator/Grid/Templates/Programmator";
     public const string TooltipUxml = "UI/Tooltips/Templates/Tooltip";
     public const string ModalWindowUxml = "UI/Windows/Modal/Templates/ModalWindow";
+    public const string LinkDialogUxml = "UI/Windows/Link/Templates/LinkDialog";
     public const string ObserverJoystickUxml = "UI/Programmator/Observer/Templates/ObserverJoystick";
     public const string ProgrammatorPaletteUxml = "UI/Programmator/Palette/Templates/ProgrammatorPalette";
     public const string PauseMenuUxml = "UI/Settings/Pause/Templates/PauseMenu";
+    public const string SettingsWindowUxml = "UI/Settings/Window/Templates/SettingsWindow";
+    public const string CalibrationUxml = "UI/Settings/Calibration/Templates/Calibration";
     public const string MinimapUxml = "UI/Map/Minimap/Templates/Minimap";
 
-    // Рамка облака локального чата. Границы 9-slice берутся из самого
-    // спрайта (spriteBorder в импортере), поэтому путь — единственное, что
-    // задаётся здесь: числа границ в коде не дублируются.
-    public const string LocalChatBubbleSprite = "UI/Chat/Floating/Sprites/LocalChatBubble";
+    // Лист пиксельных цифр счётчика добычи (раскладка — CrystalDigitSheet).
+    public const string CrystalDigitsTexture = "Effects/Crystals/Digits/CrystalDigits";
 
 }

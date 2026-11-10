@@ -37,27 +37,56 @@ internal static class ChatMessageFormatter
         sb.Append("</noparse>");
     }
 
-    public static string FormatGlobal(ChatMessagePacket msg, DateTime now)
+    // Строка ленты (макет visual/kern-ui .chat-log li): ник жирно цветом сервера, текст цветом сервера.
+    // Время — отдельной моно-подписью (FormatTime): в rich text панели нет тега шрифта
+    public static string FormatGlobal(ChatMessagePacket msg)
+    {
+        var sb = new StringBuilder(160);
+        AppendBody(sb, msg);
+        return sb.ToString();
+    }
+
+    // Время сообщения — из пакета (Timestamp, мс Unix), в местном часовом поясе: «18:42».
+    // Битая метка — время не показывается, строка остаётся
+    public static string FormatTime(ChatMessagePacket msg)
+    {
+        try
+        {
+            DateTimeOffset local = DateTimeOffset.FromUnixTimeMilliseconds(msg.Timestamp).ToLocalTime();
+            return local.Hour.ToString("D2") + ":" + local.Minute.ToString("D2");
+        }
+        catch (ArgumentOutOfRangeException)
+        {
+            return string.Empty;
+        }
+    }
+
+    // Строка свёрнутого чата (макет .chat-peek li): «ник: текст» без времени
+    public static string FormatPeek(ChatMessagePacket msg)
     {
         var sb = new StringBuilder(128);
-        sb.Append("<color=#888888>[");
-        sb.Append(now.Hour.ToString("D2"));
-        sb.Append(':');
-        sb.Append(now.Minute.ToString("D2"));
-        sb.Append("]</color> <color=#");
-        sb.Append(msg.NicknameColor.R.ToString("X2"));
-        sb.Append(msg.NicknameColor.G.ToString("X2"));
-        sb.Append(msg.NicknameColor.B.ToString("X2"));
+        AppendBody(sb, msg);
+        return sb.ToString();
+    }
+
+    private static void AppendBody(StringBuilder sb, ChatMessagePacket msg)
+    {
+        sb.Append("<b><color=#");
+        AppendHex(sb, msg.NicknameColor);
         sb.Append('>');
         AppendPlainText(sb, msg.PlayerName);
-        sb.Append("</color>: <color=#");
-        sb.Append(msg.MessageColor.R.ToString("X2"));
-        sb.Append(msg.MessageColor.G.ToString("X2"));
-        sb.Append(msg.MessageColor.B.ToString("X2"));
+        sb.Append("</color></b>: <color=#");
+        AppendHex(sb, msg.MessageColor);
         sb.Append('>');
         AppendPlainText(sb, msg.Message);
         sb.Append("</color>");
-        return sb.ToString();
+    }
+
+    private static void AppendHex(StringBuilder sb, System.Drawing.Color color)
+    {
+        sb.Append(color.R.ToString("X2"));
+        sb.Append(color.G.ToString("X2"));
+        sb.Append(color.B.ToString("X2"));
     }
 
     public static string FormatMuteEnd(long unixMilliseconds)

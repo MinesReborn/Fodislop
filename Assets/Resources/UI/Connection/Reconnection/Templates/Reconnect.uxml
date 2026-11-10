@@ -1,11 +1,26 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements">
-    <!-- Оверлеи переподключения и разрыва соединения.
-         Видимость и enabled — рантайм-состояние (переключается кодом). -->
-    <ui:VisualElement name="ReconnectOverlay" class="ui-overlay ui-overlay--blocking ui-overlay-message is-hidden" picking-mode="Ignore">
-        <ui:Label name="ReconnectLabel" class="ui-overlay-label"  text="" />
+    <!-- Связь — макет visual/kern-ui (#netDialog, css/events.css .net): значок, заголовок, текст, кнопка «Выйти в меню».
+         Переподключение — «Связь потеряна» и обратный отсчёт; отключение сервером — причина отдельной плашкой.
+         Окно блокирует игру, выход в меню остаётся. Видимость — рантайм-состояние (класс is-hidden). -->
+    <ui:VisualElement name="ReconnectOverlay" class="dialog-layer net-layer is-hidden" picking-mode="Ignore">
+        <ui:VisualElement class="panel dialog net">
+            <ui:VisualElement class="ico ico--offline net-ico" />
+            <ui:Label class="dialog__title caps" text="network.lost_title" />
+            <ui:Label name="ReconnectLabel" class="dialog__text" text="" />
+            <ui:VisualElement class="dialog-actions">
+                <ui:Button name="ReconnectMenuButton" class="btn" text="network.exit_to_menu" />
+            </ui:VisualElement>
+        </ui:VisualElement>
     </ui:VisualElement>
-    <ui:VisualElement name="DisconnectOverlay" class="ui-overlay ui-overlay--blocking ui-overlay-message is-hidden" picking-mode="Ignore">
-        <ui:Label name="DisconnectLabel" class="ui-overlay-label" />
-        <ui:Button name="DisconnectOkButton" class="ui-overlay-button" text="hud.ok" />
+    <ui:VisualElement name="DisconnectOverlay" class="dialog-layer net-layer is-hidden" picking-mode="Ignore">
+        <ui:VisualElement class="panel dialog net">
+            <ui:VisualElement class="ico ico--offline net-ico" />
+            <ui:Label name="DisconnectTitle" class="dialog__title caps" text="network.lost_title" />
+            <ui:Label name="DisconnectLabel" class="dialog__text" text="" />
+            <ui:Label name="DisconnectReason" class="net-reason is-hidden" text="" />
+            <ui:VisualElement class="dialog-actions">
+                <ui:Button name="DisconnectOkButton" class="btn" text="network.exit_to_menu" />
+            </ui:VisualElement>
+        </ui:VisualElement>
     </ui:VisualElement>
 </ui:UXML>

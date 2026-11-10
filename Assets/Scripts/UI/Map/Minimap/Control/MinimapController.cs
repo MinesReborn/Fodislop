@@ -15,8 +15,9 @@ namespace Kern.UI.Map
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, sourceNamespace: "Kern.UI", sourceAssembly: null, sourceClassName: "MinimapController")]
     public class MinimapController : MonoBehaviour
     {
-        [SerializeField]
-        private int _uiSize = 160;
+        // Миникарта макета (visual/kern-ui .minimap): поле 262 px, клетка — 2 px. Текстура — клетка на пиксель,
+        // панель растягивает её ровно вдвое: точечная выборка без неровных пикселей
+        private const int UiSize = 131;
 
         [Inject]
         private UIDocument _doc = null!;
@@ -26,10 +27,17 @@ namespace Kern.UI.Map
         private IInputBlocker _inputBlocker = null!;
         [Inject]
         private ILocalPlayerState _localPlayer = null!;
+        [Inject]
+        private IWorldPresentationState _presentationState = null!;
         private MinimapUIController? _ui;
         private RenderTexture? _minimapTexture;
 
-        private ILocalPlayer? _player;
+        // Привязка к игроку создаётся при первом обращении: GameLifetimeScope
+        // включает сервисы сцены после инъекции, и OnEnable приходит раньше Start.
+        private MinimapPlayerBinding? _playerBindingInstance;
+
+        private MinimapPlayerBinding PlayerBinding => _playerBindingInstance ??=
+            new MinimapPlayerBinding(_localPlayer, OnPlayerChanged, OnPlayerMoved, OnWalkerPathChanged);
         [Inject]
         private MapStorage _mapStorage = null!;
 
@@ -50,12 +58,8 @@ namespace Kern.UI.Map
         private bool _ready;
         private bool _lastRefreshHadLoadedCells;
         private IWorldLayer<CellType>? _subscribedCellLayer;
-        private bool _playerMoveSubscribed;
-        private bool _localPlayerChangeSubscribed;
 
         // Остаток клик-маршрута для отрисовки нитью на миникарте (null - нет).
-        private IReadOnlyList<Vector2Int>? _clickPath;
-        private IClickPathWalker? _pathWalker;
 
         protected void Start()
         {
@@ -63,15 +67,9 @@ namespace Kern.UI.Map
             _refreshTexture = RefreshTexture;
             _setVisible = SetVisible;
             _cellInvalidation = new MinimapCellInvalidation(_cellSampler);
-            if (_uiSize < 3)
-            {
-                throw new InvalidOperationException(
-                    $"Minimap size must be at least 3 pixels for the player marker; got {_uiSize}.");
-            }
+            _textureRenderer = new MinimapTextureRenderer(UiSize);
 
-            _textureRenderer = new MinimapTextureRenderer(_uiSize);
-
-            _minimapTexture = new RenderTexture(_uiSize, _uiSize, 0, RenderTextureFormat.ARGB32)
+            _minimapTexture = new RenderTexture(UiSize, UiSize, 0, RenderTextureFormat.ARGB32)
             {
                 name = "MinimapRenderTexture",
                 enableRandomWrite = true,
@@ -83,7 +81,8 @@ namespace Kern.UI.Map
             _ui = new MinimapUIController(_doc, _minimapTexture, _textureRenderer.PathOverlay, RequestMinimapMove);
             _ui.TryCreate();
             _mapModeState.Changed += OnMapModeChanged;
-            SubscribeToLocalPlayerChanges();
+            _presentationState.Changed += OnPresentationStateChanged;
+            PlayerBinding.Subscribe();
             _mapStorage.CellChanged += OnCellChanged;
             _mapStorage.RegionChanged += OnRegionChanged;
 
@@ -97,11 +96,9 @@ namespace Kern.UI.Map
                 OnWorldReady();
             }
 
-            _player = _localPlayer.Current;
-            if (_player != null)
-            {
-                BindPlayer(_player);
-            }
+            PlayerBinding.BindPlayer(_localPlayer.Current);
+
+            OnPresentationStateChanged(_presentationState.Current);
         }
         private bool IsWorldReady() =>
             _mapManager != null && _mapManager.IsWorldInitialized &&
@@ -127,32 +124,29 @@ namespace Kern.UI.Map
         {
             if (player == null)
             {
-                if (_playerMoveSubscribed && _player != null)
-                {
-                    _player.OnPlayerMoved -= OnPlayerMoved;
-                    _playerMoveSubscribed = false;
-                }
-
-                UnbindPathWalker();
-                _player = null;
+                PlayerBinding.BindPlayer(null);
                 return;
             }
 
-            _player = player;
-            BindPlayer(player);
+            PlayerBinding.BindPlayer(player);
 
             if (_ready)
             {
-                _ui?.UpdateCoordinates(_player.Position.x, _player.Position.y);
+                if (!_presentationState.IsStable)
+                {
+                    return;
+                }
+
+                _ui?.UpdateCoordinates(PlayerBinding.Player!.Position.x, PlayerBinding.Player!.Position.y);
                 bool minimapVisible = !_mapModeState.IsOpen;
                 if (minimapVisible)
                 {
-                    RefreshTexture(_player.Position.x, _player.Position.y);
+                    RefreshTexture(PlayerBinding.Player!.Position.x, PlayerBinding.Player!.Position.y);
                 }
 
                 _refreshPolicy.RecordInitialRefresh(
                     Time.time,
-                    _player.Position,
+                    PlayerBinding.Player!.Position,
                     _mapStorage?.Revision ?? -1,
                     minimapVisible,
                     _lastRefreshHadLoadedCells);
@@ -164,10 +158,10 @@ namespace Kern.UI.Map
                 _mapModeState,
                 _mapStorage,
                 _cellLayer,
-                _player,
+                PlayerBinding.Player,
                 _worldWidth,
                 _worldHeight,
-                _ready,
+                _ready && _presentationState.IsStable,
                 _lastRefreshHadLoadedCells,
                 _cellInvalidation,
                 _refreshPolicy,
@@ -198,28 +192,25 @@ namespace Kern.UI.Map
             }
 
             ILocalPlayer? localPlayer = _localPlayer.Current;
-            if (localPlayer != null)
-            {
-                BindPlayer(localPlayer);
-            }
+            PlayerBinding.BindPlayer(localPlayer);
 
             if (!_ready)
             {
                 InitializeWorldState();
             }
 
-            if (_player != null && _player.HasServerPosition && !_refreshPolicy.InitialRefreshDone)
+            if (PlayerBinding.Player != null && PlayerBinding.Player!.HasServerPosition && !_refreshPolicy.InitialRefreshDone)
             {
-                _ui?.UpdateCoordinates(_player.Position.x, _player.Position.y);
+                _ui?.UpdateCoordinates(PlayerBinding.Player!.Position.x, PlayerBinding.Player!.Position.y);
                 bool minimapVisible = !_mapModeState.IsOpen;
                 if (minimapVisible)
                 {
-                    RefreshTexture(_player.Position.x, _player.Position.y);
+                    RefreshTexture(PlayerBinding.Player!.Position.x, PlayerBinding.Player!.Position.y);
                 }
 
                 _refreshPolicy.RecordInitialRefresh(
                     Time.time,
-                    _player.Position,
+                    PlayerBinding.Player!.Position,
                     _mapStorage.Revision,
                     minimapVisible,
                     _lastRefreshHadLoadedCells);
@@ -271,7 +262,7 @@ namespace Kern.UI.Map
                 return;
             }
 
-            if (_player is not { HasServerPosition: true })
+            if (PlayerBinding.Player is not { HasServerPosition: true } player)
             {
                 return;
             }
@@ -284,8 +275,8 @@ namespace Kern.UI.Map
             Vector2Int server = _textureRenderer.PixelToServerCell(
                 texX,
                 texY,
-                _player.Position.x,
-                _player.Position.y);
+                player.Position.x,
+                player.Position.y);
             if (server.x < 0 || server.y < 0 ||
                 server.x >= _worldWidth || server.y >= _worldHeight)
             {
@@ -302,7 +293,7 @@ namespace Kern.UI.Map
                 return;
             }
 
-            SubscribeToLocalPlayerChanges();
+            PlayerBinding.Subscribe();
             if (_ready)
             {
                 RebindRuntimeSources();
@@ -312,88 +303,8 @@ namespace Kern.UI.Map
 
         protected void OnDisable()
         {
-            UnsubscribeFromLocalPlayerChanges();
+            _playerBindingInstance?.Unsubscribe();
             SetVisible(false);
-        }
-
-        private void SubscribeToLocalPlayerChanges()
-        {
-            if (_localPlayer == null || _localPlayerChangeSubscribed)
-            {
-                return;
-            }
-
-            _localPlayer.Changed += OnPlayerChanged;
-            _localPlayerChangeSubscribed = true;
-        }
-
-        private void UnsubscribeFromLocalPlayerChanges()
-        {
-            if (_localPlayer == null || !_localPlayerChangeSubscribed)
-            {
-                return;
-            }
-
-            _localPlayer.Changed -= OnPlayerChanged;
-            _localPlayerChangeSubscribed = false;
-        }
-
-        private void BindPlayer(ILocalPlayer player)
-        {
-            if (ReferenceEquals(_player, player) && _playerMoveSubscribed)
-            {
-                return;
-            }
-
-            if (_playerMoveSubscribed && _player != null)
-            {
-                _player.OnPlayerMoved -= OnPlayerMoved;
-            }
-
-            UnbindPathWalker();
-
-            _player = player;
-            _player.OnPlayerMoved -= OnPlayerMoved;
-            _player.OnPlayerMoved += OnPlayerMoved;
-            _playerMoveSubscribed = true;
-
-            // Клик-маршрут: подписка на изменения и первичный остаток пути
-            // (если маршрут уже активен к моменту привязки игрока).
-            if (player is IClickPathWalker walker)
-            {
-                _pathWalker = walker;
-                walker.OnPathChanged += OnWalkerPathChanged;
-                _clickPath = walker.Path;
-            }
-        }
-
-        private void UnbindPathWalker()
-        {
-            if (_pathWalker != null)
-            {
-                _pathWalker.OnPathChanged -= OnWalkerPathChanged;
-                _pathWalker = null;
-            }
-
-            _clickPath = null;
-        }
-
-        // Маршрут стартовал или снят: мгновенная перерисовка миникарты, чтобы
-        // нить пути появилась/исчезла без ожидания троттлинга политики.
-        private void OnWalkerPathChanged(IReadOnlyList<Vector2Int>? path)
-        {
-            _clickPath = path;
-
-            if (!isActiveAndEnabled || !_ready || _mapModeState.IsOpen)
-            {
-                return;
-            }
-
-            if (_player is { HasServerPosition: true })
-            {
-                RefreshTexture(_player.Position.x, _player.Position.y);
-                _refreshPolicy.RecordRefresh(Time.time, _mapStorage?.Revision ?? -1, _lastRefreshHadLoadedCells);
-            }
         }
 
         private void RebindRuntimeSources()
@@ -410,20 +321,10 @@ namespace Kern.UI.Map
                 return;
             }
 
-            UnsubscribeFromLocalPlayerChanges();
-            if (_playerMoveSubscribed && _player != null)
-            {
-                _player.OnPlayerMoved -= OnPlayerMoved;
-                _playerMoveSubscribed = false;
-            }
+            PlayerBinding.Unsubscribe();
+            PlayerBinding.BindPlayer(_localPlayer.Current);
 
-            _player = _localPlayer.Current;
-            if (_player != null)
-            {
-                BindPlayer(_player);
-            }
-
-            SubscribeToLocalPlayerChanges();
+            PlayerBinding.Subscribe();
 
             if (_subscribedCellLayer != null)
             {
@@ -441,14 +342,14 @@ namespace Kern.UI.Map
 
         private void OnPlayerMoved(Vector2Int oldPos, Vector2Int newPos)
         {
-            if (!isActiveAndEnabled || !_ready)
+            if (!isActiveAndEnabled || !_ready || !_presentationState.IsStable)
             {
                 return;
             }
 
-            if (_player != null)
+            if (PlayerBinding.Player != null)
             {
-                _ui?.UpdateCoordinates(_player.Position.x, _player.Position.y);
+                _ui?.UpdateCoordinates(PlayerBinding.Player!.Position.x, PlayerBinding.Player!.Position.y);
             }
 
             if (_mapModeState.IsOpen)
@@ -494,40 +395,37 @@ namespace Kern.UI.Map
             _cellInvalidation.OnRegionChanged(startX, startY, width, height, _cellLayer);
         }
 
-        private bool RefreshTexture(int playerX, int playerY, bool drawPlayerMarker = true)
+        // Маршрут стартовал или снят: мгновенная перерисовка миникарты, чтобы
+        // нить пути появилась/исчезла без ожидания троттлинга политики.
+        private void OnWalkerPathChanged(IReadOnlyList<Vector2Int>? _)
         {
-            if (_textureRenderer == null)
+            if (!isActiveAndEnabled || !_ready || !_presentationState.IsStable || _mapModeState.IsOpen)
             {
-                return false;
+                return;
             }
 
-            // Путь рисуется от текущего индекса: пройденная часть не отображается.
-            IReadOnlyList<Vector2Int>? path;
-            int pathStart;
-            if (_pathWalker != null)
+            if (PlayerBinding.Player is { HasServerPosition: true } player)
             {
-                path = _pathWalker.Path;
-                pathStart = _pathWalker.PathIndex;
+                RefreshTexture(player.Position.x, player.Position.y);
+                _refreshPolicy.RecordRefresh(Time.time, _mapStorage?.Revision ?? -1, _lastRefreshHadLoadedCells);
             }
-            else
-            {
-                path = _clickPath;
-                pathStart = 0;
-            }
-
-            _lastRefreshHadLoadedCells = _textureRenderer.Render(
-                _minimapTexture,
-                playerX,
-                playerY,
-                _worldWidth,
-                _worldHeight,
-                _cellSampler,
-                drawPlayerMarker ? path : null,
-                pathStart);
-
-            _ui?.MarkDirty();
-            return _lastRefreshHadLoadedCells;
         }
+
+        private bool RefreshTexture(int playerX, int playerY, bool drawPlayerMarker = true) =>
+            _textureRenderer != null && _presentationState != null
+                ? _textureRenderer.TryRender(
+                    _minimapTexture,
+                    _presentationState.IsStable,
+                    playerX,
+                    playerY,
+                    _worldWidth,
+                    _worldHeight,
+                    _cellSampler,
+                    PlayerBinding.PathWalker,
+                    PlayerBinding.ClickPath,
+                    _ui is null ? null : _ui.MarkDirty,
+                    drawPlayerMarker)
+                : false;
 
         protected void OnDestroy()
         {
@@ -536,7 +434,12 @@ namespace Kern.UI.Map
                 _mapModeState.Changed -= OnMapModeChanged;
             }
 
-            UnsubscribeFromLocalPlayerChanges();
+            if (_presentationState != null)
+            {
+                _presentationState.Changed -= OnPresentationStateChanged;
+            }
+
+            _playerBindingInstance?.Unsubscribe();
 
             if (_mapStorage != null)
             {
@@ -550,12 +453,6 @@ namespace Kern.UI.Map
                 _mapManager.OnWorldDataLoaded -= OnWorldReady;
             }
 
-            if (_player != null)
-            {
-                _player.OnPlayerMoved -= OnPlayerMoved;
-                _playerMoveSubscribed = false;
-            }
-
             if (_subscribedCellLayer != null)
             {
                 _subscribedCellLayer.ChunkLoaded -= OnChunkLoaded;
@@ -566,7 +463,7 @@ namespace Kern.UI.Map
             _ui?.Dispose();
             _ui = null;
 
-            UnbindPathWalker();
+            _playerBindingInstance?.Dispose();
 
             if (_minimapTexture != null)
             {
@@ -580,14 +477,37 @@ namespace Kern.UI.Map
             }
         }
 
-        private void SetVisible(bool visible) => _ui?.SetVisible(visible);
+        private void SetVisible(bool visible) =>
+            _ui?.SetVisible(visible && (_presentationState.IsStable || _presentationState.HasPublishedView));
+
+        private void OnPresentationStateChanged(WorldPresentationSnapshot snapshot)
+        {
+            if (snapshot.Phase != WorldPresentationPhase.Stable)
+            {
+                SetVisible(_presentationState.HasPublishedView && !_mapModeState.IsOpen);
+                return;
+            }
+
+            if (_ready && PlayerBinding.Player is { HasServerPosition: true })
+            {
+                _ui?.UpdateCoordinates(PlayerBinding.Player!.Position.x, PlayerBinding.Player!.Position.y);
+                RefreshTexture(PlayerBinding.Player!.Position.x, PlayerBinding.Player!.Position.y);
+                _refreshPolicy.RecordRefresh(
+                    Time.time,
+                    _mapStorage.Revision,
+                    _lastRefreshHadLoadedCells);
+            }
+
+            SetVisible(!_mapModeState.IsOpen);
+        }
 
         private void OnMapModeChanged(bool mapModeEnabled)
         {
             SetVisible(!mapModeEnabled);
-            if (!mapModeEnabled && _ready && _player is { HasServerPosition: true })
+            if (_presentationState.IsStable &&
+                !mapModeEnabled && _ready && PlayerBinding.Player is { HasServerPosition: true })
             {
-                RefreshTexture(_player.Position.x, _player.Position.y);
+                RefreshTexture(PlayerBinding.Player!.Position.x, PlayerBinding.Player!.Position.y);
                 _refreshPolicy.RecordRefresh(Time.time, _mapStorage.Revision, _lastRefreshHadLoadedCells);
             }
         }

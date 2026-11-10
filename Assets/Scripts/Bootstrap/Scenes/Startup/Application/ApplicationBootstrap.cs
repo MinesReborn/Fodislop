@@ -68,19 +68,20 @@ public sealed class ApplicationBootstrap : IStartable
             _loadingScreen.Initialize();
 
             string shaderPhase = _localization.Get("bootstrap.loading.shaders");
-            _loadingScreen.ShowDirect($"{shaderPhase} (0%)");
+            _loadingScreen.ShowDirect(shaderPhase);
+            _loadingScreen.SetProgress(0f);
             await UniTask.Yield(Cysharp.Threading.Tasks.PlayerLoopTiming.Update, scopeToken);
 
             await _shaderWarmup.WarmupAsync(
                 (_, progress) =>
                 {
-                    int percent = UnityEngine.Mathf.RoundToInt(progress * 100f);
-                    _loadingScreen.SetPhaseText($"{shaderPhase} ({percent}%)");
+                    _loadingScreen.SetProgress(progress);
                 },
                 scopeToken);
 
             await UniTask.Yield(Cysharp.Threading.Tasks.PlayerLoopTiming.Update, scopeToken);
             _loadingScreen.SetPhaseText(_localization.Get("assetload.resources"));
+            _loadingScreen.SetProgress(1f);
             await _runtimeAssetPaths.EnsureReadyAsync();
 
             string targetScene = ResolveInitialScene();
@@ -127,9 +128,10 @@ public sealed class ApplicationBootstrap : IStartable
             }
 
             UnityEngine.Debug.LogWarning(
-                $"[Bootstrap] Selected scene '{target}' is not present in Build Settings; falling back to Gateway.");
+                $"[Bootstrap] Selected scene '{target}' is not present in Build Settings; falling back to MainMenu.");
         }
 #endif
-        return SceneNames.Gateway;
+        // Вход и онбординг — слой главного меню: сцен три, Bootstrap → MainMenu → MainGame.
+        return SceneNames.MainMenu;
     }
 }

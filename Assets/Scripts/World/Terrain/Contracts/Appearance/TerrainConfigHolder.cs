@@ -59,14 +59,6 @@ public static class TerrainConfigHolder
     public const float FacetedGlintFallEnd = 0.40f;
     public const float FacetedGlintSweepDuration = 0.40f;
 
-    // 4. Декали подмешиваются к альбедо до цветовой анимации.
-    public const float GroundDecalStrength = 0.35f;
-    public const float RockDecalStrength = 0.7f;
-    // Packed offsets are -0.5..0.5: 0.125 limits translation to two
-    // texels on the 32-pixel face, within the authored atlas padding.
-    public const float DecalPlacementOffset = 0.125f;
-    public const uint GroundDecalPlacementPercent = 24u;
-
     // Усиление signed-разницы в диагностике вклада декали и призматического
     // тинта. На сам рендер поверхности этот коэффициент не влияет.
     public const float TerrainDebugDeltaContrast = 128f;
@@ -94,12 +86,12 @@ public static class TerrainConfigHolder
     // 0.51 — не подбор на глаз. В оригинале тень на полу это 1 - z² при
     // z = 0.7, то есть ровно 0.51, и глубже пол там не темнеет никогда.
     public const float AmbientOcclusionStrength = 0.9f;
-    public const float AmbientOcclusionFloor = 0.51f;
+    public const float AmbientOcclusionFloor = 0.50f;
     // Максимальная ширина поля контактного затенения за геометрией, в клетках.
     public const float AmbientOcclusionDistanceCells = 0.60f;
 
     // Радиус скруглённого силуэта loose-террейна, в клетках.
-    public const float RoundableCornerRadiusCells = 0.51f;
+    public const float RoundableCornerRadiusCells = 0.50f;
 
     // Фаска открытых сторон клетки: масштаб расстояния от геометрического
     // ребра и максимальная доля затемнения у самого ребра.

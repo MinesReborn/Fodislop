@@ -66,7 +66,6 @@ internal sealed class ProgrammatorProgramStore
     /// _activeIndex = -1, и пускать нечего).</summary>
     public bool HasActiveProgram => _activeIndex >= 0;
 
-    /// <summary>Слот открытой в редакторе программы (== ProgramId на сервере).</summary>
     public int ActiveIndex => _activeIndex;
 
     public int ProgramCount => _programItems.Count;
@@ -238,9 +237,6 @@ internal sealed class ProgrammatorProgramStore
         }
 
         _programItems.RemoveAt(index);
-        // G5-C: пакет несёт ProgramId — сервер удаляет именно строку списка,
-        // а не выбранную в пульте. Слот открытой программы корректируется
-        // зеркально серверу (Player.AdjustSelectedProgramAfterDeletion).
         _protocol.DeleteProgram(index);
         if (_activeIndex == index)
         {
@@ -253,10 +249,22 @@ internal sealed class ProgrammatorProgramStore
 
         _file.Save(_programItems);
         RefreshProgramList();
+        if (_view.Panel.resolvedStyle.display == DisplayStyle.Flex)
+        {
+            if (_activeIndex >= 0)
+            {
+                OpenProgram(_activeIndex);
+            }
+            else
+            {
+                _view.Panel.style.display = DisplayStyle.None;
+                _view.ProgramListPanel.style.display = DisplayStyle.Flex;
+            }
+        }
+
         RaiseActiveProgramChanged();
     }
 
-    // Имя вводится в серверном окне (StaticGUI.Rename); клиент только адресует программу.
     public void RenameProgram(int index)
     {
         if (index < 0 || index >= _programItems.Count)
@@ -292,17 +300,17 @@ internal sealed class ProgrammatorProgramStore
             nameLabel.style.unityTextAlign = TextAnchor.MiddleLeft;
             row.Add(nameLabel);
 
-            // G5-C: действия адресуют строку списка (индекс == ProgramId на сервере),
-            // а не открытую в пульте программу.
             var renameButton = new Button { text = "✎" };
             renameButton.AddToClassList("prog-list-action");
             renameButton.tooltip = _loc.Get("programmator.rename");
+            renameButton.RegisterCallback<ClickEvent>(evt => evt.StopPropagation());
             renameButton.clicked += () => RenameProgram(idx);
             row.Add(renameButton);
 
             var deleteButton = new Button { text = "✕" };
             deleteButton.AddToClassList("prog-list-action");
             deleteButton.tooltip = _loc.Get("programmator.delete");
+            deleteButton.RegisterCallback<ClickEvent>(evt => evt.StopPropagation());
             deleteButton.clicked += () => DeleteProgram(idx);
             row.Add(deleteButton);
 

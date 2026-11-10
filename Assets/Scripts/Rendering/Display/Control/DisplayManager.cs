@@ -78,6 +78,7 @@ namespace Kern.Rendering.Display
             PostProcessRuntimeState.SetDisplayCalibration(
                 display.PaperWhiteNits,
                 display.PeakBrightnessNits);
+            PostProcessRuntimeState.SetDisplayAdjustments(display.BlackLevel, display.Brightness);
 
             ApplyFrameTiming(display);
 
@@ -291,6 +292,32 @@ namespace Kern.Rendering.Display
             Debug.Log(
                 $"[DisplayManager] SetPaperWhiteNits: {sanitizedPaperWhite} " +
                 $"(Peak={sanitizedPeak})");
+        }
+
+        // Уровень чёрного (калибровка HDR): сдвиг самых тёмных тонов вывода, 50 — без сдвига
+        public void SetBlackLevel(float blackLevel)
+        {
+            if (_clientConfig?.Config == null)
+            {
+                return;
+            }
+
+            float sanitized = Mathf.Round(FiniteClamp(blackLevel, DisplaySettings.AdjustmentMin, DisplaySettings.AdjustmentMax, DisplaySettings.DefaultBlackLevel));
+            _clientConfig.UpdateSection(config => config.Display, display => display.BlackLevel = sanitized);
+            PostProcessRuntimeState.SetDisplayAdjustments(sanitized, _clientConfig.Config.Display.Brightness);
+        }
+
+        // Яркость (калибровка SDR): кривая средних тонов вывода, 50 — без изменения
+        public void SetBrightness(float brightness)
+        {
+            if (_clientConfig?.Config == null)
+            {
+                return;
+            }
+
+            float sanitized = Mathf.Round(FiniteClamp(brightness, DisplaySettings.AdjustmentMin, DisplaySettings.AdjustmentMax, DisplaySettings.DefaultBrightness));
+            _clientConfig.UpdateSection(config => config.Display, display => display.Brightness = sanitized);
+            PostProcessRuntimeState.SetDisplayAdjustments(_clientConfig.Config.Display.BlackLevel, sanitized);
         }
 
         public void SetPeakBrightnessNits(float peakBrightnessNits)

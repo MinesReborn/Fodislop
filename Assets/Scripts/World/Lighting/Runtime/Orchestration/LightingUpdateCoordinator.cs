@@ -214,6 +214,21 @@ internal sealed class LightingUpdateCoordinator
             canReuseStaticAtlas,
             lightingRegion);
 
+        // Переякоривание уже перенесло статический атлас. AO-поле можно
+        // перенести тем же сдвигом и досчитать только вошедшие полосы,
+        // вместо полной очистки поля (~25 Мпикс) в одном кадре.
+        bool aoScrolls = canReuseStaticAtlas &&
+            regionDelta != Vector2Int.zero &&
+            Mathf.Abs(regionDelta.x) < gridWidth &&
+            Mathf.Abs(regionDelta.y) < gridHeight &&
+            !fieldWasDirty &&
+            _state.StagedTerrainGeometryRevision == terrainGeometry.LightingGeometryRevision &&
+            _resources.HasAmbientOcclusionField;
+        if (aoScrolls)
+        {
+            AddReanchoredAmbientOcclusionBands(regionDelta, lightingRegion);
+        }
+
         // The output (SDR/HDR, paper white) or the source count moved the
         // visibility bound: re-cull sources and re-trace every ray and horizon.
         if (LightingComputeBinder.UpdateInvisibleDynamicRadiance(_dynamicLightManager.Count))
@@ -255,6 +270,11 @@ internal sealed class LightingUpdateCoordinator
             throw new InvalidOperationException(
                 "Radiance Cascades command buffer is not initialized.");
         commandBuffer.Clear();
+        if (aoScrolls)
+        {
+            _resources.RecordAmbientOcclusionScroll(commandBuffer, regionDelta);
+        }
+
         int dynamicLightCount;
         bool dynamicLightsChanged;
         bool rebuildFields = _state.FieldDirty || regionChanged || geometryChanged;
@@ -318,7 +338,7 @@ internal sealed class LightingUpdateCoordinator
                     regionDelta,
                     _state.ActiveRegionInvalidations,
                     allowStaticDependencyMask,
-                    LightingAmbientOcclusionUpdatePolicy.CanUpdatePartially(
+                    aoScrolls || LightingAmbientOcclusionUpdatePolicy.CanUpdatePartially(
                         _state, terrainGeometry.LightingGeometryRevision, fieldWasDirty,
                         resourcesResized, regionChanged, contributorGeometryChanged),
                     dynamicRadianceChanged,
@@ -467,6 +487,37 @@ internal sealed class LightingUpdateCoordinator
         _executedStages.AddRange(result.ExecutedStages);
         return result.Invalidations |
             (_state.CompositeDirty ? LightingInvalidationFlags.CompositeDirty : LightingInvalidationFlags.None);
+    }
+
+    // Полосы, которых не было в старом регионе: после переноса перекрытия
+    // только они содержат чужое (старое) содержимое и подлежат пересчёту.
+    private void AddReanchoredAmbientOcclusionBands(Vector2Int regionDelta, Vector4 lightingRegion)
+    {
+        int x = Mathf.RoundToInt(lightingRegion.x);
+        int y = Mathf.RoundToInt(lightingRegion.y);
+        int width = Mathf.RoundToInt(lightingRegion.z);
+        int height = Mathf.RoundToInt(lightingRegion.w);
+        if (regionDelta.x > 0)
+        {
+            _state.AddActiveRegionInvalidation(
+                new RectInt(x + width - regionDelta.x, y, regionDelta.x, height));
+        }
+        else if (regionDelta.x < 0)
+        {
+            _state.AddActiveRegionInvalidation(
+                new RectInt(x, y, -regionDelta.x, height));
+        }
+
+        if (regionDelta.y > 0)
+        {
+            _state.AddActiveRegionInvalidation(
+                new RectInt(x, y + height - regionDelta.y, width, regionDelta.y));
+        }
+        else if (regionDelta.y < 0)
+        {
+            _state.AddActiveRegionInvalidation(
+                new RectInt(x, y, width, -regionDelta.y));
+        }
     }
 
     private void RememberDynamicLightState()

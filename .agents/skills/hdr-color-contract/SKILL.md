@@ -8,7 +8,7 @@ description: >-
   UI colors, calibration, or any code with DisplaySettings / HDROutput / PaperWhite / Tonemapping /
   CompositeFinal / DisplayFinal / VisualTuning. Triggers on: saturate on radiance, clamp color,
   sRGB in shader, UNorm light buffer, ARGBHalf, paper white, HDROutputReconciler, VisualTuning,
-  BT2390, detectPaperWhite, HDRCalibrationScreen, HDRSwitchPending, HDROutputSettings.
+  BT2390, detectPaperWhite, DisplayCalibrationScreen, HDRSwitchPending, HDROutputSettings.
 ---
 
 # Color, brightness, and HDR
@@ -32,7 +32,7 @@ Done by URP, not us: `HDROutputReconciler` holds a runtime Volume with `Tonemapp
 
 ## Frame order (`PostProcess.compute`)
 
-scene → world-grid bloom (`WorldBloom.compute` + `WorldBloomAdd.shader`) → URP: `ColorAdjustments.postExposure` (+1 stop, `PostProcessLook.Exposure`) and Neutral tonemapping → `DisplayFinal`: divide by paper white → server LUT (`ApplyCubeLut`, HDR-normalized) → vignette → eigengrau → multiply by paper white in `ToDisplayOutput` → PQ/scRGB encoding done by URP.
+scene → world-grid bloom (`WorldBloom.compute` + `WorldBloomAdd.shader`) → URP: `ColorAdjustments.postExposure` (+1 stop, `PostProcessLook.Exposure`) and Neutral tonemapping → `DisplayFinal`: divide by paper white → server LUT (`ApplyCubeLut`, HDR-normalized) → colorblind correction (`CorrectColorVision`, linear, no upper clamp) → vignette → eigengrau → `ToDisplayOutput`: SDR brightness (`_DisplayGamma`, power on mid-tones, SDR only) → black level (`_DisplayBlackLift`, offset fading towards mid-tones) → multiply by paper white → PQ/scRGB encoding done by URP.
 
 With the world render grid active, `DisplayFinal` runs per world pixel: eigengrau stays on that lattice, but the vignette is applied by the URP final blit per screen pixel on the scene sample (`WorldGridFinalVignette.hlsl`), before UI composition; `DisplayFinal` only computes its mask for the debug view.
 
@@ -51,7 +51,7 @@ Interface white equals paper white, not peak brightness. A menu at 1000 nits is 
 
 ## Calibration
 
-`detectPaperWhite` and `detectBrightnessLimits` are disabled; white point and peak come from user settings. Source is `HDRCalibrationScreen` with a pattern from the output pass (`_CalibrationPattern` in `PostProcess.compute`). Rendering calibration samples via UI is **FORBIDDEN**: UI white equals paper white and cannot represent peak brightness.
+`detectPaperWhite` and `detectBrightnessLimits` are disabled; white point and peak come from user settings. Source is `DisplayCalibrationScreen` (HDR: peak → black level → white point; SDR: brightness) with patterns from the output pass (`_CalibrationPattern` in `PostProcess.compute`); the screen's transparent layout boxes give the pattern rectangles (`SetCalibrationRects`). Black level and brightness are 0..100 with 50 neutral (`DisplayAdjustment`). Rendering calibration samples via UI is **FORBIDDEN**: UI white equals paper white and cannot represent peak brightness.
 
 ## Safe start
 

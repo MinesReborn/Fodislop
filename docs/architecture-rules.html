@@ -21,83 +21,49 @@
   </style>
 </head>
 <body>
-  <h1>Kern architecture rules</h1>
-  <p>The project currently uses two complementary linters. The C# runner in
-    <code>tools/Kern.ArchitectureLinter</code> owns migrated source and IL contracts.
-    <code>scripts/check-architecture.js</code> still owns non-migrated scene, design-system,
-    localization, and debt-budget checks. Neither runner is described as a full replacement
-    until the remaining checks have actually moved.</p>
+  <h1>Kern Architecture Linter</h1>
+  <p><code>tools/architecture/Kern.ArchitectureLinter</code> is the project's
+    architecture rule runner. The former <code>scripts/check-architecture.js</code>
+    is not present. Rules are discovered from non-abstract <code>IRule</code>
+    implementations in the linter assembly; this page deliberately does not keep
+    a second, manually maintained rule index.</p>
 
-  <h2>Running</h2>
-  <pre><code>dotnet run --project tools/Kern.ArchitectureLinter -- -p .
-dotnet run --project tools/Kern.ArchitectureLinter -- -p . --rule KERN-DISPLAY-TRANSFORM
-dotnet run --project tools/Kern.ArchitectureLinter -- -p . \
-  --rule KERN-DISPLAY-TRANSFORM --rule KERN-POSTPROCESS-RUNTIME</code></pre>
-  <p><code>--rule</code> is repeatable and rejects unknown IDs. With no selector, every discovered
-    rule runs. Source-only selections do not load compiled assemblies. IL selections discover
-    assemblies by simple name, prefer <code>Temp/bin</code> over
-    <code>Library/ScriptAssemblies</code> and <code>build</code>, and avoid scanning a stale
-    monolithic <code>Assembly-CSharp.dll</code> beside modular <code>Kern.*</code> assemblies.</p>
-  <p class="note">The local pre-commit hook runs the migrated source-based display,
-    localization, and architecture-pattern rules. Runtime IL rules run in CI only after a
-    successful current C# build, so stale Editor output cannot decide the result.</p>
+  <h2>Run rules</h2>
+  <pre><code>dotnet run --project tools/architecture/Kern.ArchitectureLinter/Kern.ArchitectureLinter.csproj -- \
+  --project-root . --source-only --fail-on Error
 
-  <h2>C# rule index</h2>
-  <table>
-    <thead><tr><th>ID</th><th>Severity</th><th>Input</th><th>Purpose</th></tr></thead>
-    <tbody>
-      <tr><td><code>KERN-ASSEMBLY-GRAPH</code></td><td class="error">Error</td><td>IL/source</td><td>Assembly graph and namespace visibility</td></tr>
-      <tr><td><code>KERN-ASYNC-VOID</code></td><td class="warning">Warning</td><td>IL</td><td>Unsafe async-void lifecycle methods</td></tr>
-      <tr><td><code>KERN-BLOCK-NAMESPACE</code></td><td class="warning">Warning</td><td>IL</td><td>Unity component namespace contract</td></tr>
-      <tr><td><code>KERN-DEAD-MEMBERS</code></td><td class="warning">Warning</td><td>Source</td><td>Unreferenced member detection</td></tr>
-      <tr><td><code>KERN-DEP-CYCLE</code></td><td class="error">Error</td><td>IL</td><td>Assembly dependency cycles</td></tr>
-      <tr><td><code>KERN-DISPLAY-TRANSFORM</code></td><td class="error">Error</td><td>Source</td><td>Color pipeline, scopes, and Render Graph invariants</td></tr>
-      <tr><td><code>KERN-EXECUTION-ORDER</code></td><td class="error">Error</td><td>IL</td><td>Required execution-order attributes</td></tr>
-      <tr><td><code>KERN-FORBIDDEN-API</code></td><td class="error">Error</td><td>IL</td><td>Forbidden framework and project APIs</td></tr>
-      <tr><td><code>KERN-INJECT-ATTRIBUTE</code></td><td class="error">Error</td><td>IL</td><td>Invalid static injection</td></tr>
-      <tr><td><code>KERN-LOCALIZATION</code></td><td class="error">Error</td><td>Source</td><td>Locale parity and key wiring</td></tr>
-      <tr><td><code>KERN-MONO-ACCESS</code></td><td class="warning">Warning</td><td>IL</td><td>Lifecycle method accessibility</td></tr>
-      <tr><td><code>KERN-NAMING</code></td><td class="warning">Warning</td><td>IL</td><td>Naming conventions</td></tr>
-      <tr><td><code>KERN-PATTERN</code></td><td class="error">Error</td><td>Source</td><td>Forbidden architecture patterns</td></tr>
-      <tr><td><code>KERN-POSTPROCESS-RUNTIME</code></td><td class="error">Error</td><td>IL</td><td>IMGUI capture and post-process lifecycle contracts</td></tr>
-      <tr><td><code>KERN-RESOURCE-PATHS</code></td><td class="error">Error</td><td>Source</td><td>Resource path existence</td></tr>
-      <tr><td><code>KERN-SCRIPT-META</code></td><td class="error">Error</td><td>Source</td><td>Script meta GUID integrity</td></tr>
-      <tr><td><code>KERN-SETTINGS-WIRING</code></td><td class="error">Error</td><td>Source</td><td>Settings consumers and application paths</td></tr>
-      <tr><td><code>KERN-SHADER-COLOR</code></td><td class="error">Error</td><td>Source</td><td>Shared shader color-library usage</td></tr>
-      <tr><td><code>KERN-SWITCH-DEFAULT</code></td><td class="error">Error</td><td>Source</td><td>Default branches in non-trivial switches</td></tr>
-      <tr><td><code>KERN-USS-STYLESHEET</code></td><td class="error">Error</td><td>Source</td><td>USS syntax, tokens, and supported properties</td></tr>
-    </tbody>
-  </table>
+dotnet run --project tools/architecture/Kern.ArchitectureLinter/Kern.ArchitectureLinter.csproj -- \
+  --project-root . --rule KERN-DISPLAY-TRANSFORM
 
-  <h2>Display and IMGUI contracts</h2>
-  <h3>KERN-DISPLAY-TRANSFORM</h3>
+dotnet test tools/architecture/Kern.ArchitectureLinter.Tests/Kern.ArchitectureLinter.Tests.csproj</code></pre>
   <ul>
-    <li>HDR-normalized LUT lookup: the table domain clamp never flattens highlights above paper white.</li>
-    <li>Output-gamut conversion before temporal history and explicit SDR gamma.</li>
-    <li>Vignette coordinates, scopes signal scaling, active-color texture descriptors, and debug temporal bypass.</li>
+    <li>With no <code>--rule</code> selector, <code>--source-only</code> runs rules whose <code>RequiresAssemblies</code> is false and skips assembly loading. If you explicitly select an assembly-dependent rule, it still runs and needs assemblies.</li>
+    <li>Without <code>--source-only</code>, assembly-based rules discover Unity outputs under <code>Temp/bin</code>, <code>Library/ScriptAssemblies</code>, and <code>build</code>. If modular <code>Kern.*</code> assemblies exist, discovery excludes monolithic <code>Assembly-CSharp.dll</code>.</li>
+    <li>Repeat <code>--rule &lt;id&gt;</code> to select rules. Unknown IDs fail. With no selector, all discovered rules run.</li>
+    <li><code>--fail-on Error|Warning|Info</code> sets the exit threshold; <code>--strict</code> treats warnings as errors. <code>--sarif [path]</code> writes SARIF.</li>
   </ul>
-  <h3>KERN-POSTPROCESS-RUNTIME</h3>
-  <ul>
-    <li><code>ToolWindows.Unregister</code> releases IMGUI input capture.</li>
-    <li><code>PostProcessController.OnDisable</code> resets bypass and advanced runtime settings.</li>
-    <li>Render feature and scopes pass use the explicitly tracked main camera.</li>
-    <li>HDR enablement updates the platform output in both state branches.</li>
-  </ul>
+  <p>The runner exits 0 when no violation meets the threshold, 1 when findings meet it,
+    and 2 for configuration or execution failure. Source-only lint is not proof that
+    assembly-based rules ran.</p>
 
-  <h2>Adding a C# rule</h2>
+  <h2>Repository wiring</h2>
+  <p><code>scripts/run-ci.sh</code> runs linter tests, source-only lint, standalone
+    tests, selected tool builds, and lighting/crystal/raster harnesses. The local
+    pre-commit hook calls this full script through <code>.pre-commit-config.yaml</code>;
+    it is not a narrow architecture-only hook. GitHub Actions currently exposes
+    only a manual workflow, and its <code>unified-ci</code> job is disabled by
+    <code>if: false</code>; push/PR checks do not run automatically.</p>
+
+  <h2>Add a rule</h2>
   <ol>
-    <li>Add a public, non-abstract class implementing <code>IRule</code> under the rules directory.</li>
-    <li>Give it a public parameterless constructor and a unique stable ID.</li>
-    <li>Override <code>RequiresAssemblies</code> with <code>false</code> when it reads only source files.</li>
-    <li>Add the rule to this index and wire a selective pre-commit or CI invocation only after its existing violations are understood.</li>
+    <li>Implement <code>IRule</code> in <code>tools/architecture/Kern.ArchitectureLinter/Rules/</code> with a public parameterless constructor, a stable unique <code>Id</code>, a description, severity, and <code>EvaluateAsync</code>.</li>
+    <li>Set <code>RequiresAssemblies</code> to <code>false</code> only when the rule needs no compiled assemblies; source-only runs filter by this property.</li>
+    <li>Add focused scenarios under <code>tools/architecture/Kern.ArchitectureLinter.Tests/</code>. Rule discovery needs no manual registry or duplicated HTML index.</li>
+    <li>Run the focused tests and the applicable source-only or assembly-backed rule command. Do not describe a rule as covered by CI unless it is invoked by the actual workflow.</li>
   </ol>
-  <p>Rules are discovered from the linter assembly through reflection. There is no manual registry
-    in <code>CreateDefaultRules()</code>.</p>
 
-  <h2>Transition boundary</h2>
-  <p>The JavaScript runner remains authoritative for checks that have not been migrated. A check must
-    have one owner: once a contract is represented in a C# rule and invoked by the hook, its duplicate
-    JavaScript implementation is removed. The entire legacy C# suite is not enabled as a blocking hook
-    in one step because existing false positives and debt first need rule-by-rule correction.</p>
+  <p class="note">For current project checks and coverage, see
+    <a href="../tools/README.md">tools/README.md</a> and
+    <a href="../.agents/project-context.md">project-context.md</a>.</p>
 </body>
 </html>

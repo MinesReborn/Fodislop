@@ -110,6 +110,18 @@ internal sealed class LightingRuntimeState
         _activeRegionInvalidations.Clear();
     }
 
+    // Полоса, вошедшая в переякоренное поле: её содержимое не могло быть
+    // перенесено вместе с перекрытием и пересчитывается в этом же кадре.
+    public void AddActiveRegionInvalidation(RectInt region)
+    {
+        if (region.width <= 0 || region.height <= 0)
+        {
+            return;
+        }
+
+        _activeRegionInvalidations.Add(region);
+    }
+
     private static bool Intersects(RectInt left, RectInt right)
     {
         return left.xMin < right.xMax &&

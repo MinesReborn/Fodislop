@@ -1,0 +1,427 @@
+/* Общие классы макета visual/kern-ui для всех экранов игры: фон экранов вне игры, знак и название,
+   вкладки листа, поле-строка, список, переключатель, ползунок, галочка, шкала ступенями.
+   Значения — вычисленные стили стенда (index.html, ?still=1); токены — KernTokens.uss. */
+
+/* ── Фон экранов вне игры: виньетка bg.svg и точки по сетке клеток мира ── */
+.screen-space {
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    background-color: var(--void);
+    /* Виньетка bg.svg: радиальный градиент USS (центр 62 % / 50 %, #14121d → void) */
+    background-image: radial-gradient(ellipse farthest-side at 62% 50%, #14121d 0%, #06050a 100%);
+}
+
+.screen-space__dots {
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    bottom: 0;
+    --dots-color: rgba(216, 213, 238, 0.08);
+    --dots-step: 32;
+    --dots-size: 2;
+}
+
+.spacer {
+    flex-grow: 1;
+}
+
+/* ── Знак и название ── */
+.brand {
+    flex-direction: row;
+    align-items: center;
+}
+
+.brand--stacked {
+    flex-direction: column;
+}
+
+.brand__mark {
+    width: 36px;
+    height: 36px;
+    flex-shrink: 0;
+    background-image: resource("UI/Theme/Kern/Icons/mark");
+}
+
+.brand__mark--56 {
+    width: 56px;
+    height: 56px;
+    margin-bottom: var(--sp-5);
+}
+
+.wordmark {
+    margin: 0;
+    padding: 0;
+    -unity-font-definition: var(--face-display);
+    font-size: var(--t-13);
+    -unity-font-style: bold;
+    letter-spacing: 4px; /* 0.04em: интервал UI Toolkit — в сотых кегля */
+    color: var(--bone);
+}
+
+.brand--stacked > .wordmark {
+    padding: 2.9px 0; /* строка макета 1.4em = 44.8: UI Toolkit ставит строку по метрикам шрифта (39) — добор пополам */
+    font-size: var(--t-15);
+    letter-spacing: 2px; /* 0.02em: интервал UI Toolkit — в сотых кегля */
+    -unity-text-align: middle-center;
+}
+
+.brand-sub {
+    margin: 0;
+    padding: 0;
+    -unity-font-definition: var(--face-mono);
+    font-size: var(--t-3);
+    letter-spacing: 8px; /* 0.08em: интервал UI Toolkit — в сотых кегля */
+    color: var(--ash);
+}
+
+.brand--stacked > .brand-sub {
+    margin-top: var(--sp-1);
+    -unity-text-align: middle-center;
+}
+
+/* ── Вкладки листа: подпись с чертой снизу (systems.css :is(.clan-tabs, .prog-tabs, .seg--auth).seg) ── */
+.seg-tabs {
+    flex-direction: row;
+    flex-shrink: 0;
+    border-bottom-width: 1px;
+    border-color: var(--seam);
+}
+
+.seg-tab {
+    flex-grow: 1;
+    flex-basis: 0;
+    height: 33px; /* 32 + черта: подчёркивание (2 px) ложится на линию ряда, как ::after bottom:-1px макета */
+    margin: 0 0 -1px 0;
+    padding: 0 var(--sp-6);
+    border-width: 0 0 2px 0;
+    border-radius: 0;
+    border-color: rgba(0, 0, 0, 0);
+    background-color: rgba(0, 0, 0, 0);
+    background-image: none;
+    color: var(--ash);
+    -unity-font-definition: var(--face-text);
+    font-size: var(--t-body);
+    -unity-text-align: middle-center;
+}
+
+.seg-tab:hover {
+    background-color: rgba(0, 0, 0, 0);
+    color: var(--bone);
+}
+
+.seg-tab.auth-tab--active,
+.seg-tab.is-on {
+    border-color: var(--bone);
+    color: var(--bone);
+    -unity-font-style: bold;
+}
+
+/* ── Поле-строка: подпись слева, управление справа, пунктир снизу (screens.css .field, micro.css .field) ── */
+.field {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--sp-8) 0;
+    border-bottom-width: 1px; /* место пунктира, как border-bottom макета: сам пунктир рисует KernVector */
+    border-color: rgba(0, 0, 0, 0);
+    --dash-color: var(--seam);
+}
+
+/* Последняя строка помечается классом в разметке: псевдоклассов порядка в USS нет */
+.field--last {
+    border-bottom-width: 0;
+    --dash-color: rgba(0, 0, 0, 0);
+}
+
+.field__label {
+    margin: 0 var(--sp-12) 0 0;
+    padding: 0;
+    flex-shrink: 1;
+    color: var(--bone);
+    -unity-font-definition: var(--face-text);
+    font-size: var(--t-body);
+    -unity-font-style: bold;
+    white-space: normal;
+}
+
+/* ── Список (select): углубление 320 × 40 со стрелкой ── */
+.select {
+    width: 320px;
+    flex-shrink: 0;
+    margin: 0;
+}
+
+.select > .unity-base-popup-field__input,
+.select > .unity-base-field__input {
+    height: 40px;
+    margin: 0;
+    padding: 0 40px 0 var(--sp-6);
+    border-width: 1px;
+    border-radius: 0;
+    border-color: var(--seam-strong);
+    background-color: var(--well);
+    --chevron-color: rgb(141, 151, 158); /* #8d979e — цвет значка в фоне select макета */
+    --chevron-right: 13; /* 12 px от края поля (padding-box) + рамка */
+    color: var(--bone);
+    -unity-font-definition: var(--face-text);
+    font-size: var(--t-body);
+}
+
+.select .unity-base-popup-field__arrow {
+    display: none;
+}
+
+.select > .unity-base-popup-field__input:hover {
+    border-color: var(--ash);
+}
+
+/* ── Переключатель: дорожка 44 × 24, квадратный бегунок 16 px (screens.css .switch, micro.css .switch:checked) ── */
+.switch {
+    margin: 0;
+    flex-shrink: 0;
+}
+
+.switch > .unity-toggle__input {
+    width: var(--hit);
+    height: 24px;
+    margin: 0;
+    padding: 0;
+    border-width: 1px;
+    border-radius: 0;
+    border-color: var(--seam-strong);
+    background-color: var(--well);
+}
+
+.switch .unity-toggle__checkmark {
+    position: absolute;
+    left: 3px;
+    top: 3px;
+    width: 16px;
+    height: 16px;
+    margin: 0;
+    border-width: 0;
+    border-radius: 0;
+    background-color: var(--ash);
+    background-image: none;
+    transition: left var(--dur-fast) linear, background-color var(--dur-fast) linear;
+}
+
+.switch:checked > .unity-toggle__input {
+    border-color: var(--bone);
+    background-color: rgba(216, 213, 238, 0.1);
+    --hatch-color: rgba(216, 213, 238, 0.1);
+}
+
+.switch:checked .unity-toggle__checkmark {
+    left: 23px;
+    background-color: var(--bone);
+}
+
+/* ── Галочка с подписью (screens.css .check) ── */
+.check {
+    flex-direction: row;
+    align-items: center;
+    margin: 0;
+}
+
+.check > .unity-toggle__input {
+    flex-grow: 1;
+    flex-direction: row;
+    align-items: center;
+}
+
+.check .unity-toggle__checkmark {
+    width: 14px;
+    height: 14px;
+    margin: 0 var(--sp-4) 0 0;
+    border-width: 1px;
+    border-radius: 0;
+    border-color: var(--seam-strong);
+    background-color: var(--well);
+    background-image: none;
+}
+
+/* Отмечено — галочка костью, векторно (KernVector --check-color) */
+.check:checked .unity-toggle__checkmark {
+    --check-color: var(--bone);
+}
+
+.check .unity-label,
+.check .unity-toggle__text {
+    margin: 0;
+    padding: 0;
+    color: var(--mist);
+    -unity-font-definition: var(--face-text);
+    font-size: var(--t-small);
+}
+
+/* ── Ползунок с числом (screens.css .range, micro.css :is(.pk-slider, .range input)) ── */
+.range {
+    width: 320px;
+    flex-shrink: 0;
+    flex-direction: row;
+    align-items: center;
+}
+
+.range__slider {
+    flex-grow: 1;
+    margin: 0 var(--sp-6) 0 0;
+}
+
+.range__slider .unity-base-slider__tracker {
+    height: 6px;
+    margin-top: -3px;
+    border-width: 0;
+    border-radius: 0;
+    background-color: var(--well);
+    --rules-color: rgba(216, 213, 238, 0.1);
+}
+
+/* Пройденная часть дорожки — мглой (Slider fill="true") */
+.range__slider .unity-base-slider__fill {
+    background-color: var(--mist);
+    border-radius: 0;
+}
+
+.range__slider .unity-base-slider__dragger {
+    width: 8px;
+    height: 14px;
+    margin-top: -7px;
+    border-width: 0;
+    border-radius: 0;
+    background-color: rgba(0, 0, 0, 0);
+}
+
+/* Бегунок «Т» (KernRange): планка во всю ширину сверху и ножка 2 px по центру */
+.range__thumb-bar {
+    position: absolute;
+    left: 0;
+    top: 0;
+    right: 0;
+    height: 3px;
+    background-color: var(--bone);
+}
+
+.range__thumb-stem {
+    position: absolute;
+    left: 3px;
+    top: 3px;
+    bottom: 0;
+    width: 2px;
+    background-color: var(--bone);
+}
+
+/* Риски по четвертям под дорожкой: 1×3 px, на 6 px ниже середины, от середины бегунка до середины бегунка */
+.range__ticks {
+    position: absolute;
+    left: 4px;
+    right: 4px;
+    top: 50%;
+    height: 3px;
+    margin-top: 6px;
+}
+
+.range__tick {
+    position: absolute;
+    top: 0;
+    width: 1px;
+    height: 3px;
+    background-color: rgba(216, 213, 238, 0.3);
+}
+
+.range__slider .unity-base-slider__dragger-border {
+    display: none;
+}
+
+.range__out {
+    min-width: var(--hit);
+    margin: 0;
+    padding: 0;
+    color: var(--bone);
+    -unity-font-definition: var(--face-mono);
+    font-size: var(--t-body);
+    letter-spacing: 2px; /* 0.02em: интервал UI Toolkit — в сотых кегля */
+    -unity-text-align: middle-right;
+}
+
+/* ── Шкала ступенями: ячейка 6 px, зазор 2 px ── */
+.meter-quant {
+    height: 6px;
+    overflow: hidden;
+    --quant-color: var(--well);
+}
+
+.meter-quant__fill {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 0;
+    --quant-color: var(--mist);
+    transition: width var(--dur-fast) linear;
+}
+
+/* Полоса прокрутки — одна на весь интерфейс (макет micro.css .frame ::-webkit-scrollbar): дорожка 6 px, бегунок без стрелок */
+.unity-scroll-view .unity-scroller--vertical {
+    width: 6px;
+    min-width: 6px;
+    margin: 0;
+    padding: 0;
+    border-width: 0;
+    background-color: rgba(0, 0, 0, 0);
+}
+
+/* В панели полоса не доходит до низа: там Г-уголок рамки (10 px), полоса поверх него ломала угол */
+.panel .unity-scroll-view .unity-scroller--vertical {
+    margin-bottom: 10px;
+}
+
+.unity-scroll-view .unity-scroller--horizontal {
+    display: none;
+}
+
+.unity-scroll-view .unity-scroller .unity-repeat-button {
+    display: none;
+}
+
+.unity-scroll-view .unity-scroller--vertical > .unity-slider {
+    margin: 0;
+    padding: 0;
+    flex-grow: 1;
+}
+
+.unity-scroll-view .unity-scroller--vertical .unity-base-slider__drag-container {
+    margin: 0;
+    padding: 0;
+}
+
+.unity-scroll-view .unity-scroller--vertical .unity-base-slider__tracker {
+    left: 0;
+    right: 0;
+    width: auto;
+    margin: 0;
+    border-width: 0;
+    border-radius: 0;
+    background-color: var(--scroll-track);
+}
+
+.unity-scroll-view .unity-scroller--vertical .unity-base-slider__dragger {
+    left: 0;
+    width: 6px;
+    margin: 0;
+    border-width: 0;
+    border-radius: 0;
+    background-color: var(--scroll-thumb);
+}
+
+.unity-scroll-view .unity-scroller--vertical .unity-base-slider__dragger:hover {
+    background-color: var(--ash);
+}
+
+.unity-scroll-view .unity-scroller--vertical .unity-base-slider__dragger-border {
+    display: none;
+}

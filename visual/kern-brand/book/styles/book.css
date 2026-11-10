@@ -1,0 +1,153 @@
+/* Страницы книги (бренд-книга, дизайн-код) — поверх web.css: раздел с номером слева, образцы, таблицы токенов */
+
+/* Обложка */
+.b-cover { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: 48px; align-items: center; padding: 88px 0 56px; }
+.b-cover .w-display { margin-top: 28px; }
+.b-cover .w-lead { margin-top: 24px; }
+.b-cover-mark { justify-self: end; width: min(100%, 300px); margin-right: 24px; }
+@media (max-width: 860px) { .b-cover { grid-template-columns: 1fr; gap: 28px; padding: 40px 0 32px; } .b-cover-mark { justify-self: start; width: 96px; margin: 0; order: -1; } }
+
+/* Оглавление */
+.b-toc { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 220px), 1fr)); gap: 0 24px; margin-top: 40px; border-top: 1px solid var(--seam); }
+.b-toc a { display: flex; gap: 12px; padding: 12px 0; border-bottom: 1px dashed var(--seam); color: var(--mist); text-decoration: none; font-size: var(--t-6); }
+.b-toc a span { font: var(--fw-semi) var(--t-4)/1.6 var(--font-mono); color: var(--dim); }
+@media (max-width: 620px) { .b-toc { grid-template-columns: 1fr 1fr; gap: 0 16px; margin-top: 24px; } .b-toc a { font-size: var(--t-5); padding: 10px 0; } }
+.b-toc a:hover { color: var(--bone); }
+
+/* Раздел: номер и название в колонке слева, содержимое справа */
+.b-sec { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 48px; padding: var(--w-section) 0; border-top: 1px solid var(--seam); scroll-margin-top: 64px; }
+.b-sec > header { position: sticky; top: 96px; align-self: start; display: flex; flex-direction: column; gap: 10px; }
+.b-sec > header .b-n { font: var(--fw-heavy) 56px/1 var(--font-display); color: var(--seam-strong); }
+.b-sec > header h2 { font: var(--fw-bold) var(--t-12)/1.15 var(--font-display); }
+.b-sec > header p { font: var(--fw-semi) var(--t-3)/1.5 var(--font-mono); letter-spacing: var(--ls-caps); text-transform: uppercase; color: var(--dim); }
+.b-body { display: flex; flex-direction: column; gap: 28px; min-width: 0; }
+.b-body > h3 { font: var(--fw-semi) var(--t-4)/1 var(--font-mono); letter-spacing: var(--ls-caps-wide); text-transform: uppercase; color: var(--ash); margin-top: 12px; }
+@media (max-width: 860px) { .b-sec { grid-template-columns: 1fr; gap: 24px; } .b-sec > header { position: static; flex-direction: row; flex-wrap: wrap; align-items: baseline; gap: 4px 14px; } .b-sec > header .b-n { font-size: 32px; } .b-sec > header p { flex-basis: 100%; } }
+
+/* Правила: номер сигналом, текст */
+.b-rules { list-style: none; display: grid; }
+.b-rules li { display: grid; grid-template-columns: 44px minmax(0, 1fr); gap: 12px; padding: 14px 0; border-bottom: 1px dashed var(--seam); color: var(--mist); }
+.b-rules li::before { content: attr(data-n); font: var(--fw-bold) var(--t-5)/1.5 var(--font-mono); color: var(--bone); }
+.b-do .b-rules li::before { color: var(--ok); font-size: var(--t-8); line-height: 1.2; }
+.b-dont .b-rules li::before { color: var(--danger); font-size: var(--t-8); line-height: 1.2; }
+@media (max-width: 620px) { .b-rules li { grid-template-columns: 32px minmax(0, 1fr); } }
+.b-rules b { color: var(--bone); font-weight: var(--fw-semi); }
+.b-do b, .b-dont b { display: block; font: var(--fw-bold) var(--t-3)/1 var(--font-mono); letter-spacing: var(--ls-caps-wide); text-transform: uppercase; margin-bottom: 12px; }
+.b-do b { color: var(--ok); }
+.b-dont b { color: var(--danger); }
+
+/* Сцена образца: место, где стоит образец, с подписью снизу */
+.b-stage { position: relative; display: grid; place-items: center; min-height: 220px; padding: 32px; border: 1px solid var(--seam); background: var(--dots), var(--graphite); }
+.b-stage--light { background: #e9e6f5; border-color: #cfcbe2; }
+.b-stage--signal { background: var(--signal); border-color: var(--signal); }
+.b-stage--well { background: var(--well); }
+.b-stage:has(figcaption) { padding-bottom: 52px; }
+.b-stage figcaption, .b-cap { position: absolute; left: 12px; right: 12px; bottom: 12px; font: var(--fw-semi) var(--t-2)/1.45 var(--font-mono); letter-spacing: var(--ls-caps); text-transform: uppercase; color: var(--dim); }
+.b-stage--light figcaption { color: #6c6889; }
+.b-stage--signal figcaption { color: var(--on-signal); }
+
+/* Цвет */
+.b-swatches { display: grid; grid-template-columns: repeat(var(--n, 6), minmax(0, 1fr)); gap: 8px; }
+@media (max-width: 900px) and (min-width: 621px) { .b-swatches { grid-template-columns: repeat(auto-fit, minmax(108px, 1fr)); } }
+/* Телефон: образец строкой — цвет слева, имя и значение справа; имена токенов не рвутся по слогам */
+@media (max-width: 620px) { .b-swatches { grid-template-columns: 1fr; gap: 6px; } .b-swatches .b-sw { flex-direction: row; } .b-swatches .b-sw i { width: 40px; height: auto; flex: none; border-bottom: 0; border-right: 1px solid var(--seam); } .b-swatches .b-sw div { flex: 1; min-width: 0; padding: 8px 10px; } .b-swatches .b-sw b { font-size: var(--t-4); } .b-swatches .b-sw span { font-size: var(--t-2); } }
+.b-sw { display: flex; flex-direction: column; border: 1px solid var(--seam); min-width: 0; }
+.b-sw i { height: 96px; background: var(--c); border-bottom: 1px solid var(--seam); }
+.b-sw div { padding: 10px 12px; display: flex; flex-direction: column; gap: 3px; background: var(--graphite); }
+.b-sw b { font: var(--fw-semi) var(--t-5)/1.2 var(--font-text); }
+.b-sw span { font: var(--fw-normal) var(--t-3)/1.3 var(--font-mono); color: var(--ash); overflow-wrap: anywhere; }
+/* Доли цвета: полоса без подписей внутри (узкие доли не вмещают текст) и легенда под ней */
+.b-ratio { display: flex; height: 28px; border: 1px solid var(--seam-strong); }
+.b-ratio span + span { border-left: 1px solid var(--void); }
+.b-legend { display: flex; flex-wrap: wrap; gap: 8px 20px; margin-top: -12px; font: var(--fw-semi) var(--t-3)/1.3 var(--font-mono); letter-spacing: var(--ls-caps); text-transform: uppercase; color: var(--ash); }
+.b-legend i { display: inline-block; width: 10px; height: 10px; margin-right: 8px; vertical-align: -1px; background: var(--c); box-shadow: 0 0 0 1px var(--seam-strong); }
+.b-legend b { color: var(--bone); font-weight: var(--fw-semi); margin-left: 6px; }
+
+/* Шрифты */
+.b-type { display: grid; grid-template-columns: 200px minmax(0, 1fr); gap: 24px; padding: 28px 0; border-bottom: 1px dashed var(--seam); align-items: baseline; }
+.b-type header b { display: block; font: var(--fw-semi) var(--t-8)/1.3 var(--font-text); }
+.b-type header span { display: block; margin-top: 6px; font: var(--fw-normal) var(--t-3)/1.45 var(--font-mono); color: var(--ash); }
+.b-type .b-sample { overflow-wrap: anywhere; min-width: 0; }
+.b-type > .w-small { grid-column: 2; max-width: 52em; }   /* пояснение — под образцом, а не в узкой колонке названия */
+@media (max-width: 720px) { .b-type { grid-template-columns: 1fr; gap: 10px; } .b-type > .w-small { grid-column: 1; } }
+.b-scale { display: flex; flex-wrap: wrap; align-items: baseline; gap: 12px 22px; }
+.b-scale span { color: var(--bone); line-height: 1; }
+.b-scale small { display: block; margin-top: 6px; font: var(--fw-normal) var(--t-1)/1 var(--font-mono); color: var(--dim); }
+
+/* Микрографика и компоненты: плитка с образцом и подписью */
+.b-kit { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 1100px) { .b-kit { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 480px) { .b-kit { grid-template-columns: 1fr; } }
+.b-tile { display: flex; flex-direction: column; border: 1px solid var(--seam); background: var(--graphite); min-width: 0; }
+.b-tile .b-demo { display: grid; place-items: center; min-height: 132px; padding: 20px; background: var(--well); border-bottom: 1px solid var(--seam); }
+.b-tile > div:last-child { padding: 14px 16px 16px; display: flex; flex-direction: column; gap: 6px; }
+.b-tile b { font: var(--fw-semi) var(--t-6)/1.3 var(--font-text); }
+.b-tile p { font-size: var(--t-5); color: var(--ash); }
+.b-tile code { font-size: var(--t-3); color: var(--dim); }
+
+/* Спецификация компонента: образец, строки размеров, источник */
+.b-spec { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 0; border: 1px solid var(--seam); }
+.b-spec > .b-demo { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: center; padding: 32px 24px; background: var(--dots), var(--well); border-right: 1px solid var(--seam); }
+.b-spec > div:last-child { padding: 20px 24px; background: var(--graphite); }
+.b-spec h4 { font: var(--fw-bold) var(--t-10)/1.2 var(--font-display); margin-bottom: 6px; }
+.b-spec .w-rows { margin-top: 10px; }
+.b-spec .w-row { font-size: var(--t-5); padding: 6px 0; }
+.b-spec .w-row b { font-size: var(--t-4); }
+@media (max-width: 760px) { .b-spec { grid-template-columns: 1fr; } .b-spec > .b-demo { border-right: 0; border-bottom: 1px solid var(--seam); } }
+
+/* Таблица токенов: образец цвета в первой колонке */
+/* Все таблицы токенов — одной сеткой колонок, чтобы глаз не прыгал от группы к группе */
+.b-tok { table-layout: fixed; min-width: 640px; }
+.b-tok col.c-name { width: 30%; } .b-tok col.c-val { width: 24%; } .b-tok col.c-to { width: 104px; }
+.b-tok td { overflow: hidden; text-overflow: ellipsis; }
+.b-tok td:first-child { white-space: nowrap; }
+.b-tokgroup { border: 1px solid var(--seam); margin-top: 16px; }
+.b-tokgroup > summary { display: flex; align-items: center; gap: 12px; padding: 14px 16px; cursor: pointer; list-style: none; font: var(--fw-bold) var(--t-10)/1.2 var(--font-display); background: var(--graphite); }
+.b-tokgroup > summary::-webkit-details-marker { display: none; }
+.b-tokgroup > summary::before { content: '+'; width: 14px; font: var(--fw-bold) var(--t-8)/1 var(--font-mono); color: var(--ash); }
+.b-tokgroup[open] > summary::before { content: '−'; }
+.b-tokgroup > summary small { margin-left: auto; font: var(--fw-semi) var(--t-3)/1 var(--font-mono); letter-spacing: var(--ls-caps); text-transform: uppercase; color: var(--dim); }
+.b-tokgroup .w-table-wrap { border: 0; border-top: 1px solid var(--seam); }
+.b-tok i { display: inline-block; width: 14px; height: 14px; margin-right: 8px; vertical-align: -2px; border: 1px solid var(--seam-strong); background: var(--c); }
+.b-tok td:nth-child(2) { font-family: var(--font-mono); font-size: var(--t-4); color: var(--bone); white-space: nowrap; }
+.b-tok td:nth-child(3) { min-width: 220px; }
+.b-tok .to { display: inline-block; padding: 2px 6px; border: 1px solid var(--seam-strong); font: var(--fw-semi) var(--t-2)/1.2 var(--font-mono); letter-spacing: var(--ls-caps); text-transform: uppercase; color: var(--ash); white-space: nowrap; }
+.b-tok .to--uss { border-color: var(--bone); color: var(--bone); }
+
+/* Мелкие образцы микрографики */
+.m-ticks { width: 120px; height: 84px; --tick: 10px; --tick-c: rgb(var(--rgb-bone) / .8); background: var(--ticks); border: 1px solid var(--seam); }
+.m-notch { width: 140px; height: 84px; padding: 0 !important; }
+.m-hatch { width: 150px; height: 28px; background: var(--hatch), var(--well); border: 1px solid var(--seam); }
+.m-meter { position: relative; width: 160px; height: 6px; background: linear-gradient(90deg, var(--ok) 0 64%, transparent 64%), var(--hatch), var(--well); border: 1px solid var(--seam); }
+.m-meter::after { content: ""; position: absolute; inset: 0; background: repeating-linear-gradient(90deg, transparent 0 calc(5% - 1px), rgb(var(--rgb-well) / .8) calc(5% - 1px) 5%); }
+.m-dots { width: 150px; height: 84px; background: var(--dots), var(--void); border: 1px solid var(--seam); }
+.m-plate-sec { display: inline-flex; align-items: center; height: 14px; padding: 0 9px 0 5px; background: var(--bone); color: var(--void); font: var(--fw-bold) 8px/1 var(--font-mono); letter-spacing: .14em; text-transform: uppercase;
+  clip-path: polygon(0 0, 100% 0, 100% calc(100% - 4px), calc(100% - 4px) 100%, 0 100%); }
+/* Образцы из макета (kern-ui/specimen.html): настоящие компоненты в iframe, а не перерисовка */
+.b-frame, .b-live iframe { display: block; width: 100%; border: 0; background: var(--void); }
+.b-frame { margin-top: 16px; border: 1px solid var(--seam); }
+/* Во врезке дизайн-кода образец занимает всю колонку: высота колонки — от текста справа, не меньше min-height врезки */
+.b-live { position: relative; padding: 0 !important; }
+.b-live iframe { position: absolute; inset: 0; height: 100%; }
+/* Живые кадры (интерфейс, превью шаблонов): iframe в натуральную величину, уменьшенный скриптом до ширины коробки */
+.b-shot { position: relative; overflow: hidden; width: 100%; background: var(--void); border: 1px solid var(--seam); }
+.b-shot iframe { position: absolute; left: 0; top: 0; border: 0; transform-origin: 0 0; pointer-events: none; }
+.b-ui figure { display: flex; flex-direction: column; gap: 10px; margin: 0; }
+.b-ui figcaption { font-size: var(--t-5); color: var(--ash); }
+.b-ui figcaption b { color: var(--bone); font-weight: var(--fw-semi); margin-right: 8px; }
+#use .w-panel > .b-shot { margin-bottom: 16px; }
+/* Перенос в 6.7: имена API не рвутся посреди слова — только по дефису и пробелу */
+.b-port td code { overflow-wrap: normal; }
+.b-port td:first-child { white-space: normal; }
+/* Таблицы на телефоне — карточками: строка = блок, у ячейки подпись столбца (data-h ставит скрипт страницы) */
+@media (max-width: 620px) {
+  .w-table:not(.b-tok) thead { display: none; }
+  .w-table:not(.b-tok), .w-table:not(.b-tok) tbody, .w-table:not(.b-tok) tr, .w-table:not(.b-tok) td { display: block; width: auto !important; }
+  .w-table:not(.b-tok) colgroup { display: none; }
+  .w-table:not(.b-tok) tr { padding: var(--sp-5) var(--sp-6); border-bottom: 1px solid var(--seam); }
+  .w-table:not(.b-tok) tr:last-child { border-bottom: 0; }
+  .w-table:not(.b-tok) td { padding: 2px 0; border: 0; white-space: normal; }
+  .w-table:not(.b-tok) td:first-child { padding-bottom: 6px; font-weight: var(--fw-bold); }
+  .w-table:not(.b-tok) td[data-h]:not(:first-child)::before { content: attr(data-h); display: block; margin-top: 6px; font: var(--t-2)/1.4 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--ash); }
+  .w-table:not(.b-tok) td:empty { display: none; }
+}

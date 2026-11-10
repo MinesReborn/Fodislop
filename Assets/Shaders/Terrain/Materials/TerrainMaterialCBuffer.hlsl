@@ -33,9 +33,6 @@ CBUFFER_START(UnityPerMaterial)
     float _EmissionBrightnessStart;
     float _EmissionBrightnessEnd;
     float _SurfaceEmissionStrength;
-    float _GroundDecalStrength;
-    float _RockDecalStrength;
-    float _DecalPlacementOffset;
     float _TerrainDebugDeltaContrast;
     float4 _FacetedGlintDirection;
     float _FacetedGlintSweepStart;
@@ -61,7 +58,6 @@ CBUFFER_START(UnityPerMaterial)
     float _PremultiplyAlphaFloor;
     float _AlphaCutoff;
     float4 _FlowMap_TexelSize; // KERN-SHADER-DEAD-UNIFORM: layout — см. комментарий выше
-    float4 _TerrainDecalAtlas_TexelSize; // KERN-SHADER-DEAD-UNIFORM: layout — см. комментарий выше
     float4 _TerrainAtlas0_TexelSize;
     float4 _TerrainAtlas1_TexelSize;
     float4 _TerrainAtlas2_TexelSize;

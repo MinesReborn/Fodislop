@@ -2,13 +2,12 @@
 
 using System;
 using System.Collections.Generic;
-using System.IO;
 using MinesServer.Data;
 using Kern.Core.Interfaces;
+using Kern.Core.Models;
 using UnityEngine;
 
 using Kern.AssetPipeline.Loading;
-using Kern.Networking.Offline;
 
 namespace Kern.Game.Inventory;
 
@@ -27,9 +26,9 @@ public sealed class ItemRegistry : IItemCatalog
     // Локальный справочник: русское название и описание предмета. Серверные
     // метаданные (SelectItemPacket) имеют приоритет — этот текст используется,
     // пока метаданные не пришли или пришли пустыми.
-    public string GetName(ItemType type) => DummyItemInfo.GetItemInfo(type).Name;
+    public string GetName(ItemType type) => ItemInfoCatalog.GetItemInfo(type).Name;
 
-    public string GetDescription(ItemType type) => DummyItemInfo.GetItemInfo(type).Desc;
+    public string GetDescription(ItemType type) => ItemInfoCatalog.GetItemInfo(type).Desc;
 
     public IEnumerable<ItemType> AllTypes => (ItemType[])System.Enum.GetValues(typeof(ItemType));
 
@@ -46,10 +45,10 @@ public sealed class ItemRegistry : IItemCatalog
             state.AsSpan().CopyTo(span);
             span[0] = char.ToLowerInvariant(span[0]);
         });
-        string? path = _runtimeAssetPaths.FindBundledTextureFile($"Items/{camelName}.png") ??
-            _runtimeAssetPaths.FindBundledTextureFile($"Items/{typeName.ToLowerInvariant()}.png");
+        byte[]? imageBytes = _runtimeAssetPaths.GetTextureBytes($"Visual/Items/{camelName}.png") ??
+            _runtimeAssetPaths.GetTextureBytes($"Visual/Items/{typeName.ToLowerInvariant()}.png");
 
-        if (path == null)
+        if (imageBytes == null)
         {
             _iconCache[type] = null;
             if (_missingIconWarned.Add(type))
@@ -64,7 +63,7 @@ public sealed class ItemRegistry : IItemCatalog
         try
         {
             tex = RuntimeTextureFactory.DecodeEncodedImageToRGBA32NoMip(
-                File.ReadAllBytes(path),
+                imageBytes,
                 $"ItemIcon_{type}",
                 RuntimeTextureColorSpace.Srgb,
                 FilterMode.Point,
@@ -77,7 +76,7 @@ public sealed class ItemRegistry : IItemCatalog
             if (_missingIconWarned.Add(type))
             {
                 Debug.LogWarning(
-                    $"{TAG} Local icon '{path}' for item type '{type}' is corrupt; " +
+                    $"{TAG} In-memory icon for item type '{type}' is corrupt; " +
                     $"will use the server texture if available. {exception.Message}");
             }
 

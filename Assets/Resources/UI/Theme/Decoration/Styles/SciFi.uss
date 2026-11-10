@@ -12,157 +12,23 @@
 
 .sci-fi-panel {
     background-color: var(--surface-panel);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-color: var(--border-subtle);
     border-radius: var(--radius-md);
     padding: var(--space-6);
 }
 
-.sci-fi-panel--tech {
-    border-color: var(--border-cyan);
-    background-color: var(--surface-abyss-dense);
-}
-
-.sci-fi-panel--gold {
-    border-color: var(--border-gold);
-}
-
-.sci-fi-header {
-    flex-direction: row;
-    align-items: center;
-    justify-content: space-between;
-    padding-bottom: var(--space-4);
-    margin-bottom: var(--space-5);
-    border-bottom-width: 1px;
-    border-bottom-color: var(--border-subtle);
-}
-
-.sci-fi-header-title {
-    -unity-font-definition: var(--face-display);
-    color: var(--text-primary);
-    font-size: var(--size-base);
-    -unity-font-style: bold;
-    letter-spacing: 1px;
-}
-
-.sci-fi-btn-gold {
-    flex-direction: row;
-    align-items: center;
-    justify-content: center;
-    height: 38px;
-    padding: 0 var(--space-8);
-    background-color: var(--accent-gold);
-    border-width: 1px;
-    border-color: var(--accent-gold);
-    border-radius: var(--radius-sm);
-    color: var(--surface-void-solid);
-    -unity-font-definition: var(--face-display);
-    font-size: var(--size-sm);
-    -unity-font-style: bold;
-}
-
-.sci-fi-btn-gold:hover {
-    background-color: var(--accent-gold-hover);
-    border-color: var(--accent-gold-hover);
-}
-
-.sci-fi-btn-cyan {
-    flex-direction: row;
-    align-items: center;
-    justify-content: center;
-    height: 36px;
-    padding: 0 var(--space-7);
-    background-color: var(--accent-cyan-wash);
-    border-width: 1px;
-    border-color: var(--border-cyan);
-    border-radius: var(--radius-sm);
-    color: var(--accent-cyan);
-    -unity-font-definition: var(--face-display);
-    font-size: var(--size-sm);
-    -unity-font-style: bold;
-}
-
-.sci-fi-btn-cyan:hover {
-    background-color: var(--accent-cyan-wash);
-    border-color: var(--accent-cyan-hover);
-    color: var(--accent-cyan-hover);
-}
-
-.sci-fi-btn-dark {
-    flex-direction: row;
-    align-items: center;
-    justify-content: center;
-    height: 34px;
-    padding: 0 var(--space-6);
-    background-color: var(--surface-slate-dense);
-    border-width: 1px;
-    border-color: var(--border-subtle);
-    border-radius: var(--radius-sm);
-    color: var(--text-secondary);
-    -unity-font-definition: var(--face-body);
-    font-size: var(--size-sm);
-}
-
-.sci-fi-btn-dark:hover {
-    background-color: var(--surface-shelf-dense);
-    border-color: var(--border-cyan);
-    color: var(--text-primary);
-}
-
-.sci-fi-badge-mono {
-    -unity-font-definition: var(--face-data);
-    background-color: var(--accent-cyan-wash);
-    color: var(--accent-cyan);
-    border-width: 1px;
-    border-color: var(--border-cyan);
-    padding: var(--space-1) var(--space-3);
-    border-radius: var(--radius-sharp);
-    font-size: var(--size-2xs);
-    -unity-font-style: bold;
-}
-
-.sci-fi-badge-gold {
-    -unity-font-definition: var(--face-data);
-    background-color: var(--accent-gold-glow);
-    color: var(--accent-gold);
-    border-width: 1px;
-    border-color: var(--border-gold);
-    padding: var(--space-1) var(--space-3);
-    border-radius: var(--radius-sharp);
-    font-size: var(--size-2xs);
-    -unity-font-style: bold;
-}
-
 .sci-fi-bar-track {
     height: var(--space-4);
     background-color: var(--surface-inset);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-color: var(--border-subtle);
-    border-radius: var(--radius-sharp);
-}
-
-.sci-fi-bar-fill-hp {
-    height: 100%;
-    width: 100%;
-    background-color: var(--state-ok);
-    border-radius: var(--radius-sharp);
-}
-
-.sci-fi-bar-fill-cyan {
-    height: 100%;
-    background-color: var(--accent-cyan);
-    border-radius: var(--radius-sharp);
-}
-
-.sci-fi-bar-fill-gold {
-    height: 100%;
-    background-color: var(--accent-gold);
     border-radius: var(--radius-sharp);
 }
 
 .sci-fi-input {
     background-color: var(--surface-scrim);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-color: var(--border-subtle);
     border-radius: var(--radius-sm);
     color: var(--text-primary);
@@ -186,77 +52,11 @@
     color: var(--text-primary);
 }
 
-.sci-fi-btn-red {
-    flex-direction: row;
-    align-items: center;
-    justify-content: center;
-    height: 36px;
-    padding: 0 var(--space-7);
-    background-color: var(--state-danger-glow);
-    border-width: 1px;
-    border-color: var(--border-danger);
-    border-radius: var(--radius-sm);
-    color: var(--state-danger-hover);
-    -unity-font-definition: var(--face-display);
-    font-size: var(--size-sm);
-    -unity-font-style: bold;
-}
-
-.sci-fi-btn-red:hover {
-    background-color: var(--state-danger-wash);
-    border-color: var(--state-danger);
-    color: var(--light-solid);
-}
-
-.sci-fi-text-title {
-    -unity-font-definition: var(--face-display);
-    color: var(--text-primary);
-    font-size: var(--size-md);
-    -unity-font-style: bold;
-    letter-spacing: 1px;
-    margin-bottom: var(--space-3);
-}
-
 .sci-fi-text-body {
     -unity-font-definition: var(--face-body);
     color: var(--text-primary);
     font-size: var(--size-base);
     white-space: normal;
-}
-
-.sci-fi-text-muted {
-    -unity-font-definition: var(--face-body);
-    color: var(--text-secondary);
-    font-size: var(--size-sm);
-    white-space: normal;
-}
-
-.sci-fi-text-gold {
-    -unity-font-definition: var(--face-display);
-    color: var(--accent-gold-hover);
-    font-size: var(--size-base);
-    -unity-font-style: bold;
-}
-
-.sci-fi-window-overlay {
-    position: absolute;
-    left: 0;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    background-color: var(--surface-scrim);
-    align-items: center;
-    justify-content: center;
-}
-
-.sci-fi-window {
-    background-color: var(--surface-panel);
-    border-width: 1px;
-    border-color: var(--border-cyan);
-    border-radius: var(--radius-md);
-    padding: var(--space-8);
-    min-width: 320px;
-    max-width: 800px;
 }
 
 /* ─────────────────────────────────────────────────────────────────────
@@ -278,7 +78,7 @@
    и с фиксированной высотой: от неё считается центр дорожки. */
 .packet-slider {
     width: 100%;
-    height: 16px;
+    height: var(--space-8);
     margin: var(--space-1) 0;
 }
 
@@ -290,10 +90,10 @@
     position: absolute;
     left: 0;
     right: 0;
-    top: 6px;
-    height: 4px;
+    top: var(--space-3);
+    height: var(--space-2);
     background-color: var(--border-strong);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-color: var(--border-cyan);
     border-radius: var(--radius-sharp);
 }
@@ -314,32 +114,11 @@
 .packet-slider .unity-base-slider__dragger {
     /* По умолчанию ручка невидима: слайдер без диапазона (выбирать нечего) —
        голая линия. Прозрачный бокс остаётся зоной захвата драга. */
-    width: 14px;
-    height: 14px;
     background-color: transparent;
     background-image: none;
     border-width: 0;
     align-items: center;
     justify-content: center;
-}
-
-/* Живой слайдер (MaxValue > MinValue, класс ставит SliderPacketBuilder):
-   золотой кругляш — ручка в приёме главного меню. Арт Knob из пакета,
-   когда он появился на сервере, ляжет поверх этой подложки. */
-.packet-slider--filled .unity-base-slider__dragger {
-    background-color: var(--accent-gold);
-    border-radius: var(--radius-sm);
-}
-
-.packet-slider--filled .unity-base-slider__dragger:hover {
-    background-color: var(--accent-gold-hover);
-}
-
-/* Картинка Knob из пакета вписывается в зону ручки: инлайн-размер из пакета
-   зажимается максимумом, чтобы арт не вылезал за зону захвата драга. */
-.packet-slider__knob {
-    max-width: 12px;
-    max-height: 12px;
 }
 
 /* Выключенный слайдер (полоска заполнения) — приглушаем ручку и линию. */
@@ -353,9 +132,3 @@
 .packet-line--h { width: 100%; }
 .packet-line--v { height: 100%; }
 .packet-line--both { width: 100%; height: 100%; }
-
-/* Компонент, которого клиент не умеет строить. Заметность здесь — смысл
-   правила: неподдержанный пакет обязан бросаться в глаза, а не исчезать. */
-.packet-unimplemented {
-    background-color: magenta;
-}

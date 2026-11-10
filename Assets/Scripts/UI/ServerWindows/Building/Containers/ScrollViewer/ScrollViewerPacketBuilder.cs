@@ -13,7 +13,7 @@ public class ScrollViewerPacketBuilder : PacketUIBuilderBase<ScrollViewerPacket>
         // Страница без прокрутки приходит с сервера другим корнем
         // (DockPanelPacket): скролл создаёт только ScrollViewerPacket —
         // клиент рендерит то, что прислано, и ничего не решает сам.
-        var scrollView = new ScrollView
+        var scrollView = new ScrollView(ScrollViewMode.VerticalAndHorizontal)
         {
             name = packet.Name,
             horizontalScrollerVisibility = MapScrollVisibility(packet.HorizontalScrollBar),

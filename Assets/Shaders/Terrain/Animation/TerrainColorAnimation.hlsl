@@ -91,11 +91,11 @@ TerrainShimmerSignal EvaluateTerrainShimmer(
 float EvaluateFacetedGlintStrength(
     float2 localUV,
     float3 luminanceSource,
-    int cellSurfaceEffect,
+    int cellAnimationType,
     float animationSpeed,
     float animationOffset)
 {
-    if (cellSurfaceEffect != (int)KERN_TERRAIN_SURFACE_EFFECT_FACETED)
+    if (cellAnimationType != (int)KERN_TERRAIN_ANIMATION_TYPE_FACETED)
     {
         return 0.0;
     }
@@ -127,16 +127,17 @@ float3 AnimateTerrainColor(
     float2 localUV,
     float2 surfacePosition,
     int cellAnimationType,
-    int cellSurfaceEffect,
     float animationOffset,
+    float animationSpeed,
     float3 flowSample,
     float3 shimmerColor,
     float shimmerSpeedScale,
     float blinkingSpeedScale)
 {
     float3 result = baseColor;
+    TerrainAnimationProfile profile = ResolveTerrainAnimationProfile(cellAnimationType);
 
-    if (cellSurfaceEffect == (int)KERN_TERRAIN_SURFACE_EFFECT_PRISMATIC)
+    if (profile.behavior == KERN_TERRAIN_PROFILE_PRISMATIC)
     {
 #if defined(UNITY_COLORSPACE_GAMMA)
         result = EvaluatePrismaticCrystal(
@@ -146,21 +147,21 @@ float3 AnimateTerrainColor(
             LinearToSRGB(baseColor), flowSample, animationOffset, _Time.y * KERN_TERRAIN_PRISMATIC_ANIMATION_SPEED * _PrismaticPhaseSpeed));
 #endif
     }
-    else if (cellSurfaceEffect == (int)KERN_TERRAIN_SURFACE_EFFECT_FACETED)
+    else if (profile.behavior == KERN_TERRAIN_PROFILE_FACETED)
     {
         // Each cell receives a deterministic phase from TerrainQuadBuilder.
         // A diagonal sweep brings out facet glints without long dead pauses.
         float strength = EvaluateFacetedGlintStrength(
             localUV,
             luminanceSource,
-            cellSurfaceEffect,
+            cellAnimationType,
             KERN_TERRAIN_FACETED_ANIMATION_SPEED,
             animationOffset);
         // Цвет блика — альбедо текселя, высветленное к белому.
         float3 glintColor = lerp(luminanceSource, 1.0.xxx, _FacetedGlintMix);
         result = baseColor + glintColor * strength;
     }
-    else if (cellSurfaceEffect == (int)KERN_TERRAIN_SURFACE_EFFECT_MOLTEN)
+    else if (profile.behavior == KERN_TERRAIN_PROFILE_MOLTEN)
     {
         // Stable world-anchored heat flow: adjacent Lava cells share one
         // continuous pattern, while only the visual albedo changes over time.
@@ -174,13 +175,34 @@ float3 AnimateTerrainColor(
         result = baseColor * (0.35 + 0.8 * heat)
             + float3(0.6, 0.35, 0.035) * (hot * material);
     }
-    else if (cellAnimationType == (int)KERN_TERRAIN_ANIMATION_TYPE_BLINKING)
+    else if (profile.animationType == KERN_TERRAIN_ANIMATION_TYPE_LEGACY2TEST ||
+             profile.animationType == KERN_TERRAIN_ANIMATION_TYPE_LEGACY5TEST)
+    {
+        float3 flowHSV = TerrainRGBToHSV(flowSample);
+        float wave = 0.5 + 0.5 * sin(-(flowHSV.x * 6.28318530718 + _Time.y * animationSpeed / 20.0));
+        float blend = wave * wave * wave;
+        float inverseLuminance = 1.0 - dot(luminanceSource, float3(0.3, 0.59, 0.11));
+        float brightness = 1.0 - inverseLuminance * inverseLuminance * inverseLuminance;
+        if (profile.animationType == KERN_TERRAIN_ANIMATION_TYPE_LEGACY5TEST)
+        {
+            brightness *= max(flowSample.r, max(flowSample.g, flowSample.b)) -
+                min(flowSample.r, min(flowSample.g, flowSample.b));
+        }
+        result = baseColor * (1.0 - blend) + shimmerColor * (brightness * blend);
+    }
+    else if (profile.animationType == KERN_TERRAIN_ANIMATION_TYPE_LEGACY7TEST)
+    {
+        float3 hsv = TerrainRGBToHSV(baseColor);
+        hsv.x = frac(hsv.x + _Time.y * animationSpeed / 20.0);
+        result = TerrainHSVToRGB(hsv);
+    }
+    else if (profile.animationType == KERN_TERRAIN_ANIMATION_TYPE_BLINKING)
     {
         float blinking = 0.5 + 0.5 * sin(
             _Time.y * KERN_TERRAIN_BLINKING_ANIMATION_SPEED * blinkingSpeedScale + animationOffset);
         result = baseColor * blinking;
     }
-    else if (cellAnimationType == (int)KERN_TERRAIN_ANIMATION_TYPE_SHIMMER)
+    else if (profile.animationType == KERN_TERRAIN_ANIMATION_TYPE_SHIMMER)
     {
         TerrainShimmerSignal signal = EvaluateTerrainShimmer(
             luminanceSource,
@@ -192,7 +214,7 @@ float3 AnimateTerrainColor(
             shimmerColor,
             signal.body * signal.surfaceMask);
     }
-    else if (cellAnimationType == (int)KERN_TERRAIN_ANIMATION_TYPE_RAINBOW)
+    else if (profile.animationType == KERN_TERRAIN_ANIMATION_TYPE_RAINBOW)
     {
         float3 rainbowHSV = TerrainRGBToHSV(baseColor);
         rainbowHSV.x = frac(rainbowHSV.x + _Time.y * (KERN_TERRAIN_RAINBOW_ANIMATION_SPEED / _RainbowHueDivisor));

@@ -118,7 +118,7 @@ public class MapCellConfigCatalogFuzzTests
 
     private static CellConfigurationPacket MakeConfig(CellType type, CellAnimationType anim, float frameSpeed)
     {
-        return CellPacket.Create(shaderAnimation: anim, frameAnimationSpeed: frameSpeed);
+        return CellPacket.Create(animationType: anim, frameAnimationSpeed: frameSpeed);
     }
 
     private static CellConfigurationPacket[] Configs(

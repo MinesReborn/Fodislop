@@ -29,6 +29,10 @@ internal sealed class TerrainWindowPublishedView : System.IDisposable
 
     public bool CellsCommitted { get; private set; }
 
+    // Почему последняя опубликованная сетка снята с экрана. Живёт до
+    // успешной публикации: по нему видно, из-за чего пропал террейн.
+    public string? LastWithdrawalReason { get; private set; }
+
     public ulong PublishedContentRevision { get; private set; }
 
     public Mesh? CellIdMesh => _cellIdMesh.Mesh;
@@ -59,11 +63,20 @@ internal sealed class TerrainWindowPublishedView : System.IDisposable
         FrameEventLog.Record($"террейн: окно пересоздано {Width}×{Height}");
     }
 
-    public void WithdrawPublication(TerrainBuildDriver driver)
+    public void WithdrawPublication(TerrainBuildDriver driver, string reason)
     {
+        bool wasVisible = CellsCommitted;
+        LastWithdrawalReason = reason;
         CellsCommitted = false;
         _cellTexturesDirty = false;
         driver.HideDoorOverlay();
+
+        // Снятие уже показанного террейна - это пропавший экран, а не штатный
+        // шаг: без этой строки чёрный кадр не оставляет в журнале ни следа.
+        if (wasVisible)
+        {
+            Debug.LogWarning($"[TerrainWindow] Published terrain withdrawn: {reason}.");
+        }
     }
 
     public RectInt Publish(TerrainCPUBuildRequest request)
@@ -94,6 +107,7 @@ internal sealed class TerrainWindowPublishedView : System.IDisposable
         float uploadMs = driver.Commit(Origin.x, Origin.y);
         _cellTexturesDirty = false;
         CellsCommitted = true;
+        LastWithdrawalReason = null;
         return uploadMs;
     }
 

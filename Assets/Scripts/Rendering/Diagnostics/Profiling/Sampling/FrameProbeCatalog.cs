@@ -75,7 +75,6 @@ public static class FrameProbeCatalog
         var probes = new List<FrameProbe>
         {
         new("Цикл игры", "PlayerLoop"),
-        new("Цикл редактора", "EditorLoop"),
         new("Фаза Initialization", "Initialization"),
         new("Фаза EarlyUpdate", "EarlyUpdate"),
         new("Фаза FixedUpdate", "FixedUpdate"),
@@ -87,6 +86,7 @@ public static class FrameProbeCatalog
         new("Анимация", "Director.ProcessFrame", false, false, "PreLateUpdate.DirectorUpdateAnimationBegin"),
         new("UniTask Update", "UniTaskLoopRunnerUpdate"),
         new("UniTask Yield", "UniTaskLoopRunnerYieldUpdate"),
+        new("VContainer — тики", "Kern.VContainer.Tickables"),
         new("Текстуры — декодирование", "Kern.Textures.Decode"),
         new("Текстуры — в атлас", "Kern.Textures.AtlasAdd"),
         new("AO — поле контакта", "Kern.Lighting.AmbientOcclusionField"),
@@ -99,13 +99,17 @@ public static class FrameProbeCatalog
         new("Рендер: компиляция шейдера", "Shader.CreateGPUProgram"),
         new("Рендер: разбор шейдера", "Shader.Parse"),
         new("Загрузка текстуры на GPU", "Texture.AwakeFromLoad"),
+        new("Диагностика — перепись сцены", "Kern.Diagnostics.SceneCensus"),
+        new("Диагностика — отчёт о провисе", "Kern.Diagnostics.FrameStallReport"),
+        new("Дисплей — сверка HDR", "Kern.Display.HDROutput.Apply"),
         };
         probes.AddRange(CreateCPUProbes());
         probes.AddRange(CreateInterfaceProbes());
         return probes;
     }
 
-    // В редакторе эти маркеры суммируют и перерисовку окон самого редактора.
+    // Общесистемные UI/IMGUI маркеры; для стоимости отдельных инструментов
+    // используется локальный секундомер ToolWindow.
     public static List<FrameProbe> CreateInterfaceProbes() => new()
     {
         new("UI Toolkit — отрисовка панелей", "UIR.DrawChain"),

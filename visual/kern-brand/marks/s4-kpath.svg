@@ -1,4 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" stroke="#d8d5ee" stroke-width="3" stroke-linecap="square" stroke-linejoin="miter">
-  <!-- 4 · Буква K, нарисованная путём программы: ствол и две ветви из клеток -->
-  <path d="M14 8v48"/><path d="M14 32h12l16-24h10M26 32l16 24h10"/><rect x="8" y="26" width="12" height="12" fill="#ff5a1f" stroke="none"/>
-</svg>

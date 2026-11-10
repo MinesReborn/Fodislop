@@ -6,12 +6,14 @@
      перечислимым списком намеренных изменений. Итог — JSON в <pre>; сравнивает tools/style-diff.py. -->
 <pre id="out"></pre>
 <script>
-const URLS = ['screen=boot', 'screen=auth', 'screen=menu&update=1', 'screen=descent', 'screen=calib', 'game&state=busy&mark=1', 'game&chat=1', 'game&clan=1&clanrole=leader',
+const URLS = ['screen=boot&hold=50&still=1', 'screen=auth', 'screen=menu&update=1', 'screen=descent&still=1', 'screen=calib', 'game&state=busy&mark=1', 'game&chat=1', 'game&clan=1&clanrole=leader',
   'game&profile=1', 'game&skills=5', 'game&inv=3', 'game&settings=graphics', 'game&prog=1', 'game&prog=list', 'game&map=1&mark=1', 'game&event=link',
   'game&device=promax&state=busy', 'game&device=ipadpro', 'game&input=xbox', 'game&input=ps&device=promax'];
 const PROPS = ['color', 'background-color', 'background-image', 'border-top-color', 'border-right-color', 'border-bottom-color', 'border-left-color',
   'border-top-left-radius', 'border-bottom-right-radius', 'box-shadow', 'text-shadow', 'outline-color', 'filter', 'font-size', 'font-weight', 'line-height',
-  'z-index', 'transition', 'opacity'];
+  'z-index', 'transition', 'opacity',
+  // Раскладка: без неё сведение листов могло бы сдвинуть отступы, сетки и размеры незаметно для отпечатка
+  'display', 'position', 'width', 'height', 'padding-top', 'padding-right', 'padding-bottom', 'padding-left', 'margin-top', 'margin-right', 'margin-bottom', 'margin-left', 'row-gap', 'column-gap', 'grid-template-columns', 'grid-template-rows', 'flex-direction', 'flex-wrap', 'flex-grow', 'flex-shrink', 'flex-basis', 'align-items', 'justify-content', 'border-top-width', 'border-left-width', 'border-bottom-width', 'letter-spacing', 'font-family', 'text-transform', 'clip-path', 'transform', 'visibility', 'overflow-x', 'white-space'];
 const wait = ms => new Promise(r => setTimeout(r, ms));
 const path = el => { const p = []; for (; el && el.id !== 'frame'; el = el.parentElement) p.unshift(el.id ? '#' + el.id : el.tagName.toLowerCase() + '.' + [...el.classList].join('.') + ':' + [...el.parentElement.children].indexOf(el)); return p.join('>'); };
 (async () => {
@@ -19,14 +21,16 @@ const path = el => { const p = []; for (; el && el.id !== 'frame'; el = el.paren
   for (const u of URLS) {
     const f = document.createElement('iframe');
     f.style.cssText = 'width:1920px;height:1080px;border:0;position:absolute;left:-9999px';
-    await new Promise(res => { f.onload = res; f.src = '../index.html?' + u; document.body.appendChild(f); });
+    // motion=off: все времена 0 — отпечаток не зависит от того, в какой миг кванта или вспышки снят кадр; сами правила переходов в нём остаются
+    await new Promise(res => { f.onload = res; f.src = '../index.html?' + u + '&motion=off'; document.body.appendChild(f); });
     await wait(2000);
     const w = f.contentWindow, d = f.contentDocument, rows = {};
     d.querySelectorAll('#frame *').forEach(el => {
       if (el.closest('svg') || el.closest('.chat-log') || el.closest('#worldLabels')) return;
       const cs = w.getComputedStyle(el);
       if (cs.display === 'none') return;
-      rows[path(el)] = PROPS.map(p => cs.getPropertyValue(p)).join('|');
+      const r = el.getBoundingClientRect();
+      rows[path(el)] = PROPS.map(p => cs.getPropertyValue(p)).join('|') + '|' + [r.x, r.y, r.width, r.height].map(v => Math.round(v * 10) / 10).join(',');
     });
     snap[u] = rows;
     f.remove();

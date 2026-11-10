@@ -1,59 +1,25 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <!-- Инвентарь HUD — макет visual/kern-ui (.inventory, ПК): правый нижний угол, ячейки 64 в четыре строки,
+         первый предмет снизу, столбцы прирастают влево; справа полоса раскрытия (видна, если предметов больше
+         четырёх). Ячейки собирает код (InventorySlotCollection) из OrderedTypes модели.
+         Корень в picking-mode="Ignore": пустое поле экрана не перехватывает клики мира; интерактивное
+         внутри явно возвращает Position. -->
     <ui:VisualElement name="InventoryRoot" class="inv-root" picking-mode="Ignore">
-
-        <!-- ════════════ УГЛОВАЯ ПАНЕЛЬ ════════════
-             Одна панель в правом верхнем углу, как в старом клиенте: и короткий
-             список, и полный показываются В НЕЙ ЖЕ, а не в отдельном окне
-             посреди экрана. Полоса слева переключает одно на другое.
-
-             Компактный режим — одна колонка из четырёх предметов
-             (FixedRowCount старого клиента), полный — все держимые предметы:
-             полоса-треугольник прячет и раскрывает предметы после четвёртого.
-             Ячейки генерируются кодом из OrderedTypes модели.
-
-             InventoryRoot стоит в picking-mode="Ignore", чтобы пустое поле
-             экрана не перехватывало клики мира; интерактивные элементы внутри
-             ОБЯЗАНЫ явно вернуть picking-mode="Position" (паттерн как в
-             ObserverJoystick.uxml) — иначе Ignore наследуется на всё поддерево
-             и панель не получает мышь вовсе. -->
-        <ui:VisualElement name="HotbarContainer" class="inv-hotbar" picking-mode="Position">
+        <ui:VisualElement name="HotbarContainer" class="inventory" picking-mode="Position">
             <!-- Короткий список: первые четыре предмета -->
-            <ui:VisualElement name="HotbarSlots" class="inv-hotbar-slots" picking-mode="Position" />
+            <ui:VisualElement name="HotbarSlots" class="inv-slots" picking-mode="Position" />
 
-            <!-- Полный список: все предметы, та же раскладка, скрыт по умолчанию.
-                 Прокрутка нужна сенсорному окну (Touch.uss ограничивает высоту);
-                 на десктопе высота не ограничена и прокрутки нет. -->
+            <!-- Полный список: все предметы, та же раскладка. Прокрутка — для сенсорного окна (Touch.uss) -->
             <ui:ScrollView name="InventoryScroll" class="inv-scroll is-hidden" mode="Vertical" horizontal-scroller-visibility="Hidden" vertical-scroller-visibility="Auto" picking-mode="Position">
-                <ui:VisualElement name="InventoryGrid" class="inv-hotbar-slots is-hidden" picking-mode="Position" />
+                <ui:VisualElement name="InventoryGrid" class="inv-slots is-hidden" picking-mode="Position" />
             </ui:ScrollView>
 
-            <ui:Button name="InventoryToggleBtn" class="inv-toggle-btn" tooltip="inventory.open" picking-mode="Position">
-                <ui:Label text="" />
+            <ui:Button name="InventoryToggleBtn" class="inv-expand" tooltip="inventory.open" picking-mode="Position">
+                <ui:VisualElement name="InventoryToggleIcon" class="ico ico--chevron" picking-mode="Ignore" />
             </ui:Button>
         </ui:VisualElement>
 
-        <!-- ════════════ КАРТОЧКА ТУЛТИПА ПРЕДМЕТА ════════════ -->
-        <ui:VisualElement name="ItemTooltipCard" class="sci-fi-panel inv-tooltip-card" style="display: none;">
-            <ui:VisualElement class="inv-tooltip-header">
-                <ui:Image name="TooltipIcon" class="inv-tooltip-icon" />
-                <ui:VisualElement class="inv-tooltip-meta">
-                    <ui:Label name="TooltipType" class="sci-fi-badge-gold" text="inventory.material" />
-                </ui:VisualElement>
-                <!-- Подсказки клавиш справа от названия: некликабельные
-                     «кейкапы» (picking-mode=Ignore) с подписью действия. -->
-                <ui:VisualElement name="TooltipKeys" class="inv-tooltip-keys" picking-mode="Ignore">
-                    <ui:VisualElement class="inv-key-hint" picking-mode="Ignore">
-                        <ui:Label class="inv-key-cap inv-key-cap--use" text="ENTER" picking-mode="Ignore" />
-                        <ui:Label class="inv-key-hint-label" text="inventory.key.use" picking-mode="Ignore" />
-                    </ui:VisualElement>
-                    <ui:VisualElement class="inv-key-hint" picking-mode="Ignore">
-                        <ui:Label class="inv-key-cap inv-key-cap--cancel" text="ESC" picking-mode="Ignore" />
-                        <ui:Label class="inv-key-hint-label" text="inventory.key.cancel" picking-mode="Ignore" />
-                    </ui:VisualElement>
-                </ui:VisualElement>
-            </ui:VisualElement>
-            <ui:Label name="TooltipDesc" class="inv-tooltip-desc" text="---" />
-        </ui:VisualElement>
-
+        <!-- Выбранный предмет: «Геопак: Enter — применить, Esc — отмена» (макет .item-hint) -->
+        <ui:Label name="ItemHint" class="item-hint" text="" picking-mode="Ignore" style="display: none;" />
     </ui:VisualElement>
 </ui:UXML>

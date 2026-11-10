@@ -229,7 +229,7 @@ public static class BuildScript
             ApplicationIdentifier);
 
         // Только ARM64: он обязателен для магазина, а 32-битные библиотеки
-        // (FMOD, Effekseer) удвоили бы размер ради устройств без ARM64.
+        // FMOD удвоил бы размер ради устройств без ARM64.
         PlayerSettings.Android.targetArchitectures = AndroidArchitecture.ARM64;
         PlayerSettings.Android.minSdkVersion = AndroidSdkVersions.AndroidApiLevel26;
         PlayerSettings.Android.targetSdkVersion = AndroidSdkVersions.AndroidApiLevel36;

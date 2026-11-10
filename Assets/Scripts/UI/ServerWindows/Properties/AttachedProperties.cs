@@ -2,7 +2,7 @@
 
 using System.Globalization;
 using MinesServer.Networking.Server.Packets.GUI.Components;
-using MinesServer.Networking.Shared.Packets;
+using MinesServer.Networking.Contracts.Packets;
 
 namespace Kern.UI.ServerWindows;
 public static class AttachedProperties

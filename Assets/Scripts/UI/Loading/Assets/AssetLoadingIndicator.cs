@@ -41,7 +41,9 @@ namespace Kern.UI.Loading
         private Label? _loadingSpinnerLabel;
         private Label? _loadingStatusLabel;
         private Label? _loadingProgressLabel;
-        private VisualElement? _topAssetDot;
+        private VisualElement? _topAssetFill;
+        private VisualElement? _topAssetPill;
+        private int _batchPeak;
         private Label? _topAssetLabel;
         private IVisualElementScheduledItem? _spinnerSchedule;
         private bool _loadingOverlayVisible;
@@ -126,7 +128,8 @@ namespace Kern.UI.Loading
                 _gameManager.OnWorldLoaded -= OnWorldLoaded;
             }
 
-            _topAssetDot = null;
+            _topAssetFill = null;
+            _topAssetPill = null;
             _topAssetLabel = null;
             _root?.RemoveFromHierarchy();
         }
@@ -152,7 +155,8 @@ namespace Kern.UI.Loading
 
             if (_topAssetLabel == null && _document?.rootVisualElement != null)
             {
-                _topAssetDot = _document.rootVisualElement.Q<VisualElement>("AssetStatusDot");
+                _topAssetFill = _document.rootVisualElement.Q<VisualElement>("AssetStatusFill");
+                _topAssetPill = _document.rootVisualElement.Q<VisualElement>("AssetStatusPill");
                 _topAssetLabel = _document.rootVisualElement.Q<Label>("AssetStatusLabel");
             }
 
@@ -280,7 +284,8 @@ namespace Kern.UI.Loading
             }
 
             VisualElement? docRoot = _document.rootVisualElement;
-            _topAssetDot = docRoot?.Q<VisualElement>("AssetStatusDot");
+            _topAssetFill = docRoot?.Q<VisualElement>("AssetStatusFill");
+            _topAssetPill = docRoot?.Q<VisualElement>("AssetStatusPill");
             _topAssetLabel = docRoot?.Q<Label>("AssetStatusLabel");
 
             StartSpinner();
@@ -352,6 +357,9 @@ namespace Kern.UI.Loading
                 : string.Empty;
         }
 
+        // Догрузка ресурсов в строке состояния (макет visual/kern-ui .asset-load): тонкая полоса и «загружено / всего»
+        // по текущей партии; видна, только пока идёт, по завершении пропадает. Всего — наибольшая очередь партии:
+        // загрузчик знает только, сколько осталось
         private void UpdateTopStatusPill()
         {
             if (_topAssetLabel == null || _assetLoader == null)
@@ -359,24 +367,27 @@ namespace Kern.UI.Loading
                 return;
             }
 
-            int pending = _assetLoader.PendingAssetCount;
-            int queued = _assetLoader.QueuedAssetCount;
+            int remaining = _assetLoader.PendingAssetCount + _assetLoader.QueuedAssetCount;
             bool terrainReady = _terrainRenderer?.IsReadyForGameplay ?? true;
+            bool loading = remaining > 0 || !terrainReady;
+            if (_topAssetPill != null)
+            {
+                UIState.SetHidden(_topAssetPill, !loading);
+            }
 
-            if (!terrainReady)
+            if (!loading)
             {
-                _topAssetLabel.text = "Terrain...";
-                _topAssetDot?.EnableInClassList("is-loading", true);
+                _batchPeak = 0;
+                return;
             }
-            else if (pending > 0 || queued > 0)
+
+            _batchPeak = Math.Max(_batchPeak, remaining);
+            int done = _batchPeak - remaining;
+            _topAssetLabel.text = _batchPeak > 0 ? done + "/" + _batchPeak : string.Empty;
+            if (_topAssetFill != null)
             {
-                _topAssetLabel.text = $"Assets: {pending + queued}";
-                _topAssetDot?.EnableInClassList("is-loading", true);
-            }
-            else
-            {
-                _topAssetLabel.text = "Assets OK";
-                _topAssetDot?.EnableInClassList("is-loading", false);
+                float share = _batchPeak > 0 ? (float)done / _batchPeak : 0f;
+                _topAssetFill.style.width = Length.Percent(share * 100f);
             }
         }
     }

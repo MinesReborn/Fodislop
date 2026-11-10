@@ -1,201 +1,178 @@
 /* Микрографика Kern — вид поверх раскладки. Места блоков, их состав и поведение задают hud/screens/touch/pad/prog/events;
    этот файл меняет только облик: гарнитуры, волосяные линии, засечки, срезы углов, индексы, штриховку.
-   Декор — только из языконезависимых знаков (цифры, символы, 核): перевод и проверка переполнения его не видят. */
+   Декор — только из языконезависимых знаков (цифры, символы): перевод и проверка переполнения его не видят. */
 
 /* ── Гарнитуры ─────────────────────────────────────────────── */
 body, .frame { font-family: var(--font-text); }
 /* Числа и служебные метки — моноширинным: цифры стоят столбцом, как в журнале смены */
 :is(.hp-value, .wallet dd, .crystals li > span, .cargo-head strong, .mission-progress, .pid span, .coords, .status-bar, .states time,
     .inv-slots span, .inv-cell span, .inv-window-count, .clan-bank b, .clan-bank span, .profile-stats dd, .profile-level small, .map-coords, .map-scale,
-    .prog-page, .prog-cell small, .chat-log time, .pm-thread time, .mail-list time, .clan-board time, .edge-arrow span, .edge-pin span,
+    .prog-page, .prog-cell small, .chat-log time, .pm-thread time, .mail-list time, .clan-board time, .edge-pin span,
     .descent-meta, .upd-meta b, .calib-slider output, .range output, .badge, .chat-list i, .pm-thread i, .geo, .prog-foot kbd, .toggle kbd,
     .keycap, .menu-meta code, .menu-meta b, .skills-slots, .prog-state, .slot .lvl, .pin span, .stand-res) {
   font-family: var(--font-mono); letter-spacing: var(--ls-mono); }
-/* Ник, заголовки окон и экранов, марка — Tektur */
+/* Ник, заголовки окон и экранов, марка — Exo 2 */
 :is(.nick, .wordmark, .menu-title, .boot-title, .onb-head h2, .settings-head h2, .srv-head h2, .skills-head h2, .inv-window-head h2,
     .dialog h2, .calib-foot h2, .clan-name, .profile-nick, .mission-title) { font-family: var(--font-display); font-weight: var(--fw-bold); letter-spacing: .02em; }
 /* Микроподписи разделов — моно, заглавными, вразрядку */
-:is(.set-sec, .profile-sec > h3, .map-side h3, .clan-bank small, .onb-kicker, .calib-kicker, .menu-meta small, .menu-news small, .chat-peek-tag) {
+:is(.set-sec, .profile-sec > h3, .map-side h3, .clan-bank small, .onb-kicker, .calib-kicker, .menu-meta small, .chat-peek-tag) {
   font-family: var(--font-mono); font-weight: var(--fw-semi); text-transform: uppercase; letter-spacing: var(--ls-caps-wide); }
 
 /* ── Иконки: одна толщина, прямые концы и углы ─────────────── */
-svg { stroke-width: 1.5; stroke-linecap: square; stroke-linejoin: miter; }
 
-/* ── Панель: базальт, волосяная рамка, засечки по углам, срезанный правый верхний угол ── */
-.panel { border-radius: 0; border-color: var(--seam); background: var(--ticks), var(--notch-line), var(--grain), var(--graphite);
-  clip-path: var(--notch-clip); box-shadow: var(--shadow-panel); }
-.hud .panel { box-shadow: var(--shadow-panel); }
-:is(.player, .cargo, .dialog, .srv-window, .settings, .skills, .inv-window, .gate, .onb, .prog-win, .map-win) { background: var(--barcode), var(--ticks), var(--notch-line), var(--grain), var(--graphite); }
-.frame.compact :is(.player, .cargo) { background: var(--ticks), var(--notch-line), var(--grain), var(--graphite); }
-/* Индекс блока в углу панели — у среза */
-:is(.player, .mission, .cargo, .prog, .minimap) { position: relative; }
-:is(.player, .mission, .cargo, .prog, .minimap, .dialog, .srv-window, .settings, .skills, .inv-window, .gate, .onb)::after {
-  position: absolute; z-index: 2; top: 2px; right: calc(var(--notch) + 4px); font: var(--fw-semi) var(--t-0)/8px var(--font-mono); letter-spacing: .12em;
-  color: var(--dim); pointer-events: none; }
+
+/* ── Панель — одна форма везде (HUD, окна клиента, окна сервера): базальт, волосяная рамка, срез правого верхнего угла,
+   линия среза рисуется в рамке (border-box), без меток совмещения. Декор без данных не ставится: индексы и штрихкоды, которые ничего не значат, убраны ── */
+.panel { border-color: var(--notch-edge);
+
+
+  }
+.hud .panel { box-shadow: var(--shadow-panel); --tick: 10px; --tick-c: rgb(var(--rgb-bone) / .8); --tick-w: 2px; }
 :is(.dialog, .srv-window, .settings, .skills, .inv-window) { position: relative; }
-.player::after { content: "K·01"; }
-.mission::after { content: "K·02"; }
-.cargo::after { content: "K·03"; }
-.prog::after { content: "K·05"; top: auto; bottom: 2px; }
-.minimap::after { content: "K·04"; color: var(--mist); top: auto; right: auto; left: 6px; bottom: 3px; }
-:is(.dialog, .srv-window, .settings, .skills, .inv-window, .gate, .onb)::after { content: "核 · KRN"; }
-.frame.compact :is(.player, .mission, .cargo, .prog, .minimap)::after { display: none; }
 
-/* ── Шапка окна: печать 核, заголовок Tektur заглавными, штриховка вдоль нижней линии ── */
-:is(.srv-head, .skills-head, .settings-head, .inv-window-head) { background: var(--hatch) left bottom / 100% 4px no-repeat; }
+/* ── Шапка окна: заголовок Exo 2 заглавными, штриховка вдоль нижней линии ── */
 :is(.srv-head h2, .skills-head h2, .settings-head h2, .inv-window-head h2, .dialog > h2, .dialog > header h2) {
-  display: flex; align-items: center; gap: var(--sp-5); text-transform: uppercase; letter-spacing: var(--ls-caps); }
-:is(.srv-head h2, .skills-head h2, .settings-head h2, .inv-window-head h2, .dialog > h2, .dialog > header h2)::before {
-  content: "核"; flex: none; display: grid; place-items: center; width: 20px; height: 20px; border: 1px solid var(--signal);
-  color: var(--signal); font: var(--fw-bold) var(--t-4)/1 var(--font-text); letter-spacing: 0; }
-.frame.compact :is(.srv-head h2, .skills-head h2, .settings-head h2, .inv-window-head h2)::before { width: 16px; height: 16px; font-size: var(--t-2); }
+  display: flex; align-items: center; gap: var(--sp-5); text-transform: uppercase; font-size: var(--t-12); line-height: 1; letter-spacing: .04em; }
 
 /* ── Кнопки: прямые, волосяная рамка; основная — сигнал бура со срезом угла ── */
-.btn { border-radius: 0; border-color: var(--seam-strong); background: var(--plate); font-weight: var(--fw-semi); letter-spacing: .01em; }
+.btn { border-color: var(--seam-strong); background: var(--plate); }
 .btn:hover { border-color: var(--ash); background: var(--plate-hover); }
-.btn--primary, .btn--update { clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 0 100%); font-weight: var(--fw-bold); }
+.btn--primary, .btn--update { clip-path: var(--notch-btn-clip); font-weight: var(--fw-bold); }
 .btn--primary { background: var(--signal); border-color: var(--signal); color: var(--on-signal); }
 .btn--primary:hover { background: var(--signal-hover); border-color: var(--signal-hover); }
 .btn--signal { background: var(--signal-wash); border-color: var(--signal-line); color: var(--signal); }
 .btn--ghost { border-color: transparent; background: transparent; }
 .btn--ghost:hover { border-color: var(--seam); background: var(--plate); }
-.icon-btn { border-radius: 0; }
+
 
 /* ── Шкалы: пустое штрихуется, заполненное делится рисками ── */
-.meter { border-radius: 0; background: var(--hatch), var(--well); }
+
 .meter--cargo::after, .meter--wide::after { content: ""; position: absolute; inset: 0; z-index: 1; pointer-events: none;
   background: repeating-linear-gradient(90deg, transparent 0 calc(5% - 1px), rgb(var(--rgb-well) / .7) calc(5% - 1px) 5%); }
-.hp .meter::after { background: repeating-linear-gradient(90deg, transparent 0 calc(10% - 2px), rgb(var(--rgb-well) / .9) calc(10% - 2px) 10%); }
-.geo .share, .crystals .share { border-radius: 0; height: 2px; }
 
 /* ── Переключатели: прямоугольная дорожка, квадратный бегунок ── */
 .toggle, .switch, .seg, .seg button, .input, .chat-input, .field select, .keycap, .tbtn, .pid span, .prog-pick, .prog-op, .prog-cats button,
 .inv-slots li, .inv-cell, .inv-expand, .states li, .clan-list li, .clan-board li, .mail-gift, .pm-thread button, .profile-ach li, .profile-stats div,
 .map-places button, .upd-box, .net-reason, .link-url, .rail-btn, .chat-peek, .item-hint, .status-bar, .diag, .coords, .pin span, .map-scale { border-radius: 0; }
 .toggle .dot, .toggle .dot::after, .switch::after { border-radius: 0; }
-.toggle[aria-pressed="true"] { border-color: var(--signal-line); background: var(--ticks), var(--graphite); }
-.switch:checked { background: var(--hatch-signal), var(--signal-soft); }
-.seg { padding: 2px; gap: 2px; }
-.seg button[aria-checked="true"] { background: var(--signal); color: var(--on-signal); font-weight: var(--fw-bold); }
+
+
 
 /* ── Поля ввода: углубление, при фокусе — сигнальная риска слева ── */
-.input, .chat-input { background: var(--well); border-color: var(--seam-strong); }
+.input, .chat-input { background: var(--well); border-color: var(--seam-strong); box-shadow: var(--press); }
 .input:focus, .chat-input:focus { border-color: var(--signal); box-shadow: inset 2px 0 0 var(--signal); }
 .input::placeholder, .chat-input::placeholder { color: var(--smoke); }
 
 /* ── Левая колонка ── */
-.pid span { border-color: var(--seam-strong); background: var(--well); color: var(--mist); }
-.hp-value { color: var(--bone); }
-.geo { border-top: 1px dashed var(--seam); }
-.states li { border-left-width: 2px; background: linear-gradient(90deg, color-mix(in srgb, var(--c) 14%, transparent), transparent 60%), var(--graphite); }
-.mission .meter { height: 3px; }
-.cargo-head span { font-family: var(--font-mono); text-transform: uppercase; letter-spacing: var(--ls-caps); font-size: var(--t-3); }
-.frame.compact .cargo-head span { font-size: var(--t-2); }
-.prog-name { border-radius: 0; background: var(--signal-wash); border: 1px solid var(--signal-line); padding: 0 var(--sp-3); font-family: var(--font-mono); }
-.coords { background: var(--tag); border: 1px solid var(--seam); color: var(--bone); }
+.pid span { border-color: var(--seam-strong); }
+/* Клан и номер — две плашки одной высоты в рамке; рамка клана рисуется по центру кнопки — зона касания больше рамки */
+.clan-btn { border-color: transparent; }
+.clan-btn::before { content: ""; position: absolute; left: 50%; top: 50%; width: 22px; height: 22px; translate: -50% -50%; border: 1px solid var(--seam-strong); pointer-events: none; }
+.frame.compact .clan-btn::before { width: 18px; height: 18px; }
+.clan-btn:hover { border-color: transparent; }
+.clan-btn:hover::before { border-color: var(--ash); }
+.frame:not(.in-touch, .compact) .clan-btn { width: 22px; height: 22px; padding: 0; margin: 0; border: 0; }
+.frame:not(.compact) .pid span { height: 22px; line-height: 20px; font-size: var(--t-3); }
+.clan-btn img { width: 13px; height: 13px; }
+
+.prog-name { border: 1px solid var(--signal-line); }
+.coords { border: 1px solid var(--seam); }
 
 /* ── Правый верх: плитки кнопок с порядковым индексом ── */
-.frame:not(.compact) .sysbuttons, .frame:not(.compact) .sysbar { counter-reset: sys; }
-.frame:not(.compact) :is(.sysbuttons .icon-btn, .sysbar .bonus) { border-radius: 0; background: var(--ticks), var(--graphite); counter-increment: sys; position: relative; }
-.frame:not(.compact) :is(.sysbuttons .icon-btn, .sysbar .bonus)::before { content: counter(sys, decimal-leading-zero); position: absolute; left: 3px; top: 2px;
-  font: var(--fw-semi) var(--t-0)/8px var(--font-mono); color: var(--dim); }
-.frame:not(.compact) .sysbar .bonus { border-color: var(--signal-line); background: var(--hatch-signal) right top / 10px 10px no-repeat, var(--ticks), var(--graphite); }
+.frame:not(.compact) :is(.sysbuttons .icon-btn, .sysbar .bonus) { background: var(--graphite); position: relative; }
+.frame:not(.compact) .sysbar .bonus { border-color: var(--signal-line); background: var(--hatch-signal) right top / 10px 10px no-repeat, var(--graphite); }
 .frame:not(.compact) :is(.sysbuttons .icon-btn, .sysbar .bonus):hover { border-color: var(--ash); }
-.frame:not(.compact) .sys-sep { width: 1px; background: repeating-linear-gradient(transparent 0 2px, var(--seam-strong) 2px 4px); }
-.status-bar { background: var(--tag); border-color: var(--seam); letter-spacing: var(--ls-mono); }
+
+.status-bar { border-color: var(--seam); }
 
 /* ── Инвентарь: ячейки с номером слота ── */
-.inv-slots { counter-reset: slot; }
-.inv-slots li { counter-increment: slot; background: var(--ticks), var(--graphite); }
-.inv-slots li::before { content: counter(slot, decimal-leading-zero); position: absolute; left: 4px; top: 2px; font: var(--fw-semi) var(--t-0)/8px var(--font-mono); color: var(--dim); }
+
+
+.inv-slots li::before { content: counter(slot, decimal-leading-zero); position: absolute; left: 4px; top: 2px; font: var(--fw-semi) var(--t-0)/var(--t-0) var(--font-mono); color: var(--dim); }
 .inv-slots li.is-on, .inv-cell.is-on { border-color: var(--signal); box-shadow: inset 0 0 0 1px var(--signal); background: var(--hatch-signal), var(--graphite); }
-.inv-expand { border-radius: 0; background: var(--hatch), var(--graphite); }
-.inv-cell { background: var(--well); }
+
+
 
 /* ── Навыки ── */
-.mini-skill .bar { border-radius: 0; width: 3px; }
-.slot .lvl { border-radius: 0; font-weight: var(--fw-bold); }
-.slot .ready { border-radius: 0; }
-.robot-art { background: var(--seam-strong); }
+
+
+
+
 
 /* ── Чат ── */
-.chat-peek { background: var(--float); border: 1px solid var(--seam); }
-.chat-peek-tag { color: var(--signal); font-size: var(--t-2); }
-.chat-head { background: var(--hatch) left bottom / 100% 3px no-repeat; }
-.chat-tab.is-on::after { height: 2px; }
-.chat-log time { color: var(--dim); }
-.badge, .chat-list i, .pm-thread i { border-radius: 0; font-family: var(--font-mono); }
+.chat-peek { border: 1px solid var(--seam); }
+
+
+
+
+.badge, .chat-list i, .pm-thread i { font-family: var(--font-mono); }
 
 /* ── Окна ── */
-.dialog-layer { background: var(--dots), var(--scrim); }
+
 .link-layer { background: var(--dots), var(--scrim-strong); }
 .dialog p { color: var(--mist); }
 :is(.inv-window-info, .mail-list, .map-side, .skill-info, .prog-side) { border-left-color: var(--seam); }
-.settings-tabs { background: var(--hatch), var(--plate); counter-reset: tab; }
-.settings-tabs button { position: relative; counter-increment: tab; border-left-width: 2px; }
-.settings-tabs button:not(.settings-exit)::before { content: counter(tab, decimal-leading-zero); position: absolute; right: var(--sp-6); top: 50%; translate: 0 -50%;
-  font: var(--fw-semi) var(--t-0)/1 var(--font-mono); color: var(--dim); }
-.settings-tabs button.is-on { background: linear-gradient(90deg, var(--signal-soft), transparent); }
-.settings-tabs button.is-on::before { color: var(--signal); }
-.set-sec { color: var(--dim); font-size: var(--t-3); display: flex; align-items: center; gap: var(--sp-4); }
+
+
+
 .set-sec::after { content: ""; flex: 1; height: 1px; background: repeating-linear-gradient(90deg, var(--seam) 0 2px, transparent 2px 4px); }
-.field { border-bottom-style: dashed; }
-.keycap { border-bottom-width: 2px; }
+
+
 .profile-sec > h3, .map-side h3 { color: var(--dim); }
 .clan-board li.is-pin, .profile-ach li.is-done { background: var(--hatch-signal) right top / 14px 14px no-repeat, var(--plate); }
-.mail-list button.is-on { border-left-width: 2px; }
+
 .mail-list button > i, .clan-list li > i, .menu-online i, .prog-cats button i { border-radius: 0; }
-.profile-closed { border-style: dashed; background: var(--hatch); }
-.upd-box, .mail-gift { background: var(--ticks), var(--well); }
+
+.upd-box, .mail-gift { background: var(--well); }
 
 /* ── Программатор: клетки — миллиметровка ── */
-.prog-grid { border-radius: 0; }
-.prog-grid-wrap { background: var(--dots), var(--well); }
-.prog-cell { background: var(--well); }
+
+
+
 .prog-cell:hover { background: var(--plate); }
-.prog-op { background: var(--plate); }
-.prog-list { border-radius: 0; background: var(--ticks), var(--graphite-solid); }
-.prog-go.is-stop { clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 0 100%); }
+
+
+.prog-go.is-stop { clip-path: var(--notch-btn-clip); --down: color-mix(in srgb, var(--signal) 82%, var(--black)); color: var(--on-signal); }
 
 /* ── Карта ── */
-.map-view { background: var(--dots), var(--void); }
-.pin-dot { box-shadow: 0 0 0 1px rgb(var(--rgb-bone) / .3); }
-.map-tools .icon-btn { border-radius: 0; }
+
+
+
 
 /* ── Экраны вне игры: фон бюро — точечная сетка, шкала глубины, колонка пластов ── */
 .screen--space { background: var(--void) url("../img/brand/bg.svg") center / cover no-repeat; }
 .screen--menu::before { background: linear-gradient(90deg, rgb(var(--rgb-void) / .85) 0%, rgb(var(--rgb-void) / .45) 45%, rgb(var(--rgb-void) / 0) 72%); }
-.wordmark { letter-spacing: .04em; }
+
 .brand-sub { font-family: var(--font-mono); font-size: var(--t-3); letter-spacing: var(--ls-caps); text-transform: uppercase; color: var(--ash); }
-.menu-title { font-weight: var(--fw-heavy); letter-spacing: 0; line-height: 1; }
-.menu-lead { color: var(--mist); }
+
+
 .menu-top, .menu-foot { background: var(--hatch) left bottom / 100% 3px no-repeat; }
 .menu-foot { background-position: left top; }
-.rail-btn { background: var(--ticks), var(--graphite); }
-.rail-btn:hover { translate: none; border-color: var(--ash); }
+
+
 .boot-logo, .brand img { image-rendering: auto; }
-.boot-phase { font-family: var(--font-mono); font-size: var(--t-4); letter-spacing: var(--ls-mono); color: var(--ash); }
-.steps li { border-radius: 0; font-family: var(--font-mono); font-size: var(--t-3); }
+
+
 .steps li::before { content: counter(step, decimal-leading-zero) " · "; }
-.steps li.is-on { background: var(--signal-wash); }
-.phases li::before { border-radius: 0; }
-.phases li.is-on::before { box-shadow: none; outline: 1px solid var(--signal-line); outline-offset: 2px; }
-.descent-tip { border-left-width: 2px; background: linear-gradient(90deg, var(--signal-wash), transparent 70%); padding-block: var(--sp-2); }
-.calib-steps li { border-radius: 0; font-family: var(--font-mono); }
-.calib-logo { -webkit-mask-image: url(../img/brand/mark.svg); mask-image: url(../img/brand/mark.svg); }
+
+
+.phases li.is-on::before { outline: 1px solid var(--signal-line); outline-offset: 2px; border-color: var(--bone); background: var(--bone); box-shadow: none; outline-color: var(--seam-strong); }
+
+
+
 
 /* ── Тач и пад ── */
-.tbtn { background: var(--ticks), var(--graphite); }
-.frame.compact .touch-sys .icon-btn { border-radius: 0; background: var(--ticks), var(--graphite); }
+.tbtn { background: var(--graphite); }
+.frame.compact .touch-sys .icon-btn { background: var(--graphite); }
 .act-arc :is(.act, #autodig, .build, .fast-move) { border-radius: 0; }
-.pg { border-radius: var(--r-s); font-family: var(--font-mono); }
-.pad-bar { border-radius: 0; background: var(--ticks), var(--float); }
+
+.pad-bar { background: var(--float); }
 .pd:not(.pd-rt) { background: var(--float); }
 
 /* ── Прокрутка: тонкая прямая полоса ── */
 .frame ::-webkit-scrollbar { width: 6px; height: 6px; }
-.frame ::-webkit-scrollbar-track { border-radius: 0; background: var(--scroll-track); }
-.frame ::-webkit-scrollbar-thumb { border: 0; border-radius: 0; background: var(--scroll-thumb); }
+.frame ::-webkit-scrollbar-track { background: var(--scroll-track); }
+.frame ::-webkit-scrollbar-thumb { border: 0; background: var(--scroll-thumb); }
 
 /* ── Стенд ── */
 .stand-seg, .stand-pick select, .stand-act, .stand-seg button { border-radius: 0; }
@@ -204,3 +181,66 @@ svg { stroke-width: 1.5; stroke-linecap: square; stroke-linejoin: miter; }
 /* ── Плотные места: Onest шире прежней гарнитуры — в узких коробках трекинг чуть сжат, чтобы строка влезала как раньше ── */
 .frame.compact .mission-text, .frame.in-touch .cap, .frame:not(.compact).tier-standard .sysbuttons .control-label { letter-spacing: -.02em; }
 .frame.compact .mission-text { line-height: 14px; }
+
+
+/* ── Выбор и включённое — кость, не сигнал: оранжевый остаётся только у главного действия, тревоги и непрочитанного ── */
+.seg button[aria-checked="true"] { font-weight: var(--fw-bold); color: var(--bone); }
+.settings-tabs button.is-on { color: var(--bone); border-left-color: var(--bone); background: linear-gradient(90deg, rgb(var(--rgb-bone) / .08), transparent); }
+:is(.chat-tab, .frame.compact .chat-tab).is-on { color: var(--bone); }
+/* Вкладки чата: значок непрочитанного стоит в своём поле вкладки — между вкладками зазор, чтобы он не прилипал к соседней */
+.chat-tabs { column-gap: var(--sp-6); }
+
+.chat-list button.is-on { background: rgb(var(--rgb-bone) / .08); }
+.toggle[aria-pressed="true"] { border-color: var(--seam-strong); }
+.toggle[aria-pressed="true"] .dot { background: rgb(var(--rgb-bone) / .1); border-color: var(--bone); }
+.toggle[aria-pressed="true"] .dot::after { background: var(--bone); left: 14px; }
+.switch:checked { background: var(--hatch), rgb(var(--rgb-bone) / .1); border-color: var(--bone); }
+.switch:checked::after { background: var(--bone); }
+:is(.inv-slots li, .inv-cell).is-on { border-color: var(--bone); background: var(--hatch), var(--graphite); }
+
+.map-tools .icon-btn[aria-pressed="true"], .prog-group .icon-btn[aria-pressed="true"] { color: var(--bone); border-color: var(--bone); background: rgb(var(--rgb-bone) / .08); }
+.prog-cell.is-sel { background: rgb(var(--rgb-bone) / .08); }
+.prog-list li.is-on { background: rgb(var(--rgb-bone) / .08); }
+.steps li.is-on { color: var(--bone); border-color: var(--bone); background: rgb(var(--rgb-bone) / .06); }
+
+.calib-steps li.is-on { color: var(--void); background: var(--bone); border-color: var(--bone); }
+.calib-steps li.is-done { color: var(--bone); border-color: var(--seam-strong); }
+
+.tbtn[aria-pressed="true"], .frame.in-touch :is(.act, #autodig, .build, .fast-move)[aria-pressed="true"] { border-color: var(--bone); background: rgb(var(--rgb-bone) / .12); color: var(--bone); }
+.frame.in-touch :is(.act, #autodig, .build, .fast-move)[aria-pressed="true"] .cap { color: var(--bone); }
+
+:is(.clan-board li.is-pin, .profile-ach li.is-done) { border-color: var(--seam-strong); background: var(--hatch) right top / 14px 14px no-repeat, var(--plate); }
+/* Заголовки окон клиента — тем же Exo 2 капсом, что заголовки окон зданий, но без значка — на ступень мельче */
+
+/* Ранг в клане, уровень профиля и кредиты казны — данные, а не действие: без сигнала */
+.clan-list .role { color: var(--bone); }
+.profile-level b { color: var(--bone); }
+.profile-level .meter i { background: var(--mist); }
+
+/* Флажки — тоже выбор: кость */
+.check input, input[type="checkbox"] { accent-color: var(--bone); }
+/* Ползунки громкости и калибровки — заполненное туманом, как ползунки окон зданий */
+/* Ползунок — один компонент на настройки, обучение, калибровку и окна сервера (раньше в настройках стоял системный слайдер браузера,
+   перекрашенный accent-color: в UI Toolkit такого нет, а в Safari и Firefox он выглядит по-разному).
+   Вдавленная дорожка со штриховкой, заполнено — туман, бегунок — риска с перекладиной; под дорожкой — четверти.
+   --f — доля хода 0..1, ставит скрипт (srvgui.js, screens.js, calibration.js); Firefox заливает сам (::-moz-range-progress) */
+:is(.pk-slider, :where(.range, .calib-slider) input) { --f: .5; --thumb: 8px; appearance: none; min-width: 0; height: 22px; margin: 0; cursor: pointer;
+  background: repeating-linear-gradient(90deg, rgb(var(--rgb-bone) / .3) 0 1px, transparent 1px calc(25% - .25px)) left calc(var(--thumb) / 2) top calc(50% + 6px) / calc(100% - var(--thumb)) 3px no-repeat; }
+:is(.pk-slider, :where(.range, .calib-slider) input)::-webkit-slider-runnable-track { height: 6px; background: linear-gradient(90deg, var(--mist) calc(var(--thumb) / 2 + (100% - var(--thumb)) * var(--f)), transparent 0),
+  repeating-linear-gradient(90deg, rgb(var(--rgb-bone) / .1) 0 1px, transparent 1px 4px), var(--well); box-shadow: inset 1px 1px 0 rgb(var(--rgb-black) / .75); }
+:is(.pk-slider, :where(.range, .calib-slider) input)::-webkit-slider-thumb { appearance: none; width: var(--thumb); height: 14px; margin-top: -4px; background: var(--bone);
+  clip-path: polygon(0 0, 100% 0, 100% 3px, calc(50% + 1px) 3px, calc(50% + 1px) 100%, calc(50% - 1px) 100%, calc(50% - 1px) 3px, 0 3px); }
+:is(.pk-slider, :where(.range, .calib-slider) input):disabled { --thumb: 0px; cursor: default; }   /* без бегунка ход равен всей дорожке — заливка и четверти считаются от нулевой ширины бегунка */
+:is(.pk-slider, :where(.range, .calib-slider) input):disabled::-webkit-slider-thumb { width: 0; }
+:is(.pk-slider, :where(.range, .calib-slider) input)::-moz-range-track { height: 6px; background: repeating-linear-gradient(90deg, rgb(var(--rgb-bone) / .1) 0 1px, transparent 1px 4px), var(--well); box-shadow: inset 1px 1px 0 rgb(var(--rgb-black) / .75); border: 0; }
+:is(.pk-slider, :where(.range, .calib-slider) input)::-moz-range-progress { height: 6px; background: var(--mist); }
+:is(.pk-slider, :where(.range, .calib-slider) input)::-moz-range-thumb { width: var(--thumb); height: 14px; border: 0; border-radius: 0; background: var(--bone);
+  clip-path: polygon(0 0, 100% 0, 100% 3px, calc(50% + 1px) 3px, calc(50% + 1px) 100%, calc(50% - 1px) 100%, calc(50% - 1px) 3px, 0 3px); }
+:is(.pk-slider, :where(.range, .calib-slider) input):focus-visible { outline: 1px solid var(--bone); outline-offset: 2px; }
+/* Миссия: прогресс — ячейки (одна на шаг, до 10), счёт — кость; оранжевый не нужен: это данные, а не действие */
+.mission-cells { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(10, 1fr); gap: var(--sp-1); height: 4px; margin: var(--sp-4) 0 var(--sp-5); }
+.mission-cells i { background: var(--well); }
+.mission-cells i.on { background: var(--bone); }
+
+/* Загруженная программа — ярлык данных: кость в рамке */
+.prog-name { background: transparent; border-color: var(--seam-strong); }

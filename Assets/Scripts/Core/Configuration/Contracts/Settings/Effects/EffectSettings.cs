@@ -8,16 +8,6 @@ namespace Kern.Core;
 [Serializable]
 public sealed class EffectSettings
 {
-    [SettingUnbounded("Включение рыбьего глаза без изменения сохранённой силы.")]
-    [SettingLabel("settings.effects.fisheye_enabled")]
-    [SettingConsumer(SettingConsumerTarget.PostProcessController, "PostProcessController.ApplyClientConfig")]
-    public bool FisheyeEnabled;
-
-    [SettingRange(0f, 10f)]
-    [SettingLabel("settings.effects.fisheye")]
-    [SettingConsumer(SettingConsumerTarget.PostProcessController, "PostProcessController.ApplyClientConfig")]
-    public float FisheyeScale = 1f;
-
     // Дефолти — авторський вигляд, єдиний дім у PostProcessLook.Effects.
     [SettingUnbounded("Тумблер свечения ярких участков.")]
     [SettingLabel("settings.effects.bloom")]
@@ -35,4 +25,11 @@ public sealed class EffectSettings
     [SettingLabel("settings.effects.eigengrau")]
     [SettingConsumer(SettingConsumerTarget.PostProcessController, "PostProcessController.EigengrauIntensity")]
     public bool EigengrauEnabled = PostProcessLook.Effects.Eigengrau;
+
+    // Коррекция цвета для протанопии, дейтеранопии и тританопии: оттенки, различимые для человека
+    // с таким зрением; применяется к кадру мира в выходном проходе (PostProcess.compute, DisplayFinal).
+    [SettingUnbounded("Режим для дальтоников.")]
+    [SettingLabel("settings.window.color_vision")]
+    [SettingConsumer(SettingConsumerTarget.PostProcessController, "PostProcessController.ApplyClientConfig")]
+    public ColorVisionMode ColorVision = ColorVisionMode.Off;
 }

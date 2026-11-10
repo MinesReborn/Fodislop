@@ -18,7 +18,6 @@ using VContainer.Unity;
 
 using Kern.AssetPipeline.Cache;
 using Kern.AssetPipeline.Loading;
-using Kern.Bootstrap.Diagnostics;
 using Kern.Core.Configuration;
 using Kern.Core.Diagnostics;
 using Kern.Core.Rendering;
@@ -28,9 +27,8 @@ using Kern.Game.Player.Stats;
 using Kern.Infrastructure.Audio;
 using Kern.Networking.Authentication;
 using Kern.Networking.Gateways;
-using Kern.Networking.Offline;
+using Kern.Networking.Dummy;
 using Kern.Networking.Processing;
-using Kern.Networking.WorldEntry;
 using Kern.Rendering.Display;
 using Kern.UI.Menu;
 using Kern.Core;
@@ -43,10 +41,6 @@ namespace Kern.Bootstrap.Scenes
     public class BootstrapLifetimeScope : LifetimeScope, IMainMenuNavigation, ISceneNavigator
     {
         private const string MainMenuSceneName = SceneNames.MainMenu;
-
-        // Первой после Bootstrap грузится не меню, а Gateway: вход и онбординг.
-        // Он сам загрузит MainMenu и выгрузится, когда игрок пройдёт ворота.
-        private const string GatewaySceneName = SceneNames.Gateway;
 
         [SerializeField] private Camera _applicationCamera = null!;
         [SerializeField] private ConnectionManager _connectionManager = null!;
@@ -283,7 +277,7 @@ namespace Kern.Bootstrap.Scenes
                     string.Equals(sceneName, SceneNames.MainGame, StringComparison.Ordinal) &&
                     ex is TimeoutException &&
                     _connectionManager.IsWorldStartupPending &&
-                    !_connectionManager.IsOffline &&
+                    !_connectionManager.IsDummy &&
                     _connectionManager.IsConnected;
                 if (worldStartupTimedOut)
                 {
@@ -455,68 +449,7 @@ namespace Kern.Bootstrap.Scenes
                 throw new InvalidOperationException("BootstrapLifetimeScope requires an authored application camera reference in this scene.");
             }
             builder.RegisterComponent(applicationCamera);
-            builder.Register<IMainMenuNavigation>(
-                resolver => resolver.Resolve<BootstrapLifetimeScope>(),
-                Lifetime.Singleton);
-            builder.Register<ISceneNavigator>(
-                resolver => resolver.Resolve<BootstrapLifetimeScope>(),
-                Lifetime.Singleton);
-            builder.RegisterInstance(GraphicsQualityProfile.CreateDefault());
-            builder.Register<ShaderWarmupService>(Lifetime.Singleton).As<IShaderWarmupService>();
-            builder.Register<AsyncOperationSupervisor>(Lifetime.Singleton)
-                .AsSelf()
-                .As<IAsyncOperationSupervisor>();
-            builder.Register<PersistentAssetCache>(Lifetime.Singleton).As<IPersistentAssetCache>();
-            // Window images served over http(s): the same AssetCache
-            // machinery as the server asset loader, RAM-only, sourced from
-            // the web client instead of the game connection.
-            builder.Register<WebAssetLoader>(Lifetime.Singleton).As<IWebAssetLoader>();
-            builder.Register<RuntimeAssetPaths>(
-                _ => new RuntimeAssetPaths(),
-                Lifetime.Singleton).As<IRuntimeAssetPaths>();
-
-            // DummyConnection emulates the game server in offline mode. External
-            // identity providers do not route authentication through it.
-            builder.Register<RealtimeDummyClock>(Lifetime.Singleton).As<IDummyClock>();
-            builder.Register<DummyConnection>(Lifetime.Singleton).AsSelf().AsImplementedInterfaces();
-            builder.Register<ConnectionTransportFactory>(Lifetime.Singleton);
-            builder.Register<DummyWorldMapSource>(Lifetime.Singleton);
-            builder.RegisterEntryPoint<Kern.Networking.WorldEntry.WorldEntryPreparation>()
-                .As<IWorldEntryPreparation>();
-            builder.Register<GameTokenStore>(Lifetime.Singleton).As<IGameTokenStore>();
-            builder.Register<RuntimeDebugSettings>(Lifetime.Singleton).As<IRuntimeDebugSettings>();
-            builder.Register<OfflineScenarioSettings>(Lifetime.Singleton).As<IOfflineScenarioSettings>();
-            builder.Register<VKIdentityProvider>(Lifetime.Singleton);
-            builder.Register<AuthenticationService>(Lifetime.Singleton).As<IAuthenticationService>();
-
-            // Application-tier session state: NetworkService (Bootstrap) and
-            // Game-tier processors both resolve the same local-player state.
-            builder.Register<LocalPlayerState>(Lifetime.Singleton).As<ILocalPlayerState>();
-
-            // Ник и уровень игрока для бейджа меню и досье. Сервер присылает
-            // PlayerInfoPacket/LevelPacket в момент авторизации сокета (Auth:
-            // «без этого gate висит»), когда клиент ещё в гейтвее — меню-скип
-            // опоздал бы, поэтому идентичность живёт здесь, на Application-tier,
-            // и подписывается с самого старта приложения. Игровая область
-            // регистрирует свой PlayerStatsModel для HUD, как и раньше.
-            builder.Register<Kern.Game.Player.Stats.PlayerStatsModel>(Lifetime.Singleton)
-                .AsImplementedInterfaces()
-                .AsSelf();
-            builder.RegisterEntryPoint<Kern.Networking.Processing.PlayerIdentityProcessor>().AsSelf();
-
-            // World-load phases and server-window visibility are published by
-            // the Game scope but consumed by the MainMenu sibling scope, so
-            // both relays live at the application tier.
-            builder.Register<WorldLoadProgress>(Lifetime.Singleton).As<IWorldLoadProgress>();
-            builder.Register<WindowCommandStream>(Lifetime.Singleton);
-            builder.Register<ItemRegistry>(Lifetime.Singleton).As<IItemCatalog>();
-            builder.RegisterInstance(BlockRegistry.Default).As<IBlockRegistry>();
-
-            // The persistent application camera as a typed DI dependency.
-            // RegisterComponent(applicationCamera) below exposes the Camera
-            // itself; IGameplayCamera gives a named contract so DI components
-            // do not reach into the static GameplayCamera holder.
-            builder.Register<GameplayCameraService>(Lifetime.Singleton).As<IGameplayCamera>();
+            BootstrapServiceRegistration.Register(builder);
 
             RegisterAuthored(builder, _connectionManager, nameof(_connectionManager));
             RegisterAuthored(builder, _networkService, nameof(_networkService));
@@ -526,8 +459,6 @@ namespace Kern.Bootstrap.Scenes
             RegisterAuthored(builder, _textureStorageManager, nameof(_textureStorageManager));
             RegisterAuthored(builder, _loadingScreen, nameof(_loadingScreen));
             builder.Register<LocalizationService>(Lifetime.Singleton).AsImplementedInterfaces().AsSelf();
-            // Проверки целостности файлов для окна «Диагностика и целостность файлов».
-            builder.Register<MenuFileDiagnosticsService>(Lifetime.Singleton).As<IMenuFileDiagnosticsService>();
             builder.RegisterEntryPoint<HDROutputReconciler>();
             builder.RegisterEntryPoint<ApplicationBootstrap>();
         }

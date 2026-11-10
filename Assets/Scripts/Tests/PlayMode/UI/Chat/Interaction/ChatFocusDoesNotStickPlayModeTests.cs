@@ -40,7 +40,7 @@ public sealed class ChatFocusDoesNotStickPlayModeTests
     [UnitySetUp]
     public IEnumerator SetUp()
     {
-        yield return PlayModeHarness.StartAtGateway();
+        yield return PlayModeHarness.StartAtMainMenu();
         Kern.Bootstrap.Scenes.BootstrapLifetimeScope bootstrap = PlayModeHarness.FindBootstrap()!;
         yield return PlayModeHarness.EnterMainGame(bootstrap);
         _blocker = PlayModeHarness.RequireInGame<IInputBlocker>();

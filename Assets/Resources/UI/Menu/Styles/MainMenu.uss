@@ -1,0 +1,363 @@
+/* Главное меню — экраны menu и descent макета (visual/kern-ui: screens.css .menu-*, .descent*, .phases; micro.css).
+   Значения — вычисленные стили стенда 1920 × 1080. Окна меню (ModalOverlay) — пока Theme.uss. */
+
+/* Затемнение слева под текст: void .85 → .45 → 0 (micro.css .screen--menu::before) */
+.menu-shade {
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 72%;
+    /* micro.css .screen--menu::before: void .85 → .45 на 45 % → 0 на 72 % ширины экрана (элемент — 72 %) */
+    background-image: linear-gradient(90deg, rgba(6, 5, 10, 0.85) 0%, rgba(6, 5, 10, 0.45) 62.5%, rgba(6, 5, 10, 0) 100%);
+}
+
+/* Шапка и подвал: полоса штриховки 3 px у шва (micro.css: var(--hatch) left bottom / 100% 3px), шов снизу/сверху */
+.menu-top,
+.menu-foot {
+    position: absolute;
+    left: 0;
+    right: 0;
+    height: 80px;
+    flex-direction: row;
+    align-items: center;
+    padding: 0 64px;
+    border-color: var(--seam-soft);
+    --hatch-color: rgba(216, 213, 238, 0.1);
+    --hatch-band: 3;
+}
+
+.menu-top {
+    top: 0;
+    border-bottom-width: 1px;
+}
+
+.menu-top .brand__mark {
+    margin-right: var(--sp-5);
+}
+
+.menu-top .wordmark {
+    margin-right: var(--sp-5);
+    padding: 2.3px 0; /* строка 1.4em = 33.6 против 29 по метрикам шрифта */
+    font-size: var(--t-13);
+    letter-spacing: 2px; /* 0.02em: интервал UI Toolkit — в сотых кегля */
+}
+
+/* Фраза бренда — отдельная подпись: отступ от названия и волосяная черта перед ней (screens.css .menu-top .brand-sub) */
+.menu-top .brand-sub {
+    margin-left: var(--sp-5);
+    padding: var(--sp-1) 0 var(--sp-1) var(--sp-8);
+    border-left-width: 1px;
+    border-color: var(--seam-strong);
+}
+
+.menu-foot {
+    bottom: 0;
+    --hatch-band-edge: "top";
+    justify-content: flex-end;
+    border-top-width: 1px;
+}
+
+/* Главный блок слева, по центру высоты: 520 px */
+.menu-main {
+    position: absolute;
+    left: 120px;
+    top: 80px;
+    bottom: 80px;
+    width: 520px;
+    justify-content: center;
+}
+
+.menu-title {
+    margin: -6px 0 14px 0; /* строка макета 1em: первая строка по метрикам шрифта (72) выше на 12 — половина сверху, половина снизу */
+    padding: 0;
+    color: var(--bone);
+    -unity-font-definition: var(--face-display);
+    font-size: var(--t-17);
+    -unity-font-style: bold;
+    letter-spacing: 2px; /* 0.02em: интервал UI Toolkit — в сотых кегля */
+    white-space: normal;
+}
+
+.menu-lead {
+    max-width: 470px;
+    margin: 0 0 var(--sp-10) 0;
+    padding: 2px 0; /* строка 1.5em = 30: первая по метрикам шрифта (26) — добор пополам */
+    color: var(--mist);
+    -unity-font-definition: var(--face-text);
+    font-size: var(--t-11);
+    white-space: normal;
+}
+
+.menu-actions {
+    width: 440px;
+    margin-top: var(--sp-8);
+}
+
+/* Зазор между клавишами (gap макета): только у первой — у последней отступа снизу нет */
+.menu-actions > #PlayButton {
+    margin-bottom: var(--sp-5);
+}
+
+.menu-actions > .btn--hero {
+    padding: 0 36px 0 28px;
+    letter-spacing: 1px; /* 0.01em: интервал UI Toolkit — в сотых кегля */
+}
+
+/* ── Спуск ── */
+.descent__title {
+    font-size: var(--t-16);
+    letter-spacing: 2px; /* 0.02em: интервал UI Toolkit — в сотых кегля */
+}
+
+/* Пояснение фазы: две строки места, чтобы раскладка не прыгала; отказ — опасностью */
+.descent-explain {
+    max-width: 440px;
+    min-height: 51px; /* 3em при кегле 17 */
+    margin: 0 0 var(--sp-10) 0; /* промежуток колонки макета (gap 20) */
+    padding: 0;
+    color: var(--mist);
+    -unity-font-definition: var(--face-text);
+    font-size: var(--t-9);
+    white-space: normal;
+}
+
+.descent-explain.is-bad {
+    color: var(--danger);
+}
+
+.descent-progress {
+    width: 440px;
+    margin: var(--sp-6) 0 var(--sp-10) 0;
+}
+
+.descent-meta {
+    flex-direction: row;
+    justify-content: space-between;
+    margin-top: var(--sp-5);
+}
+
+.descent-meta__phase,
+.descent-meta__count {
+    margin: 0;
+    padding: 0;
+    -unity-font-definition: var(--face-mono);
+    font-size: var(--t-2);
+    letter-spacing: 2px; /* 0.02em: интервал UI Toolkit — в сотых кегля */
+    color: var(--bone);
+}
+
+.descent-meta__count {
+    color: var(--ash);
+}
+
+.phases {
+    width: 440px;
+    margin-bottom: var(--sp-10);
+}
+
+.mm-loader-phase-item {
+    flex-direction: row;
+    align-items: center;
+    margin-bottom: var(--sp-4);
+    color: var(--mist);
+}
+
+.mm-loader-phase-item > .unity-label {
+    margin: 0;
+    padding: 0;
+    color: var(--mist);
+    -unity-font-definition: var(--face-text);
+    font-size: var(--t-body);
+}
+
+/* Точка этапа: квадрат в рамке дыма; пройдено — зелёный; идёт — кость в рамке; отказ — опасность (micro.css .phases li::before) */
+.mm-loader-phase-icon {
+    width: 8px;
+    height: 8px;
+    margin-right: var(--sp-5);
+    padding: 0;
+    border-width: 1.5px;
+    border-radius: 0;
+    border-color: var(--smoke);
+}
+
+/* Рамка идущей фазы: outline 1 px с отступом 2 px от края точки */
+.mm-loader-phase-ring {
+    position: absolute;
+    left: -4.5px;
+    top: -4.5px;
+    width: 14px;
+    height: 14px;
+    border-width: 1px;
+    border-color: var(--seam-strong);
+    display: none;
+}
+
+.mm-loader-phase-item--done > .unity-label {
+    color: var(--ash);
+}
+
+.mm-loader-phase-item--done > .mm-loader-phase-icon {
+    border-color: var(--ok);
+    background-color: var(--ok);
+}
+
+.mm-loader-phase-item--active > .unity-label {
+    color: var(--bone);
+}
+
+.mm-loader-phase-item--active > .mm-loader-phase-icon {
+    border-color: var(--bone);
+    background-color: var(--bone);
+}
+
+.mm-loader-phase-item--active > .mm-loader-phase-icon > .mm-loader-phase-ring {
+    display: flex;
+}
+
+.mm-loader-phase-item--fail > .unity-label {
+    color: var(--bone);
+}
+
+.mm-loader-phase-item--fail > .mm-loader-phase-icon {
+    border-color: var(--danger);
+    background-color: var(--danger);
+}
+
+/* Совет сервера (screens.css .descent-tip): риска кости слева, сигнальная подложка тает к 70 %, две строки места */
+.descent-tip {
+    width: 440px;
+    min-height: 47px; /* 3em при кегле 13 и поля 4 + 4 */
+    margin: 0 0 var(--sp-10) 0;
+    padding: var(--sp-2) 0 var(--sp-2) var(--sp-6);
+    border-left-width: 2px;
+    border-left-color: var(--bone);
+    background-image: linear-gradient(90deg, rgba(255, 90, 31, 0.07) 0%, rgba(255, 90, 31, 0) 70%);
+    color: var(--ash);
+    -unity-font-definition: var(--face-text);
+    font-size: var(--t-small);
+    white-space: normal;
+}
+
+.btn--wide {
+    width: 260px;
+    height: 48px;
+    margin-top: var(--sp-4);
+    padding: 0 var(--sp-10);
+}
+
+/* ── Связь и выход: колонка справа ── */
+.menu-rail {
+    position: absolute;
+    right: 40px;
+    top: 80px;
+    bottom: 80px;
+    width: 176px;
+    justify-content: center;
+}
+
+.rail-btn {
+    flex-direction: row;
+    align-items: center;
+    height: var(--ctl-xl);
+    margin: 0 0 var(--sp-4) 0;
+    padding: 0 var(--sp-6);
+    border-width: 1px;
+    border-radius: 0;
+    border-color: var(--seam);
+    background-color: var(--graphite);
+    background-image: none;
+    transition: background-color var(--dur-fast) var(--ease), border-color var(--dur-fast) var(--ease);
+}
+
+.rail-btn:hover {
+    border-color: var(--ash);
+    background-color: var(--plate-hover);
+}
+
+.rail-btn:active {
+    background-color: var(--well);
+}
+
+.rail-btn__icon {
+    width: 24px;
+    height: 24px;
+    margin-right: var(--sp-5);
+    opacity: 0.85;
+}
+
+.rail-btn__icon--discord { background-image: resource("UI/Theme/Kern/Icons/discord"); }
+.rail-btn__icon--telegram { background-image: resource("UI/Theme/Kern/Icons/telegram"); }
+.rail-btn__icon--vk { background-image: resource("UI/Theme/Kern/Icons/vk"); }
+.rail-btn__icon--exit { background-image: resource("UI/Theme/Kern/Icons/exit"); }
+
+.rail-btn__label {
+    margin: 0;
+    padding: 0;
+    color: var(--mist);
+    -unity-font-definition: var(--face-text);
+    font-size: var(--t-4);
+    white-space: nowrap;
+}
+
+.rail-sep {
+    height: 1px;
+    margin: var(--sp-2) var(--sp-4) var(--sp-6) var(--sp-4);
+    background-color: var(--seam);
+}
+
+/* ── Строка сборки ── */
+.menu-meta {
+    flex-direction: row;
+    align-items: center;
+    flex-shrink: 0;
+    margin-left: var(--sp-16);
+}
+
+.menu-meta__key {
+    margin: 0 var(--sp-5) 0 0;
+    padding: 0;
+    color: var(--ash);
+    -unity-font-definition: var(--face-mono);
+    font-size: var(--t-5);
+    letter-spacing: 14px; /* 0.14em: интервал UI Toolkit — в сотых кегля */
+}
+
+/* Штрихкод хеша сборки (hud.js kernBars): знак — четыре бита, бит — узкий (1 px) или широкий (3 px) штрих */
+.idcode {
+    flex-direction: row;
+    align-items: stretch;
+    height: 12px;
+    margin-left: var(--sp-4);
+    opacity: 0.6;
+}
+
+.idcode__bar {
+    width: 1px;
+    margin-right: 1px;
+    background-color: var(--ash);
+}
+
+.idcode__bar--wide {
+    width: 3px;
+}
+
+.menu-meta__value {
+    margin: 0;
+    padding: 0;
+    border-width: 0;
+    background-color: rgba(0, 0, 0, 0);
+    background-image: none;
+    color: var(--bone);
+    -unity-font-definition: var(--face-mono);
+    font-size: var(--t-5);
+    letter-spacing: 2px; /* 0.02em: интервал UI Toolkit — в сотых кегля */
+}
+
+.menu-online__dot {
+    width: 7px;
+    height: 7px;
+    margin-right: var(--sp-5);
+    background-color: var(--live);
+}

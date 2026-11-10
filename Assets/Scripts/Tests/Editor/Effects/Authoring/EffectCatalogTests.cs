@@ -20,7 +20,7 @@ public sealed class EffectCatalogTests
         Assert.That(catalog.TryGet("spark", out EffectDefinition spark), Is.True);
         Assert.That(spark.Emitters.Length, Is.EqualTo(1));
         Assert.That(spark.Emitters[0].SpriteSheet,
-            Is.EqualTo("VFX/Sprites/Textures/CrystallSparkle/CrystallSparkleImage"));
+            Is.EqualTo("Visual/Sprites/Textures/CrystallSparkle/CrystallSparkleImage"));
         Assert.That(spark.Emitters[0].SpriteSheetColumns, Is.EqualTo(6));
         Assert.That(spark.Emitters[0].BurstCount, Is.EqualTo(10));
         Assert.That(catalog.TryGet("missing", out _), Is.False);

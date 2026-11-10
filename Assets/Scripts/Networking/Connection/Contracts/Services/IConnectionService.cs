@@ -2,6 +2,7 @@
 
 using System;
 using MinesServer.Networking.Client.Packets;
+using MinesServer.Networking.Connection;
 using MinesServer.Networking.Server.Packets;
 
 namespace Kern.Core.Interfaces;
@@ -14,13 +15,30 @@ public sealed class ConnectionStartupInterruptedException : InvalidOperationExce
     }
 }
 
+// Транспорт, который считает принятые байты: по ним строится плавный прогресс скачивания внутри крупного пакета
+public interface ITransportTraffic
+{
+    long ReceivedBytes { get; }
+}
+
+public interface IAssetTransferProgress
+{
+    long ReceivedAssetBytes { get; }
+}
+
 public interface IConnectionService
 {
+    // Принятые текущим транспортом байты; у нового транспорта счёт идёт с нуля. 0 — транспорт счёт не ведёт
+    long ReceivedBytes { get; }
     bool IsConnected { get; }
     bool IsAutoReconnecting { get; }
     bool IsWorldStartupPending { get; }
-    bool IsOffline { get; }
+    bool IsDummy { get; }
     void Connect();
+    // Пока пакеты удержаны, транспорт подключается и принимает их в очередь, но обработчикам они не отдаются:
+    // соединение стартует параллельно инициализации презентации и открывается, когда потребители готовы
+    void HoldInboundPackets();
+    void ReleaseInboundPackets();
     void Disconnect();
     void MarkWorldReady();
     void TriggerDisconnect(string reason);
@@ -37,7 +55,7 @@ public interface IConnectionService
     event Action? OnReconnectHidden;
 }
 
-public interface IOfflineConnection
+public interface IDummyConnection : IServerConnection
 {
     void TriggerDisconnect(string reason);
     void TriggerReconnect(string reason);

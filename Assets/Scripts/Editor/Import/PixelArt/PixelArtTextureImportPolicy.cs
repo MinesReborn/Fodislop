@@ -11,6 +11,7 @@ public sealed class PixelArtTextureImportPolicy : AssetPostprocessor
     private const string ProgrammatorRoot = "Assets/Resources/Programmator/";
     private const string SkillsRoot = "Assets/Resources/UI/HUD/Player/Skills/Icons/";
     private const string SurfaceRoot = "Assets/Textures/Surface/";
+    private const string CrystalDigitsRoot = "Assets/Resources/Effects/Crystals/Digits/";
 
     // Для ветки Assets/Textures политика нужна единообразием редактора, а не
     // видом в игре: BuildTextureStager копирует эти файлы как есть в
@@ -22,10 +23,6 @@ public sealed class PixelArtTextureImportPolicy : AssetPostprocessor
 
     public override int GetPostprocessOrder() => -1000;
 
-    // Версия поднята вместе с новым корнем: без неё Unity не перечитает уже
-    // импортированные текстуры Assets/Textures.
-    public override uint GetVersion() => 3;
-
     private void OnPreprocessTexture()
     {
         if (!IsPixelArtResource(assetPath))
@@ -35,6 +32,7 @@ public sealed class PixelArtTextureImportPolicy : AssetPostprocessor
 
         var importer = (TextureImporter)assetImporter;
         importer.textureType = TextureImporterType.Default;
+        importer.textureShape = TextureImporterShape.Texture2D;
         importer.spriteImportMode = SpriteImportMode.None;
         importer.sRGBTexture = true;
         importer.alphaSource = TextureImporterAlphaSource.FromInput;
@@ -60,6 +58,7 @@ public sealed class PixelArtTextureImportPolicy : AssetPostprocessor
 
         return path.StartsWith(ProgrammatorRoot, StringComparison.Ordinal) ||
             path.StartsWith(SkillsRoot, StringComparison.Ordinal) ||
+            path.StartsWith(CrystalDigitsRoot, StringComparison.Ordinal) ||
             path.StartsWith(TexturesRoot, StringComparison.Ordinal);
     }
 }

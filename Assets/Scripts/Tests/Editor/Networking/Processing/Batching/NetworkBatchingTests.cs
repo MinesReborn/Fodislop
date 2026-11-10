@@ -150,6 +150,7 @@ public class NetworkBatchingTests
         public int MaxHealth => 100;
         public float HealthPercent => 1f;
         public string Nickname => "Test";
+        public uint PlayerId { get; set; }
         public long Level => 1;
         public long Money => 0;
         public long Credits => 0;
@@ -174,7 +175,6 @@ public class NetworkBatchingTests
         public string MissionImageUri => string.Empty;
         public ushort MissionImageWidth => 0;
         public ushort MissionImageHeight => 0;
-        public bool DailyBonusAvailable => false;
         public Vector2Int? MissionArrowTarget => null;
 
         public void SetLevel(long level) { }
@@ -184,9 +184,14 @@ public class NetworkBatchingTests
         public void SetNickname(string nickname) { }
         public void SetClanId(int clanId) { }
         public void SetMaxDepth(int depth) { }
-        public void SetDailyBonusAvailable(bool available) { }
         public void SetSkillProgress(SkillType skill, long current, long max) { }
-        public void SetMission(string title, string description, long max, string imageUri = "", ushort imageWidth = 0, ushort imageHeight = 0) { }
+        public void SetMission(
+            string title,
+            string description,
+            long max,
+            string imageUri = "",
+            ushort imageWidth = 0,
+            ushort imageHeight = 0) { }
         public void SetMissionArrow(ushort x, ushort y) { }
         public void SetMissionProgress(long current) { }
         public void SetMissionMaxProgress(long max) { }
@@ -256,12 +261,6 @@ public class NetworkBatchingTests
             remove { }
         }
 
-        public event Action? OnDailyBonusChanged
-        {
-            add { }
-            remove { }
-        }
-
         public event Action? OnMissionChanged
         {
             add { }
@@ -299,10 +298,17 @@ public class NetworkBatchingTests
 
         public Color GetCellMinimapColor(CellType type) => Color.white;
         public Color32 GetCellMinimapColor32(CellType type) => new(255, 255, 255, 255);
+        public bool TryGetAudioBanks(out IReadOnlyList<AssetsDefinitionPacket> banks)
+        {
+            banks = Array.Empty<AssetsDefinitionPacket>();
+            return false;
+        }
         public void UpdateMovementSpeeds(MovementSpeedPacket packet) { }
         public void LoadWorldInit(WorldInitPacket packet) { }
         public Action? OnWorldInitialized { get; set; }
         public Action? OnWorldDataLoaded { get; set; }
+        public bool IsSameWorld(WorldInitPacket packet) => false;
+        public void ApplyWorldContent(WorldInitPacket packet) { }
         public void ResetWorldState() { }
     }
 

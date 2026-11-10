@@ -13,7 +13,6 @@ public sealed class PlayerStatsProcessor :
     IPacketProcessor<GeologyPacket>,
     IPacketProcessor<BasketPacket>,
     IPacketProcessor<MaxDepthPacket>,
-    IPacketProcessor<DailyBonusStatePacket>,
     IPacketProcessor<SkillProgressPacket>,
     IBatchAwareProcessor
 {
@@ -43,9 +42,6 @@ public sealed class PlayerStatsProcessor :
         _stats.SetBasket(packet.Capacity, packet.Contents);
 
     public void Process(MaxDepthPacket packet) => _stats.SetMaxDepth(packet.Depth);
-
-    public void Process(DailyBonusStatePacket packet) =>
-        _stats.SetDailyBonusAvailable(packet.Enabled);
 
     public void Process(SkillProgressPacket packet) =>
         _stats.SetSkillProgress(packet.Skill, packet.Current, packet.Max);

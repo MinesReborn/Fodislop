@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using Unity.Profiling;
 using UnityEngine;
 using UnityEngine.SceneManagement;
 
@@ -57,12 +58,21 @@ public sealed class SceneCensus
         public int MissingScripts;
     }
 
+    // Обход идёт по живой иерархии и не покрыт ни одним маркером кадра:
+    // без этого имени его цена попадала в отчёт как безымянный провис.
+    private static readonly ProfilerMarker s_walkMarker = new("Kern.Diagnostics.SceneCensus");
+
     private readonly List<Component> _components = new();
     private readonly List<Transform> _stack = new();
     private readonly Dictionary<Type, (int Total, int Enabled)> _byType = new();
     private float _nextWalk;
 
     public Snapshot? Last { get; private set; }
+
+    // Перепись создаётся вместе с окном разбора кадра, а рекордеры монитора
+    // провисов открываются раньше. Принудительная инициализация типа
+    // регистрирует маркер до того, как его начнут искать по имени.
+    internal static void PrimeDiagnostics() => _ = s_walkMarker;
 
     public void Tick(bool visible)
     {
@@ -77,6 +87,7 @@ public sealed class SceneCensus
 
     private Snapshot Walk()
     {
+        using var marker = s_walkMarker.Auto();
         long start = System.Diagnostics.Stopwatch.GetTimestamp();
         var snapshot = new Snapshot();
         _byType.Clear();

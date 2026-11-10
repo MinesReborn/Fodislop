@@ -18,51 +18,35 @@ public static class StyleApplicator
             return;
         }
 
-        // UILine красит себя сам по GUIStylePacket.Background (см.
-        // LinePacketBuilder): фоновая заливка бокса здесь превратила бы
-        // линию в залитый прямоугольник.
-        if (element is UILine)
-        {
-            return;
-        }
-
         var style = packet.Style.Value;
+        IStyle elementStyle = element.style;
 
-        // Заливка фона — цвет линии, плашки уровня, подложки карточек.
-        // Прозрачный (не заданный сервером) цвет не перекрывает тему USS.
-        if (style.Background.A > 0)
+        if (element is not UILine)
         {
-            element.style.backgroundColor = ToUnityColor(style.Background);
-        }
+            elementStyle.backgroundColor = ToUnityColor(style.Background);
+            elementStyle.borderTopWidth = style.BorderWidth;
+            elementStyle.borderBottomWidth = style.BorderWidth;
+            elementStyle.borderLeftWidth = style.BorderWidth;
+            elementStyle.borderRightWidth = style.BorderWidth;
 
-        if (style.BorderWidth > 0)
-        {
-            element.style.borderTopWidth = style.BorderWidth;
-            element.style.borderBottomWidth = style.BorderWidth;
-            element.style.borderLeftWidth = style.BorderWidth;
-            element.style.borderRightWidth = style.BorderWidth;
-
-            if (style.Border.A > 0)
-            {
-                Color border = ToUnityColor(style.Border);
-                element.style.borderTopColor = border;
-                element.style.borderBottomColor = border;
-                element.style.borderLeftColor = border;
-                element.style.borderRightColor = border;
-            }
+            Color border = ToUnityColor(style.Border);
+            elementStyle.borderTopColor = border;
+            elementStyle.borderBottomColor = border;
+            elementStyle.borderLeftColor = border;
+            elementStyle.borderRightColor = border;
         }
 
         ApplyMargins(style.Margin,
-            left => element.style.marginLeft = left,
-            top => element.style.marginTop = top,
-            right => element.style.marginRight = right,
-            bottom => element.style.marginBottom = bottom);
+            left => elementStyle.marginLeft = left,
+            top => elementStyle.marginTop = top,
+            right => elementStyle.marginRight = right,
+            bottom => elementStyle.marginBottom = bottom);
 
         ApplyMargins(style.Padding,
-            left => element.style.paddingLeft = left,
-            top => element.style.paddingTop = top,
-            right => element.style.paddingRight = right,
-            bottom => element.style.paddingBottom = bottom);
+            left => elementStyle.paddingLeft = left,
+            top => elementStyle.paddingTop = top,
+            right => elementStyle.paddingRight = right,
+            bottom => elementStyle.paddingBottom = bottom);
     }
 
     private static Color ToUnityColor(System.Drawing.Color color) =>

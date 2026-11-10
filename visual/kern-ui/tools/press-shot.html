@@ -1,0 +1,17 @@
+<!doctype html>
+<!-- Снимок нажатого состояния: правила :active копируются классом .audit-active на то же место каскада (как в design-audit),
+     класс ставится на элемент ?sel=…; сцена — ?scene=… -->
+<html><head><meta charset="utf-8"><title>press: …</title>
+<style>html,body{margin:0;background:#000}iframe{border:0;width:1920px;height:1080px;display:block}</style></head>
+<body><script>
+const q = new URLSearchParams(location.search);
+const f = document.createElement('iframe'); f.src = `../index.html?${q.get('scene')}&still=1`; document.body.append(f);
+f.onload = () => setTimeout(() => { const d = f.contentDocument;
+  const walk = list => { for (let i = list.length - 1; i >= 0; i--) { const r = list[i];
+    if (r.cssRules && !r.selectorText) { walk(r.cssRules); continue; }
+    if (!r.selectorText || !/:(hover|active)/.test(r.selectorText)) continue;
+    try { (r.parentRule || r.parentStyleSheet).insertRule(`${r.selectorText.replace(/:hover/g, '.audit-hover').replace(/:active/g, '.audit-active')} { ${r.style.cssText} }`, i + 1); } catch { } } };
+  for (const s of d.styleSheets) { try { walk(s.cssRules); } catch { } }
+  d.querySelectorAll(q.get('sel')).forEach(e => e.classList.add('audit-hover', 'audit-active'));
+  document.title = 'press: ok'; }, 2000);
+</script></body></html>

@@ -33,7 +33,7 @@ public sealed class PauseResumePlayModeTests
     public IEnumerator SetUp()
     {
         _authentication = DummyAuthenticationScope.Seed(TestDummyToken);
-        yield return PlayModeHarness.StartAtGateway();
+        yield return PlayModeHarness.StartAtMainMenu();
         _bootstrap = PlayModeHarness.FindBootstrap()!;
         _config = _bootstrap.Container.Resolve<IClientConfigManager>();
         _originalMasterVolume = _config.Config.Audio.MasterVolume;
@@ -122,7 +122,7 @@ public sealed class PauseResumePlayModeTests
             yield return PlayModeHarness.WaitUntil(
                 () => pings > 0,
                 10f,
-                "The offline server stopped sending pings after resume.");
+                "The dummy server stopped sending pings after resume.");
         }
         finally
         {

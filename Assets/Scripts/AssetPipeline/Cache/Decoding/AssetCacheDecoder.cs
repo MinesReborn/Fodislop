@@ -3,7 +3,6 @@
 using System;
 using System.IO;
 using Kern.Core;
-using Kern.World;
 using UnityEngine;
 
 using Kern.AssetPipeline.Animation;
@@ -89,7 +88,7 @@ internal static class AssetCacheDecoder
         string path = Uri.TryCreate(filename, UriKind.Absolute, out Uri? uri)
             ? uri.AbsolutePath
             : filename;
-        return path.EndsWith(".m3g", StringComparison.OrdinalIgnoreCase);
+        return path.EndsWith(".m3g", StringComparison.Ordinal);
     }
 
     public static DecodedAnimationResult DecodeAnimationSprites(byte[] bytes, string filename)

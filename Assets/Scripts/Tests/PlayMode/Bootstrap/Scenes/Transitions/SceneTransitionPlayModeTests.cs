@@ -22,9 +22,10 @@ using VContainer.Unity;
 using Object = UnityEngine.Object;
 
 using Kern.Bootstrap.Scenes;
+using Kern.UI.Gateway;
 using Kern.Game.Entities.Robots;
 using Kern.Game.Session;
-using Kern.Networking.Offline;
+using Kern.Networking.Dummy;
 using Kern.Networking.Processing;
 
 namespace Kern.Tests.PlayMode;
@@ -41,7 +42,7 @@ public sealed class SceneTransitionPlayModeTests
     {
         yield return DestroyPersistentBootstrapIfPresent();
         _authentication = DummyAuthenticationScope.Seed(TestDummyToken);
-        yield return PlayModeHarness.StartAtGateway();
+        yield return PlayModeHarness.StartAtMainMenu();
         _bootstrap = FindBootstrap()!;
     }
 
@@ -53,43 +54,38 @@ public sealed class SceneTransitionPlayModeTests
     }
 
     [UnityTest]
-    public IEnumerator BootstrapToGateway_WaitsForConcreteGatewayUI()
+    public IEnumerator BootstrapToMainMenu_WaitsForConcreteMenuUI()
     {
-        Scene gateway = SceneManager.GetSceneByName("Gateway");
-        Assert.That(_bootstrap.CurrentSceneName, Is.EqualTo("Gateway"));
-        Assert.That(gateway.isLoaded, Is.True);
-        Assert.That(SceneManager.GetActiveScene(), Is.EqualTo(gateway));
-        Assert.That(CountScopes(gateway), Is.EqualTo(1));
-        Assert.That(HasNamedUIElement(gateway, "GatewayRoot"), Is.True);
+        // Сцен три: Bootstrap → MainMenu → MainGame. Вход и онбординг — слой меню, своей сцены у них нет.
+        Scene menu = SceneManager.GetSceneByName("MainMenu");
+        Assert.That(_bootstrap.CurrentSceneName, Is.EqualTo("MainMenu"));
+        Assert.That(menu.isLoaded, Is.True);
+        Assert.That(SceneManager.GetActiveScene(), Is.EqualTo(menu));
+        Assert.That(CountScopes(menu), Is.EqualTo(1));
+        Assert.That(HasNamedUIElement(menu, "MainMenuContainer"), Is.True);
+        Assert.That(SceneManager.sceneCountInBuildSettings, Is.EqualTo(3));
         yield break;
     }
 
     [UnityTest]
-    public IEnumerator GatewayToMainMenu_UnloadsGatewayOnlyAfterMenuUIExists()
+    public IEnumerator MenuGate_IsLayerOfMainMenuDocument()
     {
-        bool menuUIObservedBeforeCompletion = false;
-        UniTask transition = _bootstrap.TransitionAsync("MainMenu").Preserve();
-        while (!transition.Status.IsCompleted())
-        {
-            Scene menuDuringTransition = SceneManager.GetSceneByName("MainMenu");
-            menuUIObservedBeforeCompletion |= menuDuringTransition.isLoaded &&
-                HasNamedUIElement(menuDuringTransition, "MainMenuContainer");
-            yield return null;
-        }
-
-        transition.GetAwaiter().GetResult();
         Scene menu = SceneManager.GetSceneByName("MainMenu");
-        Assert.That(menuUIObservedBeforeCompletion, Is.True);
-        Assert.That(SceneManager.GetSceneByName("Gateway").isLoaded, Is.False);
-        Assert.That(menu.isLoaded, Is.True);
-        Assert.That(CountScopes(menu), Is.EqualTo(1));
-        Assert.That(HasNamedUIElement(menu, "MainMenuContainer"), Is.True);
+        UIDocument document = PlayModeHarness.FindComponentInScene<UIDocument>(menu)!;
+        MenuGate gate = PlayModeHarness.FindComponentInScene<MainMenuLifetimeScope>(menu)!.Container.Resolve<MenuGate>();
+        gate.Open(document, document.rootVisualElement, forceForm: true);
+        yield return null;
+        Assert.That(gate.IsOpen, Is.True);
+        Assert.That(document.rootVisualElement.Q("GatewayRoot"), Is.Not.Null);
+        Assert.That(document.rootVisualElement.Q("MainMenuContainer"), Is.Not.Null);
+        gate.Dispose();
+        yield return null;
+        Assert.That(document.rootVisualElement.Q("GatewayRoot"), Is.Null);
     }
 
     [UnityTest]
     public IEnumerator MainMenuToMainGame_KeepsLoaderSceneUntilWorldReady()
     {
-        yield return Await(_bootstrap.TransitionAsync("MainMenu"), PlayModeHarness.UITimeoutSeconds);
         bool menuObservedWhileWorldNotReady = false;
         UniTask transition = _bootstrap.TransitionAsync("MainGame").Preserve();
         float deadline = Time.realtimeSinceStartup + PlayModeHarness.WorldTimeoutSeconds;
@@ -136,7 +132,7 @@ public sealed class SceneTransitionPlayModeTests
 
         GameManager manager = PlayModeHarness.RequireInGame<GameManager>();
         Assert.That(manager.IsWorldLoaded, Is.True);
-        Assert.That(_bootstrap.Container.Resolve<IConnectionService>().IsOffline, Is.True);
+        Assert.That(_bootstrap.Container.Resolve<IConnectionService>().IsDummy, Is.True);
         Assert.That(SceneManager.GetSceneByName("MainMenu").isLoaded, Is.False);
     }
 
@@ -154,7 +150,7 @@ public sealed class SceneTransitionPlayModeTests
 
         yield return Await(_bootstrap.TransitionAsync("MainGame"), PlayModeHarness.WorldTimeoutSeconds);
 
-        Assert.That(connection.IsOffline, Is.True);
+        Assert.That(connection.IsDummy, Is.True);
         Assert.That(connection.IsConnected, Is.True);
         Assert.That(connection.IsAutoReconnecting, Is.False);
         Assert.That(connection.IsWorldStartupPending, Is.False);
@@ -169,8 +165,8 @@ public sealed class SceneTransitionPlayModeTests
         config.UpdateSection(value => value.Connection, settings => settings.UseDummyConnection = true);
         yield return Await(_bootstrap.TransitionAsync("MainMenu"), PlayModeHarness.UITimeoutSeconds);
         ConnectionManager connection = _bootstrap.Container.Resolve<ConnectionManager>();
-        IOfflineScenarioSettings scenario = _bootstrap.Container.Resolve<IOfflineScenarioSettings>();
-        scenario.Scenario = OfflineScenario.DisconnectDuringHandshake;
+        IDummyScenarioSettings scenario = _bootstrap.Container.Resolve<IDummyScenarioSettings>();
+        scenario.Scenario = DummyScenario.DisconnectDuringHandshake;
         LogAssert.Expect(LogType.Error,
             "[GameBootstrap] Startup failed in scene 'MainGame' during transition phase 'StartupReady'.");
         LogAssert.Expect(LogType.Exception,
@@ -184,7 +180,7 @@ public sealed class SceneTransitionPlayModeTests
         Assert.That(SceneManager.GetSceneByName("MainGame").isLoaded, Is.False);
         Assert.Throws<ConnectionStartupInterruptedException>(connection.MarkWorldReady);
         connection.Disconnect();
-        scenario.Scenario = OfflineScenario.HappyPath;
+        scenario.Scenario = DummyScenario.HappyPath;
     }
 
     [UnityTest]
@@ -195,11 +191,11 @@ public sealed class SceneTransitionPlayModeTests
         yield return PlayModeHarness.EnterMainGame(_bootstrap);
         ILocalPlayer player = PlayModeHarness.RequireInGame<ILocalPlayerState>().Current!;
         Robot robot = player.GetComponent<Robot>();
-        // Exercise movement away from the offline training gun and teleporter.
+        // Exercise movement away from the dummy training gun and teleporter.
         _bootstrap.Container.Resolve<DummyConnection>().SendAsync(new MinesServer.Networking.Client.Packets.ClientPacket(
             0, new MinesServer.Networking.Client.Packets.Chat.SendChatMessagePacket("FED", "/tp 200 200")));
         yield return PlayModeHarness.WaitUntil(() => player.Position == new Vector2Int(200, 200), 3f,
-            "The offline movement fixture did not reach its test area.");
+            "The dummy movement fixture did not reach its test area.");
         player.IgnoreCollision = true;
         using var keyboard = new VirtualKeyboard();
 
@@ -232,8 +228,8 @@ public sealed class SceneTransitionPlayModeTests
         yield return Await(_bootstrap.TransitionAsync("MainMenu"), PlayModeHarness.UITimeoutSeconds);
 
         ConnectionManager connection = _bootstrap.Container.Resolve<ConnectionManager>();
-        IOfflineScenarioSettings scenario = _bootstrap.Container.Resolve<IOfflineScenarioSettings>();
-        scenario.Scenario = OfflineScenario.WorldInitializationTimeout;
+        IDummyScenarioSettings scenario = _bootstrap.Container.Resolve<IDummyScenarioSettings>();
+        scenario.Scenario = DummyScenario.WorldInitializationTimeout;
 
         LogAssert.Expect(LogType.Error,
             "[GameBootstrap] Startup failed in scene 'MainGame' during transition phase 'Failed'.");
@@ -261,7 +257,7 @@ public sealed class SceneTransitionPlayModeTests
         Assert.That(connection.Connection, Is.Null,
             "A failed MainGame candidate must not leave a connected transport with a lost WorldInit packet.");
         Assert.That(_bootstrap.CurrentSceneName, Is.EqualTo("MainMenu"));
-        scenario.Scenario = OfflineScenario.HappyPath;
+        scenario.Scenario = DummyScenario.HappyPath;
     }
 
     [UnityTest]
@@ -322,8 +318,8 @@ public sealed class SceneTransitionPlayModeTests
             UniTask transition = _bootstrap.TransitionAsync("MissingSceneContractFixture").Preserve();
             yield return AwaitFailure(transition, PlayModeHarness.UITimeoutSeconds);
             Assert.That(failureCount, Is.EqualTo(1));
-            Assert.That(SceneManager.GetSceneByName("Gateway").isLoaded, Is.True);
-            Assert.That(HasNamedUIElement(SceneManager.GetSceneByName("Gateway"), "GatewayRoot"), Is.True);
+            Assert.That(SceneManager.GetSceneByName("MainMenu").isLoaded, Is.True);
+            Assert.That(HasNamedUIElement(SceneManager.GetSceneByName("MainMenu"), "MainMenuContainer"), Is.True);
         }
         finally
         {

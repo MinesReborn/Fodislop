@@ -1,43 +1,156 @@
-/* ═══════════════════════════════════════════════════════════
-   Button — общие стили кнопок
-   ═══════════════════════════════════════════════════════════ */
+/* Клавиша — система «Руки» макета (visual/kern-ui: hud.css .btn, micro.css .btn, systems.css .btn, screens.css .btn--*).
+   Плоская: поле и волосяная рамка, наведение — рамка светлее, нажато — поле темнее (переход тона — motion.css в Motion.uss).
+   Риска-засечка 6 px в правом нижнем углу — метка нажимаемого; у главной, призрачной и недоступной её нет.
+   Засечка, штриховка и форма со срезом — KernVector по свойствам --tick-color, --hatch-color, --shape-color. */
 
 .btn {
-    background-color: var(--surface-raised);
-    border-color: var(--border-subtle);
-    border-width: 1px;
-    border-radius: var(--radius-sm);
-    padding: var(--space-4) var(--space-8);
+    height: var(--row);
     min-width: 96px;
-    font-size: var(--size-base);
-    color: var(--text-primary);
+    margin: 0;
+    padding: 0 var(--sp-8);
+    border-width: 1px;
+    border-radius: 0;
+    border-color: var(--seam-strong);
+    background-color: var(--plate);
+    background-image: none;
+    --tick-color: var(--seam-strong);
+    color: var(--bone);
+    -unity-font-definition: var(--face-text);
+    font-size: var(--t-body);
+    -unity-font-style: bold; /* fw-semi макета: начертания 600 у шрифта нет, ближайшее — жирное */
+    letter-spacing: 1px; /* 0.01em: интервал UI Toolkit — в сотых кегля */
     -unity-text-align: middle-center;
+    white-space: nowrap;
 }
 
 .btn:hover {
-    background-color: var(--accent-cyan-wash);
+    border-color: var(--ash);
+    background-color: var(--plate-hover);
 }
 
 .btn:active {
-    background-color: var(--accent-gold);
+    background-color: var(--well);
 }
 
-.btn-accent {
-    background-color: var(--accent-gold);
-    color: var(--shadow-solid);
+/* Недоступное: штриховка пустого, приглушено, без засечки */
+.btn:disabled {
+    border-color: var(--seam);
+    background-color: rgba(0, 0, 0, 0);
+    --tick-color: rgba(0, 0, 0, 0);
+    --hatch-color: rgba(216, 213, 238, 0.1);
+    color: var(--dim);
+    opacity: 0.45;
 }
 
-.btn-accent:hover {
-    background-color: var(--accent-gold-hover);
+/* Главное действие — одно на окно: сигнал, срез угла 8 px; цвет состояния — тинтом формы */
+.btn--primary {
+    padding: 0 36px 0 var(--sp-8);
+    border-width: 0;
+    background-color: rgba(0, 0, 0, 0);
+    --tick-color: rgba(0, 0, 0, 0);
+    --shape-color: var(--signal);
+    --shape-notch: 8;
+    color: var(--on-signal);
+    -unity-font-style: bold;
 }
 
-.btn-danger {
-    background-color: var(--state-danger);
-    color: var(--light-solid);
+.btn--primary:hover {
+    background-color: rgba(0, 0, 0, 0);
+    --shape-color: var(--signal-hover);
 }
 
-.btn-small {
-    min-width: 0;
-    padding: var(--space-2) var(--space-5);
-    font-size: var(--size-sm);
+/* Нажато: сигнал, смешанный с чёрным 82/18 (color-mix в systems.css) */
+.btn--primary:active {
+    background-color: rgba(0, 0, 0, 0);
+    --shape-color: rgb(209, 74, 25);
+}
+
+.btn--big {
+    height: 52px;
+    font-size: var(--t-strong);
+    letter-spacing: 1px; /* 0.01em: интервал UI Toolkit — в сотых кегля */
+}
+
+.btn--hero {
+    height: 60px;
+    padding: 0 var(--sp-14);
+    font-size: var(--t-11);
+}
+
+/* Призрачная: без рамки и поля до наведения */
+.btn--ghost {
+    border-color: rgba(0, 0, 0, 0);
+    background-color: rgba(0, 0, 0, 0);
+    --tick-color: rgba(0, 0, 0, 0);
+    color: var(--ash);
+}
+
+.btn--ghost:hover {
+    border-color: var(--seam);
+    background-color: var(--plate);
+    color: var(--bone);
+}
+
+/* Вход через VK: значок и подпись по центру */
+.btn--vk {
+    flex-direction: row;
+    align-items: center;
+    justify-content: center;
+}
+
+.btn--vk > .btn__icon {
+    width: 20px;
+    height: 20px;
+    margin-right: var(--sp-5);
+    opacity: 0.9;
+}
+
+/* Шевроны главного действия — значок i-arrows у правого края (systems.css .btn-arrows: right 10px, 20×20, translate 0 -54%) */
+.btn > .btn__arrows {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    width: 20px;
+    height: 20px;
+    margin: -10.8px 0 0 0;
+    /* on-signal с прозрачностью .7 поверх сигнала, смешанный в гамме, как в браузере: opacity UI Toolkit
+       смешивает в линейном пространстве, и значок выходил светлее макета */
+    -unity-background-image-tint-color: rgb(92, 31, 11);
+}
+
+.btn--primary:hover > .btn__arrows {
+    -unity-background-image-tint-color: rgb(92, 41, 22);
+}
+
+.btn--primary:active > .btn__arrows {
+    -unity-background-image-tint-color: rgb(78, 26, 9);
+}
+
+/* Недоступная главная — без шевронов (systems.css :disabled > .btn-arrows) */
+.btn:disabled > .btn__arrows {
+    display: none;
+}
+
+/* Ссылка-действие внутри формы: моно капсом, сигнал (micro.css .link) */
+.link {
+    margin: 0;
+    padding: 0;
+    border-width: 0;
+    background-color: rgba(0, 0, 0, 0);
+    background-image: none;
+    padding-bottom: 2px;
+    border-bottom-width: 1px;
+    border-color: var(--signal);
+    color: var(--signal);
+    -unity-font-definition: var(--face-mono);
+    font-size: var(--t-5);
+    letter-spacing: 8px; /* 0.08em: интервал UI Toolkit — в сотых кегля */
+}
+
+.link:hover {
+    border-color: var(--signal-hover);
+}
+
+.link:hover {
+    color: var(--signal-hover);
 }

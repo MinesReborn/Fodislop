@@ -1,8 +1,11 @@
 #nullable enable
 
 using System;
+using Kern.Core;
+using Kern.Core.Lifecycle;
 using Kern.World.Streaming;
 using UnityEngine;
+using UnityEngine.Rendering;
 
 namespace Kern.World.Terrain;
 
@@ -26,7 +29,14 @@ public sealed class TerrainPresentationWindow : IDisposable
     private Vector4 _viewSize;
     private static readonly int s_volumeViewSizeId = Shader.PropertyToID("_TerrainVolumeViewSize");
 
+    private GameObject? _blockObject;
+    private MeshFilter? _blockFilter;
+    private MeshRenderer? _blockRenderer;
+    private Material? _blockMaterial;
+
     public Mesh? Mesh => _mesh.Mesh;
+
+    public Mesh? BlockMesh => _mesh.BlockMesh;
 
     public Vector4 ViewOffset => _viewOffset;
 
@@ -41,6 +51,8 @@ public sealed class TerrainPresentationWindow : IDisposable
         int meshHeight,
         float cellSize,
         MeshFilter? meshFilter,
+        MeshRenderer? meshRenderer,
+        ISceneObjectFactory sceneObjects,
         TerrainVolumeTopology topology)
     {
         // Backing grid is sized for the maximum supported zoom, while the
@@ -78,7 +90,78 @@ public sealed class TerrainPresentationWindow : IDisposable
             meshFilter.sharedMesh = _mesh.Mesh;
             Shader.SetGlobalVector(TerrainCellBuffers.ViewOffsetId, _viewOffset);
         }
+
+        EnsureBlockRenderer(meshFilter, meshRenderer, sceneObjects);
     }
 
-    public void Dispose() => _mesh.Dispose();
+    // Стенки и передний план блоков живут на своём рендерере над сущностями
+    // мира (роботами и хвостами). Объект создаётся тем же адресным мешем и той
+    // же мировой матрицей, что главный террейн, поэтому оба слоя совпадают
+    // пиксель в пиксель.
+    private void EnsureBlockRenderer(
+        MeshFilter? meshFilter,
+        MeshRenderer? meshRenderer,
+        ISceneObjectFactory sceneObjects)
+    {
+        if (meshFilter == null || meshRenderer == null || sceneObjects == null)
+        {
+            return;
+        }
+
+        if (_blockObject == null)
+        {
+            _blockObject = sceneObjects.Create("TerrainBlockOverlay");
+            _blockObject.transform.SetParent(meshFilter.transform, worldPositionStays: false);
+            _blockObject.transform.localPosition = Vector3.zero;
+            _blockObject.transform.localRotation = Quaternion.identity;
+            _blockObject.transform.localScale = Vector3.one;
+            _blockFilter = _blockObject.AddComponent<MeshFilter>();
+            _blockRenderer = _blockObject.AddComponent<MeshRenderer>();
+            _blockRenderer.shadowCastingMode = ShadowCastingMode.Off;
+            _blockRenderer.receiveShadows = false;
+            _blockRenderer.lightProbeUsage = LightProbeUsage.Off;
+            _blockRenderer.reflectionProbeUsage = ReflectionProbeUsage.Off;
+        }
+
+        _blockFilter!.sharedMesh = _mesh.BlockMesh;
+        _blockRenderer!.sortingLayerName = meshRenderer.sortingLayerName;
+        _blockRenderer.sortingOrder = WorldRenderLayers.TerrainForegroundSortingOrder;
+        _blockRenderer.enabled = meshRenderer.enabled;
+
+        Material? material = meshRenderer.sharedMaterial;
+        if (material != null && material != _blockMaterial)
+        {
+            _blockMaterial = material;
+            _blockRenderer.sharedMaterials = new[] { material, material };
+        }
+    }
+
+    public void SetBlockVisible(bool visible)
+    {
+        if (_blockRenderer != null)
+        {
+            _blockRenderer.enabled = visible;
+        }
+    }
+
+    public void Dispose()
+    {
+        _mesh.Dispose();
+        if (_blockObject != null)
+        {
+            if (Application.isPlaying)
+            {
+                UnityEngine.Object.Destroy(_blockObject);
+            }
+            else
+            {
+                UnityEngine.Object.DestroyImmediate(_blockObject);
+            }
+
+            _blockObject = null;
+            _blockFilter = null;
+            _blockRenderer = null;
+            _blockMaterial = null;
+        }
+    }
 }

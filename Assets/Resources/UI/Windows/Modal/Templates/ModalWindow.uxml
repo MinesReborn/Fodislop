@@ -1,10 +1,14 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements">
-    <ui:VisualElement name="ModalOverlay" class="modal-overlay ui-overlay ui-overlay--modal sci-fi-window-overlay is-hidden" picking-mode="Ignore">
-        <ui:VisualElement name="ModalPanel" class="popup-panel ui-panel ui-panel--modal sci-fi-window modal-panel">
-            <ui:VisualElement name="ModalIcon" class="modal-icon is-hidden" />
-            <ui:Label name="ModalTitle" class="popup-title sci-fi-text-title" />
-            <ui:Label name="ModalDesc" class="modal-desc sci-fi-text-body" />
-            <ui:Button name="ModalOkButton" class="popup-btn sci-fi-btn-gold" />
+    <!-- Сообщение сервера (ModalWindowPacket) — макет visual/kern-ui (#srvModal, css/events.css .srv-modal):
+         картинка, заголовок, текст и подпись кнопки приходят из пакета. -->
+    <ui:VisualElement name="ModalOverlay" class="dialog-layer is-hidden" picking-mode="Ignore">
+        <ui:VisualElement name="ModalPanel" class="panel dialog srv-modal">
+            <ui:VisualElement name="ModalIcon" class="srv-modal-icon is-hidden" />
+            <ui:Label name="ModalTitle" class="dialog__title" />
+            <ui:Label name="ModalDesc" class="dialog__text" />
+            <ui:VisualElement class="dialog-actions">
+                <ui:Button name="ModalOkButton" class="btn btn--primary" />
+            </ui:VisualElement>
         </ui:VisualElement>
     </ui:VisualElement>
 </ui:UXML>

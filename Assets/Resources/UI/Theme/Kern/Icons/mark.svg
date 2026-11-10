@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" stroke-linejoin="miter" stroke-linecap="square">
+  <!-- Знак Kern: прежний логотип игры (шестигранник с ядром) в коде дизайна — прямые волосяные линии, засечки у вершин, ядро — сигнал -->
+  <path d="M32 3.5 56.7 17.75v28.5L32 60.5 7.3 46.25v-28.5z" stroke="#d8d5ee" stroke-width="3"/>
+  <path d="M32 13 48.45 22.5v19L32 51 15.55 41.5v-19z" fill="#111018" stroke="#d8d5ee" stroke-width="1.25" stroke-opacity=".7"/>
+  <path d="M32 22 42 32 32 42 22 32z" fill="#ff5a1f"/>
+  <path d="M32 9v-2M52 21l1.7-1M52 43l1.7 1M32 55v2M12 43l-1.7 1M12 21l-1.7-1" stroke="#d8d5ee" stroke-width="1.25" stroke-opacity=".7"/>
+</svg>

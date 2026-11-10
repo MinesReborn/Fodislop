@@ -234,7 +234,7 @@ public static class RuntimeTextureFactory
         if (!EncodedImageHeader.TryReadSize(data, out int encodedWidth, out int encodedHeight))
         {
             throw new InvalidOperationException(
-                $"Encoded image '{name}' is not PNG, JPEG or EXR, or its header is damaged.");
+                $"Encoded image '{name}' is not PNG, or its header is damaged.");
         }
 
         int maximumSide = Math.Min(

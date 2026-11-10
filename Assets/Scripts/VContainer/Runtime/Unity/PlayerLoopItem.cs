@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Threading;
+using Unity.Profiling;
 #if VCONTAINER_UNITASK_INTEGRATION
 using Cysharp.Threading.Tasks;
 #endif
@@ -149,6 +150,10 @@ namespace VContainer.Unity
 
     sealed class TickableLoopItem : IPlayerLoopItem, IDisposable
     {
+        // Тики идут отдельной системой цикла и не попадают ни в Update, ни в
+        // LateUpdate. Имя нужно, чтобы их цена не выглядела безымянным кадром.
+        static readonly ProfilerMarker s_tickMarker = new("Kern.VContainer.Tickables");
+
         readonly IReadOnlyList<ITickable> entries;
         readonly EntryPointExceptionHandler exceptionHandler;
         bool disposed;
@@ -163,6 +168,7 @@ namespace VContainer.Unity
 
         public bool MoveNext()
         {
+            using var marker = s_tickMarker.Auto();
             if (disposed) return false;
             for (var i = 0; i < entries.Count; i++)
             {

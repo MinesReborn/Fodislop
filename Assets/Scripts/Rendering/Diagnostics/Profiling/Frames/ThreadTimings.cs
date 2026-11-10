@@ -22,6 +22,8 @@ public sealed class RollingSeries
 
     public double Peak { get; private set; }
 
+    public int Count => _count;
+
     public void Push(double value)
     {
         _values[_next] = value;
@@ -104,10 +106,10 @@ public sealed class ThreadTimings
             _hasTimestamp = true;
             _gpuRecordedForLastFrame = false;
             SampledFrames++;
-            Frame.Push(timing.cpuFrameTime);
-            MainThread.Push(timing.cpuMainThreadFrameTime);
-            PresentWait.Push(timing.cpuMainThreadPresentWaitTime);
-            RenderThread.Push(timing.cpuRenderThreadFrameTime);
+            PushIfValid(Frame, timing.cpuFrameTime);
+            PushIfValid(MainThread, timing.cpuMainThreadFrameTime);
+            PushIfValid(PresentWait, timing.cpuMainThreadPresentWaitTime);
+            PushIfValid(RenderThread, timing.cpuRenderThreadFrameTime);
         }
 
         // Для уже учтённого CPU-кадра GPU-результат может появиться позже.
@@ -121,6 +123,14 @@ public sealed class ThreadTimings
 
     private static bool IsPositiveFinite(double value) =>
         value > 0d && !double.IsNaN(value) && !double.IsInfinity(value);
+
+    private static void PushIfValid(RollingSeries series, double value)
+    {
+        if (IsPositiveFinite(value))
+        {
+            series.Push(value);
+        }
+    }
 
     public void Clear()
     {

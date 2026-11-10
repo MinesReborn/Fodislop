@@ -2,76 +2,76 @@
 .prog-win { position: relative; width: min(1140px, calc(100% - 48px)); height: min(860px, calc(100% - 48px)); display: flex; flex-direction: column; overflow: hidden; }
 .prog-head { gap: var(--sp-6); }
 .prog-head h2 { flex: none; }
-.prog-pick { margin-right: auto; display: flex; align-items: center; gap: var(--sp-4); height: var(--ctl-s); padding: 0 var(--sp-6); border-radius: var(--r-s); border: 1px solid var(--seam-strong); background: var(--plate); color: var(--bone); font: inherit; font-weight: var(--fw-semi); cursor: pointer; min-width: 0; }
+.prog-pick { margin-right: auto; display: flex; align-items: center; gap: var(--sp-4); height: var(--ctl-s); padding: 0 var(--sp-6); border: 1px solid var(--seam-strong); background: var(--plate); color: var(--bone); font: inherit; font-weight: var(--fw-semi); cursor: pointer; min-width: 0; }
 .prog-pick:hover { background: var(--plate-hover); }
 .prog-pick span { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 240px; }
 .prog-pick svg { width: 16px; height: 16px; color: var(--ash); }
-.prog-state { flex: none; color: var(--ash); font-size: var(--t-small); white-space: nowrap; }
+.prog-state { flex: none; color: var(--ash); font-size: var(--t-small); white-space: nowrap; font: var(--fw-semi) var(--t-1)/1 var(--font-mono); letter-spacing: .1em; text-transform: uppercase; }
 .prog-state.is-run { color: var(--ok); }
-.prog-state.is-paused { color: var(--signal); }
 
-.prog-bar { flex: none; display: flex; flex-wrap: wrap; align-items: center; gap: var(--sp-3) var(--sp-7); padding: var(--sp-4) var(--sp-6); border-bottom: 1px solid var(--seam); }
+
+.prog-bar { flex: none; display: flex; flex-wrap: wrap; align-items: center; padding: var(--sp-4) var(--sp-6); border-bottom: 1px solid var(--seam); gap: var(--sp-3) var(--sp-5); }
 .prog-group { display: flex; align-items: center; gap: var(--sp-1); }
-.prog-group + .prog-group { padding-left: var(--sp-7); border-left: 1px solid var(--seam); }
+.prog-group + .prog-group { padding-left: var(--sp-7); border-left: 1px solid var(--seam); border-left-style: dashed; }
 .prog-group--run { gap: var(--sp-2); margin-right: var(--sp-3); }
 .prog-group .icon-btn { width: var(--ctl-s); height: var(--ctl-s); }
 .prog-group .icon-btn svg { width: 18px; height: 18px; }
 .prog-group .icon-btn:disabled { opacity: .35; cursor: default; background: none; }
-.prog-group .icon-btn[aria-pressed="true"] { color: var(--signal); background: var(--signal-soft); }
+
 .prog-group .icon-btn[aria-pressed="true"]::after { content: none; }
 .prog-page { min-width: 72px; text-align: center; color: var(--bone); font-size: var(--t-small); font-variant-numeric: tabular-nums; }
-.prog-go { display: flex; align-items: center; gap: var(--sp-4); height: var(--ctl-s); margin-left: var(--sp-3); }
+.prog-go { display: flex; align-items: center; gap: var(--sp-4); height: var(--ctl-s); margin-left: var(--sp-3); justify-content: center; }
 .prog-go svg { width: 16px; height: 16px; fill: currentColor; stroke: none; }
-.prog-go.is-stop { background: var(--danger); border-color: var(--danger); color: var(--white); }
+
 .prog-error { flex: none; padding: var(--sp-3) var(--sp-8); color: var(--danger); font-size: var(--t-small); border-bottom: 1px solid var(--seam); }
 
 .prog-body { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 300px; }
-.prog-grid-wrap { overflow: auto; display: grid; place-items: center; padding: var(--sp-6); background: var(--well); }
-.prog-grid { --cell: 48px; display: grid; grid-template-columns: repeat(16, var(--cell)); grid-auto-rows: var(--cell); gap: 1px; padding: 1px; background: var(--seam); border-radius: var(--r-xs); }
-.prog-win.is-run .prog-grid { background: var(--ok); }
-.prog-cell { position: relative; display: grid; place-items: center; background: var(--well); border: 0; padding: 0; cursor: pointer; color: var(--bone); font: inherit; }
-.prog-cell:hover { background: var(--plate); }
+.prog-grid-wrap { overflow: auto; display: grid; place-items: center; padding: var(--sp-6); background: var(--dots), var(--well); }
+.prog-grid { --cell: 48px; display: grid; grid-template-columns: repeat(16, var(--cell)); grid-auto-rows: var(--cell); gap: 1px; padding: 1px; background: var(--seam); border-radius: 0; }
+
+.prog-cell { position: relative; display: grid; place-items: center; border: 0; padding: 0; cursor: pointer; color: var(--bone); font: inherit; background: var(--well); box-shadow: var(--press); }
+
 .prog-cell img { width: 26px; height: 26px; image-rendering: pixelated; pointer-events: none; }
-.prog-cell.is-sel { background: var(--signal-soft); box-shadow: inset 0 0 0 2px var(--signal); }
+
 .prog-cell.is-start::before { content: ""; position: absolute; left: 2px; top: 2px; width: 6px; height: 6px; border-radius: var(--r-round); background: var(--ok); }
-.prog-cell.is-here { box-shadow: inset 0 0 0 2px var(--ok); background: var(--ok-soft); }
+
 .prog-cell.is-break::after { content: ""; position: absolute; right: 2px; top: 2px; width: 7px; height: 7px; border-radius: var(--r-round); background: var(--danger); }
 /* Значение команды (метка, имя переменной, число) — строкой внизу клетки */
-.prog-cell small { position: absolute; left: 1px; right: 1px; bottom: 0; font-size: var(--t-1); line-height: 11px; color: var(--signal); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: clip; pointer-events: none; }
+.prog-cell small { position: absolute; left: 1px; right: 1px; bottom: 0; font-size: var(--t-1); line-height: 11px; text-align: center; white-space: nowrap; overflow: hidden; text-overflow: clip; pointer-events: none; color: var(--mist); }
 .prog-cell small + img, .prog-cell:has(small) img { translate: 0 -4px; }
 
 .prog-side { min-height: 0; border-left: 1px solid var(--seam); display: flex; flex-direction: column; }
 .prog-tabs { margin: var(--sp-6) var(--sp-6) 0; width: auto; }
-.prog-cats { display: flex; flex-wrap: wrap; gap: var(--sp-2); padding: var(--sp-5) var(--sp-6); border-bottom: 1px solid var(--seam); }
-.prog-cats button { display: flex; align-items: center; gap: var(--sp-3); height: var(--ctl-xs); padding: 0 var(--sp-5); border-radius: var(--r-pill); border: 1px solid var(--seam-strong); background: none; color: var(--ash); font: inherit; font-size: var(--t-small); cursor: pointer; }
-.prog-cats button i { width: 8px; height: 8px; border-radius: var(--r-round); background: var(--c); }
+.prog-cats { display: flex; flex-wrap: wrap; padding: var(--sp-5) var(--sp-6); border-bottom: 1px solid var(--seam); gap: var(--sp-2); }
+.prog-cats button { display: flex; align-items: center; gap: var(--sp-3); height: var(--ctl-xs); padding: 0 var(--sp-5); border: 1px solid var(--seam-strong); background: none; color: var(--ash); font-size: var(--t-small); cursor: pointer; font: var(--fw-semi) var(--t-1)/1 var(--font-mono); letter-spacing: .08em; text-transform: uppercase; }
+.prog-cats button i { width: 8px; height: 8px; background: var(--c); }
 .prog-cats button[aria-pressed="true"] { color: var(--bone); border-color: var(--c); background: color-mix(in srgb, var(--c) 12%, transparent); }
 .prog-ops { flex: 1; min-height: 0; overflow-y: auto; padding: var(--sp-5) var(--sp-6); display: grid; grid-template-columns: repeat(auto-fill, minmax(44px, 1fr)); align-content: start; gap: var(--sp-2); }
-.prog-op { height: var(--hit); display: grid; place-items: center; border-radius: var(--r-s); border: 1px solid var(--seam); background: var(--plate); cursor: pointer; padding: 0; }
+.prog-op { height: var(--hit); display: grid; place-items: center; border: 1px solid var(--seam); cursor: pointer; padding: 0; background: var(--plate); }
 .prog-op:hover, .prog-op:focus-visible { border-color: var(--c); }
 .prog-op img { width: 26px; height: 26px; image-rendering: pixelated; }
 .prog-mem { flex: 1; min-height: 0; overflow-y: auto; padding: var(--sp-6); }
 .prog-mem table { width: 100%; border-collapse: collapse; font-size: var(--t-small); }
-.prog-mem th { color: var(--smoke); font-weight: var(--fw-semi); text-align: left; padding: 0 0 var(--sp-3); }
-.prog-mem td { padding: 5px 0; border-top: 1px solid var(--seam); font-variant-numeric: tabular-nums; }
+.prog-mem th { font-weight: var(--fw-semi); text-align: left; padding: 0 0 var(--sp-3); font: var(--fw-semi) 7px/1 var(--font-mono); letter-spacing: .14em; text-transform: uppercase; color: var(--dim); border-bottom: 1px solid var(--seam); padding-bottom: var(--sp-3); }
+.prog-mem td { padding: var(--sp-3) 0; font-variant-numeric: tabular-nums; border-top: 1px dashed var(--seam); font-family: var(--font-mono); }
 .prog-mem td:last-child, .prog-mem th:last-child { text-align: right; }
-.prog-mem .is-changed td:last-child { color: var(--signal); }
+
 .prog-mem-note { color: var(--ash); font-size: var(--t-small); line-height: 1.45; }
 
 /* Подвал: что под курсором — название, код и клавиша; без курсора — что выбрано */
 .prog-foot { flex: none; min-height: 34px; display: flex; align-items: center; gap: var(--sp-7); padding: 0 var(--sp-8); border-top: 1px solid var(--seam); color: var(--ash); font-size: var(--t-small); white-space: nowrap; overflow: hidden; }
 .prog-foot-info { flex: 1; min-width: 0; display: flex; align-items: center; gap: var(--sp-7); overflow: hidden; }
 .prog-foot b { color: var(--bone); font-weight: var(--fw-semi); }
-.prog-foot kbd { padding: 1px var(--sp-3); border-radius: var(--r-s); border: 1px solid var(--seam-strong); color: var(--bone); font: inherit; }
+.prog-foot kbd { padding: 1px var(--sp-3); border: 1px solid var(--seam-strong); color: var(--bone); font: inherit; }
 
 /* Список программ — поверх окна, у кнопки выбора */
-.prog-list { position: absolute; z-index: 3; left: 12px; top: 56px; width: 340px; max-height: calc(100% - 68px); display: flex; flex-direction: column; background: var(--graphite-solid); border: 1px solid var(--seam-strong); border-radius: var(--radius); box-shadow: var(--shadow-pop); }
+.prog-list { position: absolute; z-index: 3; left: 12px; top: 56px; width: 340px; max-height: calc(100% - 68px); display: flex; flex-direction: column; border: 1px solid var(--seam-strong); box-shadow: var(--shadow-pop); background: var(--graphite-solid); }
 .prog-list[hidden] { display: none; }
 .prog-list header { display: flex; align-items: center; justify-content: space-between; padding: var(--sp-3) var(--sp-3) var(--sp-3) var(--sp-7); border-bottom: 1px solid var(--seam); }
-.prog-list h3 { font-size: var(--t-body); }
+.prog-list h3 { font-size: var(--t-body); font-weight: var(--fw-heavy); }   /* жирность явно — раньше её давал браузер */
 .prog-list ul { list-style: none; overflow-y: auto; padding: var(--sp-3); display: flex; flex-direction: column; gap: var(--sp-1); }
-.prog-list li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: var(--sp-1); border-radius: var(--r-s); }
-.prog-list li.is-on { background: var(--signal-soft); }
+.prog-list li { display: grid; grid-template-columns: minmax(0, 1fr) auto auto; align-items: center; gap: var(--sp-1); }
+
 .prog-list li > button:first-child { display: flex; flex-direction: column; align-items: flex-start; gap: var(--sp-1); min-width: 0; padding: var(--sp-4) var(--sp-5); background: none; border: 0; color: var(--bone); font: inherit; text-align: left; cursor: pointer; }
 .prog-list li > button:first-child b { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: var(--fw-semi); }
 .prog-list li > button:first-child small { color: var(--ash); font-size: var(--t-3); }
@@ -82,7 +82,7 @@
 .prog-create .input { flex: 1; min-width: 0; height: var(--ctl-m); }
 
 /* ── Компактный экран: окно целиком, палитра уже, клетки крупнее под палец ── */
-.frame.compact .prog-win { width: 100%; height: 100%; border-radius: 0; }
+.frame.compact .prog-win { width: 100%; height: 100%; }
 .frame.compact .prog-head { height: var(--hit); padding-left: var(--sp-8); }
 .frame.compact .prog-body { grid-template-columns: minmax(0, 1fr) 236px; }
 .frame.compact .prog-grid-wrap { place-items: start; padding: var(--sp-3); }
@@ -98,5 +98,5 @@
 .frame.in-touch .prog-go { width: auto; }
 .frame.in-touch .prog-cats button { height: var(--ctl-m); }
 .frame.compact .prog-list { left: 8px; top: 48px; max-height: calc(100% - 56px); width: min(340px, calc(100% - 16px)); }
-.prog-cell-input { position: absolute; z-index: 1; left: -1px; bottom: -22px; width: 96px; height: 24px; padding: 0 var(--sp-3); border: 1px solid var(--signal); border-radius: var(--r-xs); background: var(--well); color: var(--bone); font: inherit; font-size: var(--t-4); }
+.prog-cell-input { position: absolute; z-index: 1; left: -1px; bottom: -22px; width: 96px; height: 24px; padding: 0 var(--sp-3); border: 1px solid var(--signal); background: var(--well); color: var(--bone); font: inherit; font-size: var(--t-4); }
 .prog-cell-input:focus { outline: none; }

@@ -1,0 +1,147 @@
+/* Серверные окна (OpenWindowPacket): рамка клиента и вид компонентов протокола, когда Style не задан.
+   Контейнеры раскладывают по правилам протокола, вид — язык панелей HUD: срез угла, моно-капс подписей, крупная цифра,
+   вдавленные поля. Пакет со Style исполняется буквально. */
+
+/* ── Рамка клиента: размер из пакета, кнопка закрытия поверх содержимого ── */
+.srv-pk { position: relative; max-width: calc(100% - 48px); max-height: calc(100% - 48px); display: flex; flex-direction: column; padding: 0; }
+.srv-pk-content { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 0 var(--sp-9) var(--sp-8); }
+.srv-pk-content > * { flex: 1; min-height: 0; }
+/* Окно без строки здания — отступ сверху, как под строкой */
+.srv-pk-content:not(:has(.pk--rail)) { padding-top: var(--sp-8); }
+/* Закрытие — в строке шапки, под строкой здания */
+.srv-pk-close { position: absolute; z-index: 3; top: 40px; right: 18px; width: 28px; height: 28px; border: 1px solid var(--seam-strong); color: var(--ash); }
+.srv-pk:not(:has(.pk--rail)) .srv-pk-close { top: 16px; }
+.srv-pk-close:hover { border-color: var(--ash); color: var(--bone); }
+/* Телефон: окно на весь экран внутри безопасной зоны (как поле слоя окон); размер — от слоя, а не процентом (у ячейки сетки слоя высота по содержимому) */
+.frame.compact .srv-pk { position: absolute; inset: calc(var(--st) + var(--sp-3)) calc(var(--sr) + var(--sp-3)) calc(var(--sb) + var(--sp-3)) calc(var(--sl) + var(--sp-3)); width: auto !important; height: auto !important; max-width: none; max-height: none; }
+
+/* ── DockPanel: края в порядке пакета, последний ребёнок заполняет остаток ── */
+.pk-dockbox { display: flex; flex-direction: column; min-width: 0; min-height: 0; gap: var(--sp-6); }
+.pk-dock--top { flex-direction: column; }
+.pk-dock--bottom { flex-direction: column-reverse; }
+.pk-dock--left { flex-direction: row; align-items: center; }
+.pk-dock--right { flex-direction: row-reverse; align-items: center; }
+.pk-dockbox > :not(.pk-fill) { flex: none; }
+.pk-fill { flex: 1; min-width: 0; min-height: 0; }
+
+/* ── Grid, ScrollViewer, Panel ── */
+.pk-grid { display: grid; align-items: center; align-content: start; column-gap: var(--sp-6); row-gap: var(--sp-4); }
+.pk-scroll { overflow-y: auto; min-height: 0; }
+.pk-panel { display: flex; flex-direction: column; gap: var(--sp-2); }
+
+/* ── Text, Image, Line ── */
+.pk-text { min-width: 0; font: var(--fw-normal) var(--t-5)/1.35 var(--font-text); color: var(--bone); overflow-wrap: anywhere; }
+.pk-text b { font-weight: var(--fw-bold); }
+.pk-img { flex: none; image-rendering: pixelated; object-fit: contain; }
+.pk-line { flex: none; border: 0; }
+.pk-line--h { height: 0; width: 100%; border-top: 1px dashed var(--seam); }
+.pk-line--v { width: 0; align-self: stretch; border-left: 1px dashed var(--seam); }
+
+/* Кликабельный Text без Style — кнопка клиента */
+.pk-btn { flex: none; height: 36px; padding: 0 var(--sp-8); border: 1px solid var(--seam-strong); background: var(--plate); color: var(--bone);
+  font: var(--fw-semi) var(--t-5)/1 var(--font-text); white-space: nowrap; cursor: pointer; }
+.pk-btn:hover { border-color: var(--ash); background: var(--plate-hover); }
+.pk-btn.is-primary { clip-path: var(--notch-btn-clip); background: var(--signal); border-color: var(--signal); color: var(--on-signal); font-weight: var(--fw-bold); }
+.pk-btn.is-primary:hover { background: var(--signal-hover); border-color: var(--signal-hover); }
+.pk-btn.is-danger { border-color: color-mix(in srgb, var(--danger) 50%, transparent); color: var(--danger); background: color-mix(in srgb, var(--danger) 8%, transparent); }
+/* Нечего выполнить — кнопка недоступна: без сигнала, приглушена */
+.pk-btn:disabled { cursor: default; background: transparent; border-color: var(--seam); color: var(--dim); clip-path: none; }
+
+/* ── Ввод: Selectable, Slider, TextBox, Dropdown ── */
+.pk-sel { flex: none; display: flex; align-items: center; gap: var(--sp-5); min-height: 28px; font: var(--t-5)/1.3 var(--font-text); color: var(--bone); cursor: pointer; }
+.pk-sel input { appearance: none; flex: none; width: 14px; height: 14px; margin: 0; border: 1px solid var(--seam-strong); background: var(--well); box-shadow: var(--press); display: grid; place-items: center; cursor: pointer; }
+.pk-sel input:checked { border-color: var(--bone); }
+.pk-sel input:checked::after { content: ""; width: 6px; height: 6px; background: var(--bone); }
+/* Ползунок .pk-slider — общий компонент «Руки», micro.css */
+.pk-box { flex: none; width: 96px; height: 36px; padding: 0 var(--sp-5); border: 1px solid var(--seam-strong); background: var(--well); color: var(--bone);
+  font: var(--fw-semi) var(--t-5)/1 var(--font-mono); text-align: right; box-shadow: var(--press); }
+.pk-box:focus { outline: 0; border-color: var(--signal); box-shadow: inset 2px 0 0 var(--signal); }
+.pk-drop { min-width: 0; height: 36px; padding: 0 var(--sp-5); border: 1px solid var(--seam-strong); background: var(--plate); color: var(--bone); font: var(--fw-semi) var(--t-5)/1 var(--font-text); }
+
+/* Сокращённое число (от 10 000 — K, M, B, T, Q, js/numbers.js): пунктир снизу — знак, что есть полное.
+   Полное — плашкой над числом, одним слоем на кадре (.pk-tip): внутри панели её резал бы контур со срезом */
+.pk-cut { text-decoration: underline dotted rgb(var(--rgb-bone) / .45); text-underline-offset: 3px; text-decoration-thickness: 1px; cursor: help; outline: 0; }
+.pk-tip { position: absolute; z-index: calc(var(--z-overlay) + 1);   /* над окнами и калибровкой, под вырезом телефона */
+   pointer-events: none; padding: var(--sp-3) var(--sp-4);
+  background: var(--well-solid); border: 1px solid var(--seam-strong); color: var(--bone); font: var(--fw-semi) var(--t-4)/1 var(--font-mono); letter-spacing: .02em; white-space: nowrap; }
+.pk-tip[hidden] { display: none; }
+
+/* ── Пополнение (донат): пакеты кредитов плитками 3×2, выбранный — светлой рамкой и нажатой клавишей цены ── */
+.pk--packs { grid-template-columns: repeat(3, 1fr) !important; gap: var(--sp-4); padding: var(--sp-2) 0; }
+.pk--pack { display: flex; flex-direction: column; align-items: center; gap: var(--sp-4); padding: var(--sp-7) var(--sp-5) var(--sp-5); border: 1px solid var(--seam); background: var(--plate); }
+.pk--pack:has(.pk-btn.is-on) { border-color: var(--bone); }
+.pk--pack .pk-img { image-rendering: pixelated; }
+.pk--pack .pk--big { display: flex; flex-direction: column; align-items: center; gap: var(--sp-3); }
+.pk--pack .pk--big b { margin: 0; }
+.pk--pack .pk--bonus { color: var(--ok); }
+.pk--pack .pk-btn { align-self: stretch; }
+
+/* ── Роли внутри окон зданий ── */
+/* Строка здания: «Здание ···· координаты» — во всю ширину окна над шапкой */
+.pk--rail { height: 22px; margin: 0 -18px; padding: 0 var(--sp-9); gap: var(--sp-4); border-bottom: 1px solid var(--seam); }
+.pk--rail .pk-text { font: var(--fw-semi) 7px/1 var(--font-mono); letter-spacing: .14em; text-transform: uppercase; color: var(--dim); white-space: nowrap; }
+.pk--rail .pk-line--h { border-top: 0; height: 1px; background: repeating-linear-gradient(90deg, var(--seam-strong) 0 1px, transparent 1px 3px); }
+/* Шапка: значок здания в круге, название крупно; место справа — под закрытие клиента */
+.pk--head { gap: 0 var(--sp-7); padding: var(--sp-1) 46px var(--sp-1) 0; }
+.pk--head > .pk-img { box-sizing: content-box; width: 32px; height: 32px; padding: var(--sp-8); border-radius: 50%; border: 1px solid var(--seam-strong);
+  background: radial-gradient(circle, transparent 22px, rgb(var(--rgb-bone) / .18) 22.5px 23px, transparent 23.5px); }
+.pk--head .pk-dockbox { gap: var(--sp-3); }
+.pk--title { font: var(--fw-bold) var(--t-14)/.9 var(--font-display); letter-spacing: .04em; text-transform: uppercase; }
+.pk--meta { font: var(--fw-semi) 8.5px/1.25 var(--font-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--ash); }
+/* Вкладки — подпись с чертой снизу у выбранной */
+.pk--tabs { gap: 0; margin: 0 -18px; padding: 0 var(--sp-9); border-bottom: 1px solid var(--seam); }
+.pk--tabs .pk-btn { position: relative; height: 34px; padding: 0 var(--sp-7); border: 0; background: none; color: var(--ash); clip-path: none; }
+.pk--tabs .pk-btn:hover { color: var(--bone); }
+.pk--tabs .pk-btn.is-on { color: var(--bone); }
+.pk--tabs .pk-btn.is-on::after { content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 2px; background: var(--bone); }
+.pk--note { font-size: var(--t-4); color: var(--ash); }
+.pk--label { font-size: var(--t-5); color: var(--ash); }
+.pk--num { font: var(--fw-medium, 500) var(--t-5)/1 var(--font-mono); text-align: right; color: var(--mist); white-space: nowrap; }
+.pk--strong { color: var(--bone); font-weight: var(--fw-bold); }
+/* Таблица: шапка колонок моно капсом, строки по пунктиру; числа не переносятся */
+.pk--table { row-gap: 0; column-gap: 0; }
+/* Таблица — во всю ширину окна, вплотную к вкладкам */
+.pk-scroll:has(> .pk--table) { margin: -12px -18px 0; }
+.pk--table > * { align-self: stretch; display: flex; align-items: center; min-height: 46px; padding: 0 var(--sp-4); border-bottom: 1px dashed var(--seam); }
+.pk--table > :is([style*="grid-column: 1;"], [style*="grid-column: 1 /"]) { padding-left: var(--sp-9); }
+.pk--table > .pk--num { justify-content: flex-end; }
+.pk--table > .pk-img { box-sizing: border-box; width: 100%; height: 46px; padding-block: var(--sp-7); object-fit: contain; object-position: right center; }
+.pk--table > .pk--cap { min-height: 26px; font: var(--fw-semi) 7px/1 var(--font-mono); letter-spacing: .14em; text-transform: uppercase; color: var(--dim); border-bottom: 1px solid var(--seam); white-space: nowrap; }
+.pk--table > .pk--cap.pk--num { justify-content: flex-end; }
+.pk--table > .pk--last { padding-right: var(--sp-9); }
+.pk--table > .pk--off { color: var(--dim); }
+.pk--table > .pk-img.pk--off { opacity: .35; }
+.pk--table > .pk-slider { height: 46px; padding: 0; background-position: left calc(var(--thumb) / 2) top calc(50% + 7px); }
+/* Подвал: итог крупно с подписью, рядом — пояснения, справа — кнопки */
+.pk--foot { gap: var(--sp-6); margin: 0 -18px; padding: var(--sp-7) var(--sp-9) 0; border-top: 1px solid var(--seam); }
+.pk--foot .pk--label { flex: none; }
+.pk--total { display: flex; flex-direction: column; gap: var(--sp-3); }
+.pk--total .pk--cap { font: var(--fw-semi) 7px/1 var(--font-mono); letter-spacing: .14em; text-transform: uppercase; color: var(--dim); }
+.pk--sum { font: var(--fw-bold) var(--t-14)/.8 var(--font-display); color: var(--bone); white-space: nowrap; }
+.pk--annot { align-self: stretch; justify-content: center; gap: var(--sp-2); padding-left: var(--sp-6); border-left: 1px solid var(--seam); }
+.pk--annot .pk-text { font: var(--fw-semi) 8.5px/1.25 var(--font-mono); letter-spacing: .1em; text-transform: uppercase; color: var(--ash); white-space: nowrap; }
+.pk--annot .pk-text + .pk-text { font-size: 7px; letter-spacing: .14em; color: var(--dim); }
+/* Пары «подпись ···· значение» */
+.pk--facts { column-gap: var(--sp-2); row-gap: var(--sp-5); padding: var(--sp-2) 0; }
+.pk--facts > .pk--num { text-align: left; }
+.pk--facts > .pk--label { display: flex; align-items: baseline; gap: var(--sp-3); }
+.pk--facts > .pk--label::after { content: ""; flex: 1; min-width: 12px; border-bottom: 1px dotted var(--seam-strong); translate: 0 -3px; }
+/* Показатели: подпись моно капсом, значение — крупная цифра, единица мелко */
+.pk--stats { grid-template-columns: repeat(3, 1fr) !important; row-gap: var(--sp-3); padding: var(--sp-2) 0; }
+.pk--stats > .pk--label { font: var(--fw-semi) 7px/1 var(--font-mono); letter-spacing: .14em; text-transform: uppercase; color: var(--dim); }
+.pk--big { font: var(--fw-semi) var(--t-2)/1 var(--font-mono); letter-spacing: .08em; color: var(--ash); white-space: nowrap; }
+.pk--big b { margin-right: var(--sp-2); font: var(--fw-bold) 26px/.8 var(--font-display); letter-spacing: 0; color: var(--bone); }
+.pk--row { gap: var(--sp-6); }
+.pk--row > .pk--label { min-width: 120px; }
+.pk--short { width: 72px; }
+/* Список кланов */
+.pk--list { display: flex; flex-direction: column; gap: var(--sp-3); }
+.pk--item { padding: var(--sp-5) var(--sp-6); border: 1px solid var(--seam); background: var(--plate); }
+.pk--item:hover { border-color: var(--seam-strong); }
+.pk--item-head { gap: var(--sp-5); }
+.pk--item-head .pk-img { image-rendering: pixelated; }
+.pk--link { height: auto; padding: 0; border: 0; background: none; text-align: left; font: var(--fw-bold) var(--t-7)/1.2 var(--font-display); letter-spacing: .02em; }
+.pk--link span { margin-left: var(--sp-3); font: var(--fw-semi) 8.5px/1 var(--font-mono); letter-spacing: .1em; color: var(--ash); }
+.pk--link:hover { background: none; color: var(--signal); }
+.pk--item .pk--note { padding-left: calc(24px + 10px); }
+.pk--text { color: var(--mist); }

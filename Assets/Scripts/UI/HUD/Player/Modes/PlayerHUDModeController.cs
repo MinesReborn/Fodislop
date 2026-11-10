@@ -17,7 +17,6 @@ internal sealed class PlayerHUDModeController : IDisposable
     private readonly INetworkService? _networkService;
 
     private Button? _autoDigButton;
-    private Label? _autoDigLabel;
 
     public PlayerHUDModeController(ILocalPlayerState localPlayer, ILocalizationService loc, INetworkService? networkService = null)
     {
@@ -31,9 +30,6 @@ internal sealed class PlayerHUDModeController : IDisposable
         _autoDigButton = root.Q<Button>("AutoDigButton") ??
             throw new InvalidOperationException("[PlayerHUD] AutoDigButton is missing from PlayerHUD.uxml.");
         _autoDigButton.clicked += ToggleAutoDig;
-
-        _autoDigLabel = root.Q<Label>("AutoDigLabel") ??
-            throw new InvalidOperationException("[PlayerHUD] AutoDigLabel is missing from PlayerHUD.uxml.");
 
         Tooltip.AttachTo(_autoDigButton, () => _loc.Get("hud.tooltip.autodig"), tooltip);
 
@@ -58,14 +54,8 @@ internal sealed class PlayerHUDModeController : IDisposable
         }
     }
 
-    public void UpdateAutoDigButton(bool enabled)
-    {
-        _autoDigButton?.EnableInClassList("enabled", enabled);
-        if (_autoDigLabel != null)
-        {
-            _autoDigLabel.text = enabled ? _loc.Get("hud.autodig.on") : _loc.Get("hud.autodig.off");
-        }
-    }
+    // Подпись постоянная («Автокопание»), состояние — бегунок переключателя (макет: .toggle[aria-pressed])
+    public void UpdateAutoDigButton(bool enabled) => _autoDigButton?.EnableInClassList("is-on", enabled);
 
     public void Dispose()
     {

@@ -1,11 +1,11 @@
 /* Геймпад: значки кнопок, подсказки и рамка фокуса. Режим — класс .gamepad на кадре, семейство пада — data-pad */
 
 /* ── Значок кнопки ── */
-.pg { display: inline-grid; place-items: center; flex: none; min-width: 22px; height: 22px; padding: 0 var(--sp-3); border-radius: var(--r-l);
+.pg { display: inline-grid; place-items: center; flex: none; min-width: 22px; height: 22px; padding: 0 var(--sp-3);
   background: var(--plate-hover); border: 1px solid var(--seam-strong); color: var(--bone); font: var(--fw-bold) var(--t-3)/1 var(--font); letter-spacing: 0; white-space: nowrap; }
-.pg:where([data-btn="a"], [data-btn="b"], [data-btn="x"], [data-btn="y"]) { width: 22px; padding: 0; border-radius: var(--r-round); font-size: var(--t-4); }
-.pg:where([data-btn="up"], [data-btn="down"], [data-btn="left"], [data-btn="right"]) { width: 22px; padding: 0; border-radius: var(--radius); font-size: var(--t-5); }
-.pg:where([data-btn="start"], [data-btn="select"]) { height: 18px; border-radius: var(--r-pill); font-size: var(--t-2); }
+.pg:where([data-btn="a"], [data-btn="b"], [data-btn="x"], [data-btn="y"]) { width: 22px; padding: 0; font-size: var(--t-4); }
+.pg:where([data-btn="up"], [data-btn="down"], [data-btn="left"], [data-btn="right"]) { width: 22px; padding: 0; font-size: var(--t-5); }
+.pg:where([data-btn="start"], [data-btn="select"]) { height: 18px; font-size: var(--t-2); }
 .frame[data-pad="xbox"] .pg[data-btn="a"] { color: var(--pad-xbox-a); }
 .frame[data-pad="xbox"] .pg[data-btn="b"] { color: var(--pad-xbox-b); }
 .frame[data-pad="xbox"] .pg[data-btn="x"] { color: var(--pad-xbox-x); }
@@ -21,7 +21,7 @@
 .toggle .pg { margin-left: auto; }
 
 /* ── Фокус: виден всегда, наведения у пада нет ── */
-.frame.in-pad :focus { outline: 2px solid var(--signal); outline-offset: 2px; }
+
 
 /* ── Пад на сенсорном устройстве: стик, «Копать» и дуга действий не нужны ── */
 .frame.compact.in-pad #pad, .frame.compact.in-pad .act-arc, .frame.compact.in-pad #fastMove { display: none; }
@@ -36,24 +36,24 @@
 .frame.compact.in-pad .pd-shoulders { gap: var(--sp-3); }
 .frame.compact.in-pad .pd-diamond { grid-template: ". y ." 58px "x . b" 58px ". a ." 58px / 62px 30px 62px; }
 .frame.compact.in-pad .pd { width: 46px; height: 46px; }
-.frame.compact.in-pad .pd-shoulders .pd { width: auto; height: var(--ctl-s); padding: 0 var(--sp-5) 0 36px; }
+.frame.compact.in-pad .pd-shoulders .pd { width: auto; height: var(--ctl-s); padding: 0 var(--sp-5) 0 var(--sp-18); }
 .frame.compact.in-pad .pad-cluster { justify-items: end; }
 .frame.compact.in-pad .pd-lt > small { display: none; }   /* на телефоне у лечения — значок вместо подписи, как на сенсорной кнопке */
-.pd-shoulders { display: flex; gap: 40px; }
+.pd-shoulders { display: flex; gap: var(--sp-20); }
 .pd-diamond { display: grid; grid-template: ". y ." 66px "x . b" 66px ". a ." 66px / 70px 40px 70px; place-items: start center; }
 .pd { position: relative; width: 52px; height: 52px; border-radius: var(--r-round); display: grid; place-items: center;
   background: var(--float); border: 1px solid var(--seam-strong); color: var(--bone); }
 .pd svg { width: 22px; height: 22px; }
 .pd img { width: 30px; height: 30px; image-rendering: pixelated; }
 .pd > .pg { position: absolute; right: -6px; bottom: -4px; }
-.pd > small { position: absolute; top: calc(100% + 1px); display: flex; align-items: center; gap: 3px; font-size: var(--t-3); color: var(--ash); white-space: nowrap; }
-.pd > small .pg { min-width: 16px; width: 16px; height: 16px; font-size: var(--t-2); border-radius: var(--r-s); }
+.pd > small { position: absolute; top: calc(100% + 1px); display: flex; align-items: center; gap: var(--sp-2); font-size: var(--t-3); color: var(--ash); white-space: nowrap; }
+.pd > small .pg { min-width: 16px; width: 16px; height: 16px; font-size: var(--t-2); }
 .pd-y { grid-area: y; } .pd-x { grid-area: x; } .pd-b { grid-area: b; } .pd-a { grid-area: a; }
 .pd-rt { background: var(--signal); border-color: var(--signal); }
 .pd-rt > small { color: var(--on-signal) !important; font-weight: var(--fw-bold); }
-.pd.is-on { border-color: var(--signal); color: var(--signal); }
+
 .pd.is-idle { opacity: .45; }
-.pd-shoulders .pd { width: auto; height: 34px; border-radius: var(--r-pill); padding: 0 var(--sp-6) 0 38px; grid-auto-flow: column; gap: var(--sp-3); }
+.pd-shoulders .pd { width: auto; height: 34px; padding: 0 var(--sp-6) 0 38px; grid-auto-flow: column; gap: var(--sp-3); }
 .pd-shoulders .pd > .pg { left: 4px; right: auto; top: 50%; bottom: auto; transform: translateY(-50%); }
 .pd-shoulders .pd > small { position: static; color: var(--bone); font-size: var(--t-4); }
 .pd-shoulders .pd svg { width: 18px; height: 18px; }
@@ -68,8 +68,8 @@
 .pause-sys .pg-badge { display: none; }   /* «Меню» ПК на пальце — плитка «Настройки», кнопки пада у неё нет */
 
 /* ── Строка подсказок в меню и окнах ── */
-.pad-bar { position: absolute; z-index: var(--z-top); left: 50%; bottom: calc(var(--sb, 0px) + 10px); transform: translateX(-50%); display: flex; gap: 18px;
-  padding: var(--sp-3) var(--sp-7); border-radius: var(--radius); background: var(--float); border: 1px solid var(--seam); color: var(--ash); font-size: var(--t-small); pointer-events: none; }
+.pad-bar { position: absolute; z-index: var(--z-top); left: 50%; bottom: calc(var(--sb, 0px) + 10px); transform: translateX(-50%); display: flex; gap: var(--sp-9);
+  padding: var(--sp-3) var(--sp-7); border: 1px solid var(--seam); color: var(--ash); font-size: var(--t-small); pointer-events: none; }
 .pad-bar[hidden] { display: none; }
 .pad-bar span { display: flex; align-items: center; gap: var(--sp-3); white-space: nowrap; }
 .pad-bar .pg + .pg { margin-left: -2px; }

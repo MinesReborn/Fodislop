@@ -5,8 +5,7 @@
         "UniTask",
         "MinesServer.Data",
         "MinesServer.Networking",
-        "MinesServer.Networking.Connection",
-        "MinesServer.Networking.Connection.Client"
+        "MinesServer.Networking.Connection"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

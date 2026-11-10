@@ -4,7 +4,7 @@
     Здесь — fallback для проектов без собственного тега. Держать в синхронизации с CsProjFix!
 
     Nullable и code-style enforcement — ТОЛЬКО для нашего кода:
-    vendored-проекты (UniTask, Effekseer, MinesServer.*) собираются как есть, без нашей политики.
+    vendored-проекты (UniTask, MinesServer.*) собираются как есть, без нашей политики.
   -->
     <PropertyGroup>
         <LangVersion>12.0</LangVersion>

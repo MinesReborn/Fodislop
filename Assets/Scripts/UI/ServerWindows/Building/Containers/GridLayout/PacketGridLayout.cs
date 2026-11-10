@@ -72,8 +72,6 @@ public static class PacketGridLayout
             float largest = 0f;
             foreach (GridItem item in items)
             {
-                // Элемент, растянутый на несколько дорожек, не задаёт размер
-                // ни одной из них: его ширина принадлежит всем сразу.
                 if (indexOf(item) == track && spanOf(item) == 1 && sizeOf(item) > largest)
                 {
                     largest = sizeOf(item);
@@ -82,6 +80,44 @@ public static class PacketGridLayout
 
             tracks[track] = largest;
             used += largest;
+        }
+
+        foreach (GridItem item in items)
+        {
+            int first = indexOf(item);
+            int span = spanOf(item);
+            if (span <= 1)
+            {
+                continue;
+            }
+
+            int last = Math.Min(first + span, tracks.Length);
+            float allocated = 0f;
+            int autoCount = 0;
+            for (int track = first; track < last; track++)
+            {
+                allocated += tracks[track];
+                if (definitions[track] == 0)
+                {
+                    autoCount++;
+                }
+            }
+
+            float deficit = sizeOf(item) - allocated;
+            if (autoCount != span || deficit <= 0f)
+            {
+                continue;
+            }
+
+            float extra = deficit / autoCount;
+            for (int track = first; track < last; track++)
+            {
+                if (definitions[track] == 0)
+                {
+                    tracks[track] += extra;
+                    used += extra;
+                }
+            }
         }
 
         if (totalFractions <= 0)

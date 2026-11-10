@@ -3,7 +3,6 @@
 using System;
 using System.Collections.Generic;
 using Kern.Core.Interfaces;
-using Kern.Core.Localization;
 using Kern.World;
 using MinesServer.Data;
 using UnityEngine;
@@ -29,6 +28,7 @@ namespace Kern.UI.Map
         private readonly MapViewportRenderer _viewportRenderer = new();
         private readonly WorldMapMipSource _mipSource = new();
         private WorldMapLayerBinding _layerBinding = null!;
+        private WorldMapRenderCoordinator _renderCoordinator = null!;
         private MapPlayerTracker _playerTracker = null!;
         private VisualElement? _documentRoot;
 
@@ -56,8 +56,6 @@ namespace Kern.UI.Map
         private bool _isInitialized;
 
         [Inject]
-        private ILocalizationService _localization = null!;
-        [Inject]
         private MapModeState _mapModeState = null!;
 
         public event Action? CloseRequested;
@@ -78,6 +76,16 @@ namespace Kern.UI.Map
                 _cellSampler,
                 _mipSource,
                 RequestRender);
+            _renderCoordinator = new WorldMapRenderCoordinator(
+                _panel,
+                _viewportRenderer,
+                _textureController,
+                _mipSource,
+                _layerBinding,
+                _bounds,
+                _cellSampler,
+                _pathOverlay,
+                ResetWorldViewState);
             _playerTracker = new MapPlayerTracker(_localPlayer);
             _playerTracker.OnPlayerSpawned += () =>
             {
@@ -100,7 +108,9 @@ namespace Kern.UI.Map
                 {
                     _viewCenterX = pos.x;
                     _viewCenterY = pos.y;
-                    ClampViewCenter();
+                    WorldMapViewportReset.Clamp(
+                        _bounds, ref _viewCenterX, ref _viewCenterY, _cellsPerPixel,
+                        _textureController.TexWidth, _textureController.TexHeight);
                     _renderRequested = true;
                 }
             };
@@ -180,6 +190,8 @@ namespace Kern.UI.Map
                 _injectedDocument,
                 OnCloseButtonClicked,
                 FollowPlayer,
+                () => ZoomStep(-ZoomButtonStep),
+                () => ZoomStep(ZoomButtonStep),
                 OnWorldMapWheel,
                 OnPanelGeometryChanged);
         }
@@ -198,7 +210,9 @@ namespace Kern.UI.Map
                     _textureController.TexWidth,
                     _textureController.TexHeight);
                 _cellsPerPixel = Mathf.Min(_cellsPerPixel, _maxCellsPerPixel);
-                ClampViewCenter();
+                WorldMapViewportReset.Clamp(
+                        _bounds, ref _viewCenterX, ref _viewCenterY, _cellsPerPixel,
+                        _textureController.TexWidth, _textureController.TexHeight);
                 _renderRequested = true;
             }
 
@@ -253,48 +267,29 @@ namespace Kern.UI.Map
             _followPlayer = true;
             _viewCenterX = player.Position.x;
             _viewCenterY = player.Position.y;
-            ClampViewCenter();
+            WorldMapViewportReset.Clamp(
+                        _bounds, ref _viewCenterX, ref _viewCenterY, _cellsPerPixel,
+                        _textureController.TexWidth, _textureController.TexHeight);
             _renderRequested = true;
         }
 
         private void RequestRender() => _renderRequested = true;
 
+        // Кнопки «±» карты (макет: .map-tools) — шаг колеса от центра карты
+        private const float ZoomButtonStep = 3f;
+
+        private void ZoomStep(float delta) =>
+            _inputDispatcher.HandleZoomStep(delta, _maxCellsPerPixel, ref _cellsPerPixel, ref _viewCenterX, ref _viewCenterY);
+
         private void OnWorldMapWheel(WheelEvent evt) =>
             _inputDispatcher.HandleWheel(evt, _maxCellsPerPixel, ref _cellsPerPixel, ref _viewCenterX, ref _viewCenterY);
 
-        // Click on the map (without dragging): pixel -> server cell relative to the
-        // view centre -> click route, same as LMB on the world and the minimap.
-        private void OnMapClick(ClickEvent evt)
-        {
-            Image? image = _panel.Image;
-            if (evt.button != 0 || _interaction.WasDragging || image == null)
-            {
-                return;
-            }
-
-            Rect rect = image.contentRect;
-            Vector2 local = new(evt.localPosition.x, evt.localPosition.y);
-            if (rect.width <= 0f || rect.height <= 0f || !rect.Contains(local))
-            {
-                return;
-            }
-
-            int texWidth = _textureController.TexWidth;
-            int texHeight = _textureController.TexHeight;
-            float pixelX = (local.x - rect.x) / rect.width * texWidth;
-            float pixelY = (local.y - rect.y) / rect.height * texHeight;
-            Vector2 server = MapProjection.MapPixelToServer(
-                pixelX,
-                pixelY,
-                _viewCenterX,
-                _viewCenterY,
-                _cellsPerPixel,
-                texWidth,
-                texHeight);
-            var target = new Vector2Int(Mathf.FloorToInt(server.x), Mathf.FloorToInt(server.y));
-
-            (_localPlayer.Current as IClickPathWalker)?.TryStartPath(target);
-        }
+        private void OnMapClick(ClickEvent evt) => _inputDispatcher.HandleClick(
+            evt,
+            _viewCenterX,
+            _viewCenterY,
+            _cellsPerPixel,
+            _localPlayer.Current as IClickPathWalker);
 
         private void OnMapPointerDown(PointerDownEvent evt) =>
             _inputDispatcher.HandlePointerDown(evt);
@@ -307,33 +302,19 @@ namespace Kern.UI.Map
 
         private void OnMapPointerCancel(PointerCancelEvent evt) => _inputDispatcher.Reset();
 
-        private void ResetWorldViewState(IWorldDataStorage storage)
-        {
-            _bounds.Bind(_manager, _manager.WorldWidth, _manager.WorldHeight);
-            _viewportRenderer.InitColorTable(_manager);
-            _viewportRenderer.InvalidateViewState();
-            _layerBinding.BindCellLayer(storage.CellLayer);
-            _layerBinding.BindMipScan(_manager.WorldWidth, _manager.WorldHeight, _viewportRenderer.CellColorTable);
-            _cellsPerPixel = 1f;
-            _maxCellsPerPixel = _bounds.ComputeMaxZoomOut(
-                _textureController.TexWidth,
-                _textureController.TexHeight);
-            _cellsPerPixel = Mathf.Min(_cellsPerPixel, _maxCellsPerPixel);
-
-            ILocalPlayer? player = _playerTracker.CurrentPlayer;
-            if (player is { HasServerPosition: true })
-            {
-                _viewCenterX = player.Position.x;
-                _viewCenterY = player.Position.y;
-            }
-            else
-            {
-                _viewCenterX = _bounds.Width * 0.5f;
-                _viewCenterY = _bounds.Height * 0.5f;
-            }
-
-            _renderRequested = true;
-        }
+        private void ResetWorldViewState(IWorldDataStorage storage) => WorldMapViewportReset.Apply(
+            _bounds,
+            _manager,
+            _viewportRenderer,
+            _layerBinding,
+            storage,
+            _textureController,
+            _playerTracker,
+            ref _cellsPerPixel,
+            ref _maxCellsPerPixel,
+            ref _viewCenterX,
+            ref _viewCenterY,
+            ref _renderRequested);
 
         protected void OnDestroy()
         {
@@ -389,28 +370,6 @@ namespace Kern.UI.Map
             _layerBinding.RebindCellEvents();
         }
 
-        private bool RequiresMipForCurrentView() =>
-            _manager != null &&
-            MapViewportChunkBudget.ShouldUseMip(
-                _manager.WorldWidth,
-                _manager.WorldHeight,
-                _textureController.TexWidth,
-                _textureController.TexHeight,
-                _cellsPerPixel,
-                _viewCenterX,
-                _viewCenterY);
-
-        private void UpdateMipStatus(bool requiresMip)
-        {
-            _panel.UpdatePreparationStatus(
-                _mipSource.IsReady,
-                requiresMip,
-                _mipSource.Failed,
-                _mipSource.Progress,
-                _mipSource.Total,
-                _localization);
-        }
-
         protected void Update()
         {
             if (!enabled || !_isInitialized)
@@ -438,7 +397,9 @@ namespace Kern.UI.Map
                     _textureController.TexWidth,
                     _textureController.TexHeight);
                 _cellsPerPixel = Mathf.Min(_cellsPerPixel, _maxCellsPerPixel);
-                ClampViewCenter();
+                WorldMapViewportReset.Clamp(
+                        _bounds, ref _viewCenterX, ref _viewCenterY, _cellsPerPixel,
+                        _textureController.TexWidth, _textureController.TexHeight);
                 _renderRequested = true;
             }
 
@@ -479,7 +440,6 @@ namespace Kern.UI.Map
             _followPlayer = true;
             _playerTracker?.ResetState();
             UpdatePlayerMarker();
-            UpdateMipStatus(RequiresMipForCurrentView());
         }
 
         public void Hide()
@@ -500,7 +460,9 @@ namespace Kern.UI.Map
 
             _viewCenterX = worldX;
             _viewCenterY = worldY;
-            ClampViewCenter();
+            WorldMapViewportReset.Clamp(
+                        _bounds, ref _viewCenterX, ref _viewCenterY, _cellsPerPixel,
+                        _textureController.TexWidth, _textureController.TexHeight);
         }
 
         private void InitTexture()
@@ -514,84 +476,15 @@ namespace Kern.UI.Map
 
         private void OnWalkerPathChanged(IReadOnlyList<Vector2Int>? _) => _renderRequested = true;
 
-        private void HandleQueuedRender()
-        {
-            IWorldDataStorage storage = _storage ??
-                throw new InvalidOperationException("WorldMapRenderer storage is not initialized.");
-            if (!ReferenceEquals(_layerBinding.CellLayer, storage.CellLayer))
-            {
-                _layerBinding.BindCellLayer(storage.CellLayer);
-                _layerBinding.BindMipScan(_manager.WorldWidth, _manager.WorldHeight, _viewportRenderer.CellColorTable);
-                _renderRequested = true;
-            }
-
-            if (_manager != null && !_bounds.Matches(_manager))
-            {
-                ResetWorldViewState(storage);
-            }
-
-            if (!_renderRequested)
-            {
-                return;
-            }
-
-            if (_manager == null || _storage == null)
-            {
-                return;
-            }
-
-            bool requiresMip = RequiresMipForCurrentView();
-            if (requiresMip && !_mipSource.IsReady && !_mipSource.Failed)
-            {
-                _mipSource.Begin();
-            }
-
-            UpdateMipStatus(requiresMip);
-
-            _viewportRenderer.Render(
-                _textureController.MapTexture,
-                _manager.WorldWidth,
-                _manager.WorldHeight,
-                _cellSampler,
-                _mipSource,
-                _textureController.TexWidth,
-                _textureController.TexHeight,
-                _cellsPerPixel,
-                _viewCenterX,
-                _viewCenterY);
-
-            _panel.Image?.MarkDirtyRepaint();
-            _renderRequested = false;
-            _pathOverlay.Draw(
-                _pathWalker?.Path,
-                _pathWalker?.PathIndex ?? 0,
-                _playerTracker?.CurrentPlayer,
-                _viewCenterX,
-                _viewCenterY,
-                _cellsPerPixel);
-        }
-
-        private void UpdatePlayerMarker()
-        {
-            ILocalPlayer? player = _playerTracker?.CurrentPlayer;
-            if (player is { HasServerPosition: true })
-            {
-                Vector2Int pos = player.Position;
-                _panel.UpdatePlayerMarker(
-                    pos.x,
-                    pos.y,
-                    _viewCenterX,
-                    _viewCenterY,
-                    _cellsPerPixel,
-                    _textureController.TexWidth,
-                    _textureController.TexHeight,
-                    _playerTracker!.PlayerBlinkState);
-            }
-            else
-            {
-                _panel.HidePlayerMarker();
-            }
-        }
+        private void HandleQueuedRender() => _renderCoordinator.Render(
+            _storage,
+            _manager,
+            _pathWalker,
+            _playerTracker?.CurrentPlayer,
+            _cellsPerPixel,
+            _viewCenterX,
+            _viewCenterY,
+            ref _renderRequested);
 
         private void ClampViewCenter()
         {
@@ -607,5 +500,16 @@ namespace Kern.UI.Map
                 _textureController.TexWidth,
                 _textureController.TexHeight);
         }
+
+        private void UpdatePlayerMarker() => _panel.UpdatePlayerMarker(
+            _playerTracker?.CurrentPlayer,
+            _viewCenterX,
+            _viewCenterY,
+            _cellsPerPixel,
+            _textureController.TexWidth,
+            _textureController.TexHeight,
+            _playerTracker?.PlayerBlinkState ?? false);
+
+
     }
 }

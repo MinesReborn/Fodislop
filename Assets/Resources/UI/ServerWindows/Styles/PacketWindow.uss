@@ -16,7 +16,7 @@
     min-height: 0;
     padding: var(--space-6);
     background-color: var(--surface-panel);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-color: var(--border-subtle);
     border-radius: var(--radius-md);
     color: var(--text-primary);
@@ -37,8 +37,8 @@
    вид не зависит от глифов шрифта. */
 .packet-window-close {
     position: absolute;
-    top: 3px;
-    right: 3px;
+    top: var(--radius-sharp);
+    right: var(--radius-sharp);
     width: 22px;
     height: 22px;
     min-width: 0;
@@ -60,10 +60,10 @@
 
 .packet-window-close-bar {
     position: absolute;
-    left: 5px;
-    top: 10px;
-    width: 12px;
-    height: 2px;
+    left: var(--radius-sm);
+    top: var(--space-5);
+    width: var(--space-6);
+    height: var(--space-1);
     border-radius: 1px;
     background-color: var(--light-solid);
 }
@@ -84,7 +84,7 @@
     min-height: 36px;
     padding: var(--space-3) var(--space-8);
     background-color: transparent;
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-color: var(--border-subtle);
     border-radius: var(--radius-sharp);
     color: var(--text-primary);
@@ -118,14 +118,14 @@
 }
 
 .packet-scrollbar--vertical {
-    width: 12px;
-    border-left-width: 1px;
+    width: var(--space-6);
+    border-left-width: var(--border-width-thin);
     border-left-color: var(--border-subtle);
 }
 
 .packet-scrollbar--horizontal {
-    height: 12px;
-    border-top-width: 1px;
+    height: var(--space-6);
+    border-top-width: var(--border-width-thin);
     border-top-color: var(--border-subtle);
 }
 
@@ -142,3 +142,6 @@
     background-color: var(--surface-raised);
     color: var(--text-primary);
 }
+
+.packet-text--left { -unity-text-align: middle-left; }
+.packet-text--center { -unity-text-align: middle-center; }

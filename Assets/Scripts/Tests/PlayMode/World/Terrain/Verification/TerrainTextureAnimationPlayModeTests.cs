@@ -17,6 +17,7 @@ using Kern.AssetPipeline.Loading;
 using Kern.Bootstrap.WorldLighting;
 
 using Kern.Diagnostics.World;
+using MinesServer.Data;
 
 namespace Kern.Tests.PlayMode;
 
@@ -145,11 +146,7 @@ public sealed partial class TerrainTextureAnimationPlayModeTests
     {
         Material material = Own(new Material(Shader.Find(TerrainShaderName)));
         material.SetTexture("_TerrainAtlas0", CreateSolidTexture(Color.white, 32));
-        material.SetTexture("_TerrainDecalAtlas", CreateSolidTexture(Color.clear));
-        material.SetTexture("_TerrainDecalRockAtlas", CreateSolidTexture(Color.clear));
         material.SetFloat("_AlphaCutoff", 0.01f);
-        material.SetFloat("_GroundDecalStrength", 0f);
-        material.SetFloat("_RockDecalStrength", 0f);
         material.SetFloat("_RoundableCornerRadius", 0.51f);
         material.SetFloat("_RimDistanceScale", 4f);
         material.SetFloat("_RimFalloff", 0.5f);
@@ -172,7 +169,7 @@ public sealed partial class TerrainTextureAnimationPlayModeTests
         _cellData = new TerrainCellBuffers();
         _cellData.EnsureCapacity(3, 3);
         _cellData.SetType(0, TerrainCellData.PackType(new TerrainTypeFields(
-            Type: 0, Block: Block(CellSurfaceEffect.Plain, 0f),
+            Type: 0, Block: Block(CellAnimationType.None, 0f),
             Slot: 0, AtlasRect: Vector4.zero, TileSize: 1f,
             FrameCount: 1, FrameHeightTiles: 1f, OpaqueOwn: false, OpaqueAny: false,
             HasTileGroup: false, TileGroupId: 0)));
@@ -180,10 +177,20 @@ public sealed partial class TerrainTextureAnimationPlayModeTests
         _cellData.SetType(type, TerrainCellData.PackType(new TerrainTypeFields(
             Type: type,
             Block: new BlockDefinition(
-                DrawLayer: CellDrawLayer.Foreground, Emission: false, Outline: CellOutline.Round,
-                TextureAnchor: CellTextureAnchor.Cell, ShaderAnimation: MinesServer.Data.CellAnimationType.None,
-                FrameAnimationSpeed: 0f, SurfaceEffect: CellSurfaceEffect.Plain, SurfaceEffectPalette: 0,
-                DecalAtlas: CellDecalAtlas.None, ReliefGroup: 1, MapColor: default),
+                Passable: false,
+                MovementCooldownMs: 100,
+                DrawLayer: CellDrawLayer.Foreground,
+                Outline: CellOutline.Round,
+                TextureName: "",
+                TextureAnchor: CellTextureAnchor.Cell,
+                TileGroup: null,
+                DecalTextureName: null,
+                ReliefGroup: 1,
+                AnimationType: CellAnimationType.None,
+                AnimationPalette: 0,
+                FrameAnimationSpeed: 0f,
+                Emission: false,
+                MapColor: default),
             Slot: 0, AtlasRect: new Vector4(0, 0, 1, 1), TileSize: 1f,
             FrameCount: 1, FrameHeightTiles: 1f, OpaqueOwn: false, OpaqueAny: false,
             HasTileGroup: false, TileGroupId: 0)));
@@ -288,13 +295,9 @@ public sealed partial class TerrainTextureAnimationPlayModeTests
         Material material = Own(new Material(shader));
         Texture2D atlas = CreateTwoFrameAtlas();
         material.SetTexture("_TerrainAtlas0", atlas);
-        material.SetTexture("_TerrainDecalAtlas", CreateSolidTexture(Color.clear));
-        material.SetTexture("_TerrainDecalRockAtlas", CreateSolidTexture(Color.clear));
         material.SetTexture("_FlowMap", CreateSolidTexture(Color.gray));
         material.SetTexture("_PrismaticFlowMap", CreateSolidTexture(Color.gray));
         material.SetFloat("_AlphaCutoff", 0.01f);
-        material.SetFloat("_GroundDecalStrength", 0f);
-        material.SetFloat("_RockDecalStrength", 0f);
 
         Mesh mesh = Own(CreateTerrainAnimationQuad());
         // Атлас 64×64: клетка 32×32 (тайл — полатласа, как выводит шейдер из
@@ -302,7 +305,7 @@ public sealed partial class TerrainTextureAnimationPlayModeTests
         UploadSingleCell(
             new TerrainTypeFields(
                 Type: (MinesServer.Data.CellType)1,
-                Block: Block(CellSurfaceEffect.Plain, 1f),
+                Block: Block(CellAnimationType.None, 1f),
                 Slot: 0,
                 AtlasRect: new Vector4(0f, 0f, 0.5f, 0.5f),
                 TileSize: 0.5f,
@@ -364,20 +367,16 @@ public sealed partial class TerrainTextureAnimationPlayModeTests
         Material material = Own(new Material(shader));
         Texture2D lavaAtlas = CreateSolidTexture(new Color(0.9f, 0.12f, 0.015f, 1f), 32);
         material.SetTexture("_TerrainAtlas0", lavaAtlas);
-        material.SetTexture("_TerrainDecalAtlas", CreateSolidTexture(Color.clear));
-        material.SetTexture("_TerrainDecalRockAtlas", CreateSolidTexture(Color.clear));
         material.SetTexture("_FlowMap", CreateSolidTexture(Color.gray));
         material.SetTexture("_PrismaticFlowMap", CreateSolidTexture(Color.gray));
         material.SetFloat("_AlphaCutoff", 0.01f);
-        material.SetFloat("_GroundDecalStrength", 0f);
-        material.SetFloat("_RockDecalStrength", 0f);
 
         Mesh mesh = Own(CreateTerrainAnimationQuad());
         // Лава: поверхность расплава, мировая клетка (4, 4) — фаза потока от неё.
         UploadSingleCell(
             new TerrainTypeFields(
                 Type: (MinesServer.Data.CellType)1,
-                Block: Block(CellSurfaceEffect.Molten, 10f),
+                Block: Block(CellAnimationType.Molten, 10f),
                 Slot: 0,
                 AtlasRect: new Vector4(0f, 0f, 1f, 1f),
                 TileSize: 1f,
@@ -449,16 +448,12 @@ public sealed partial class TerrainTextureAnimationPlayModeTests
         atlas.SetPixels32(atlasPixels);
         atlas.Apply(false, false);
         material.SetTexture("_TerrainAtlas0", atlas);
-        material.SetTexture("_TerrainDecalAtlas", CreateSolidTexture(Color.clear));
-        material.SetTexture("_TerrainDecalRockAtlas", CreateSolidTexture(Color.clear));
-        material.SetFloat("_GroundDecalStrength", 0f);
-        material.SetFloat("_RockDecalStrength", 0f);
         material.SetFloat("_TerrainRimEnabled", 0f);
         var type = (MinesServer.Data.CellType)32;
         _cellData = new TerrainCellBuffers();
         _cellData.EnsureCapacity(GridCells, GridCells);
         _cellData.SetType(type, TerrainCellData.PackType(new TerrainTypeFields(
-            Type: type, Block: Block(CellSurfaceEffect.Plain, 0f), Slot: 0,
+            Type: type, Block: Block(CellAnimationType.None, 0f), Slot: 0,
             AtlasRect: new Vector4(0f, 0f, 1f, 1f), TileSize: 1f / SheetCells,
             FrameCount: 1, FrameHeightTiles: SheetCells, OpaqueOwn: true, OpaqueAny: true,
             HasTileGroup: false, TileGroupId: 0)));
@@ -585,10 +580,20 @@ public sealed partial class TerrainTextureAnimationPlayModeTests
         _cellData.SetType(type, TerrainCellData.PackType(new TerrainTypeFields(
             Type: type,
             Block: new BlockDefinition(
-                DrawLayer: CellDrawLayer.Foreground, Outline: CellOutline.Rigid,
-                TextureAnchor: CellTextureAnchor.Cell, ShaderAnimation: MinesServer.Data.CellAnimationType.None,
-                FrameAnimationSpeed: 0f, SurfaceEffect: CellSurfaceEffect.Plain, SurfaceEffectPalette: 0,
-                DecalAtlas: CellDecalAtlas.None, ReliefGroup: 1, Emission: false, MapColor: default),
+                Passable: false,
+                MovementCooldownMs: 100,
+                DrawLayer: CellDrawLayer.Foreground,
+                Outline: CellOutline.Rigid,
+                TextureName: "",
+                TextureAnchor: CellTextureAnchor.Cell,
+                TileGroup: null,
+                DecalTextureName: null,
+                ReliefGroup: 1,
+                AnimationType: CellAnimationType.None,
+                AnimationPalette: 0,
+                FrameAnimationSpeed: 0f,
+                Emission: false,
+                MapColor: default),
             Slot: 0, AtlasRect: new Vector4(0, 0, 1, 1), TileSize: 1f,
             FrameCount: 1, FrameHeightTiles: 1f, OpaqueOwn: true, OpaqueAny: true,
             HasTileGroup: false, TileGroupId: 0)));
@@ -661,24 +666,30 @@ public sealed partial class TerrainTextureAnimationPlayModeTests
         source.SetPixels32(pixels);
         source.Apply(false, false);
         material.SetTexture("_TerrainAtlas0", source);
-        material.SetTexture("_TerrainDecalAtlas", CreateSolidTexture(Color.clear));
-        material.SetTexture("_TerrainDecalRockAtlas", CreateSolidTexture(Color.clear));
-        material.SetFloat("_GroundDecalStrength", 0f);
-        material.SetFloat("_RockDecalStrength", 0f);
         material.SetFloat("_EmissionBrightnessStart", 0.25f);
         material.SetFloat("_EmissionBrightnessEnd", 0.60f);
         material.SetFloat("_SurfaceEmissionStrength", 2f);
-        TerrainTypeFields EmissionType(CellSurfaceEffect effect) => new(
+        TerrainTypeFields EmissionType(CellAnimationType effect) => new(
             Type: (MinesServer.Data.CellType)1,
             Block: new BlockDefinition(
-                DrawLayer: CellDrawLayer.Background, Outline: CellOutline.Pliant,
-                TextureAnchor: CellTextureAnchor.Cell, ShaderAnimation: MinesServer.Data.CellAnimationType.None,
-                FrameAnimationSpeed: 0f, SurfaceEffect: effect, SurfaceEffectPalette: 0,
-                DecalAtlas: CellDecalAtlas.None, ReliefGroup: 0, Emission: true, MapColor: default),
+                Passable: false,
+                MovementCooldownMs: 100,
+                DrawLayer: CellDrawLayer.Background,
+                Outline: CellOutline.Pliant,
+                TextureName: "",
+                TextureAnchor: CellTextureAnchor.Cell,
+                TileGroup: null,
+                DecalTextureName: null,
+                ReliefGroup: 0,
+                AnimationType: effect,
+                AnimationPalette: 0,
+                FrameAnimationSpeed: 0f,
+                Emission: true,
+                MapColor: default),
             Slot: 0, AtlasRect: new Vector4(0, 0, 1, 1), TileSize: 1f,
             FrameCount: 1, FrameHeightTiles: 1f, OpaqueOwn: true, OpaqueAny: true,
             HasTileGroup: false, TileGroupId: 0);
-        UploadSingleCell(EmissionType(CellSurfaceEffect.Faceted), 0, 1);
+        UploadSingleCell(EmissionType(CellAnimationType.Faceted), 0, 1);
         Mesh mesh = Own(CreateTerrainAnimationQuad());
         RenderTexture materialField = Own(new RenderTexture(2, 2, 0, RenderTextureFormat.ARGB32, RenderTextureReadWrite.Linear));
         RenderTexture glowField = Own(new RenderTexture(2, 2, 0, RenderTextureFormat.ARGBHalf, RenderTextureReadWrite.Linear));
@@ -724,9 +735,9 @@ public sealed partial class TerrainTextureAnimationPlayModeTests
             new(255, 255, 0, 255), new(0, 255, 255, 255), new(255, 0, 255, 255),
             new(255, 255, 255, 255),
         };
-        foreach (CellSurfaceEffect effect in new[]
+        foreach (CellAnimationType effect in new[]
         {
-            CellSurfaceEffect.Plain, CellSurfaceEffect.Molten, CellSurfaceEffect.Faceted, CellSurfaceEffect.Prismatic,
+            CellAnimationType.None, CellAnimationType.Molten, CellAnimationType.Faceted, CellAnimationType.Prismatic,
         })
         {
             _cellData.SetType((CellType)1, TerrainCellData.PackType(EmissionType(effect)));
@@ -743,7 +754,7 @@ public sealed partial class TerrainTextureAnimationPlayModeTests
                 }
             }
         }
-        _cellData.SetType((CellType)1, TerrainCellData.PackType(EmissionType(CellSurfaceEffect.Faceted)));
+        _cellData.SetType((CellType)1, TerrainCellData.PackType(EmissionType(CellAnimationType.Faceted)));
         _cellData.Apply();
         FillDetails(new Color32(0, 255, 0, 255));
 
@@ -838,17 +849,20 @@ public sealed partial class TerrainTextureAnimationPlayModeTests
     // Одна клетка переднего плана типа 1 через рабочий формат и рабочую
     // выгрузку: строка типа, клетка (кайма вокруг пуста), глобальные адреса окна.
     // Тип 1 — квадрат на земле: передний план, без каймы и свечения.
-    private static BlockDefinition Block(CellSurfaceEffect surfaceEffect, float frameAnimationSpeed) => new(
+    private static BlockDefinition Block(CellAnimationType animationType, float frameAnimationSpeed) => new(
+        Passable: false,
+        MovementCooldownMs: 100,
         DrawLayer: CellDrawLayer.Background,
-        Emission: false,
         Outline: CellOutline.Pliant,
+        TextureName: "",
         TextureAnchor: CellTextureAnchor.Cell,
-        ShaderAnimation: MinesServer.Data.CellAnimationType.None,
-        FrameAnimationSpeed: frameAnimationSpeed,
-        SurfaceEffect: surfaceEffect,
-        SurfaceEffectPalette: 0,
-        DecalAtlas: CellDecalAtlas.None,
+        TileGroup: null,
+        DecalTextureName: null,
         ReliefGroup: 0,
+        AnimationType: animationType,
+        AnimationPalette: 0,
+        FrameAnimationSpeed: frameAnimationSpeed,
+        Emission: false,
         MapColor: default);
 
     private void UploadSingleCell(TerrainTypeFields surface, int originX, int worldHeight)

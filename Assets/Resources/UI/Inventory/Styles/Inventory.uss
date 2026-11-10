@@ -1,178 +1,6 @@
-/* ═══════════════════════════════════════════════════════════
-   Inventory & Hotbar — системные стили инвентаря Kern
-   ═══════════════════════════════════════════════════════════ */
-
-/* ─── Полный инвентарь (Overlay & Центрирование) ─── */
-
-.inv-full-panel {
-    position: absolute;
-    left: 0;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    justify-content: center;
-    align-items: center;
-    background-color: var(--surface-sunken);
-}
-
-.inv-full-bg {
-    background-color: var(--surface-slate-dense);
-    border-width: 1px;
-    border-color: var(--accent-cyan-fill);
-    border-radius: var(--radius-md);
-    padding: var(--space-9);
-    flex-direction: column;
-    align-items: center;
-    min-width: 560px;
-}
-
-.inv-close-btn {
-    position: absolute;
-    top: var(--space-4);
-    right: var(--space-4);
-    width: var(--space-11);
-    height: var(--space-11);
-    background-color: var(--surface-void-haze);
-    border-width: 1px;
-    border-color: var(--accent-cyan-glow);
-    border-radius: var(--radius-md);
-    padding: 0;
-    justify-content: center;
-    align-items: center;
-}
-
-.inv-close-btn:hover {
-    background-color: var(--state-danger-glow);
-    border-color: var(--state-danger);
-}
-
-.inv-close-label {
-    font-size: var(--size-md);
-    color: var(--accent-gold);
-    -unity-text-align: middle-center;
-    align-self: center;
-    justify-content: center;
-}
-
-.inv-title {
-    -unity-font-definition: var(--face-display);
-    font-size: var(--size-md);
-    -unity-font-style: bold;
-    color: var(--text-primary);
-    margin-bottom: var(--space-6);
-    align-self: flex-start;
-}
-
-.inv-separator {
-    height: 1px;
-    background-color: var(--accent-cyan-glow);
-    margin-top: var(--space-6);
-    margin-bottom: var(--space-6);
-    align-self: center;
-}
-
-/* ─── Сетка и ячейки ─── */
-
-.inv-grid {
-    flex-direction: column;
-    align-items: center;
-}
-
-.inv-grid-row {
-    flex-direction: row;
-    flex-shrink: 0;
-}
-
-/* Ячейка по скриншоту оригинала: почти чёрный квадрат без рамки, с
-   небольшим зазором до соседней — сквозь него видно мир. Клетка 62px:
-   иконка 38px по центру оставляет по 12px полей, и цифра количества в
-   правом нижнем углу ложится на тёмный фон клетки, не на спрайт
-   (репорт: «расширить квадратик рамки»). Шаг сетки — 66 (62 клетка плюс
-   по 2 отступа), четыре строки — 264. */
-.inv-cell {
-    width: 62px;
-    height: 62px;
-    min-width: 62px;
-    min-height: 62px;
-    flex-shrink: 0;
-    flex-grow: 0;
-    justify-content: center;
-    align-items: center;
-    margin: var(--space-1);
-    padding: 0;
-    /* Рамка всегда 2px, в обычном состоянии — прозрачная. Постоянная
-       прозрачная рамка держит содержимое на месте при выборе.
-       Шаг сетки не меняется: box-sizing border-box, клетка остаётся 62px. */
-    border-width: 2px;
-    border-color: rgba(0, 0, 0, 0);
-    border-radius: var(--radius-sm);
-    background-color: var(--surface-void-dense);
-}
-
-.inv-cell:hover {
-    background-color: var(--surface-slate-dense);
-}
-
-.inv-cell--selected {
-    /* Рамка выбранного слота, как в старом клиенте: включается только цвет —
-       толщина задана в .inv-cell, чтобы не сдвигать содержимое. Подложка —
-       золотая дымка меню, а не серо-бурая заливка. */
-    border-color: var(--accent-gold);
-    background-color: var(--accent-gold-wash);
-}
-
-.inv-cell--highlight {
-    background-color: var(--surface-slate-dense);
-}
-
-/* Иконка квадратная и по центру клетки.
-   В префабе старого клиента у неё стоит 38x30, но там в неё кладут настоящий
-   спрайт предмета со своим соотношением сторон, и прямоугольник поля просто
-   не виден. У нас на его месте пока заглушка, и несимметричное поле читается
-   как перекос самой клетки. Квадрат 38x38 в клетке 51 даёт равные поля со
-   всех сторон. */
-.inv-icon {
-    width: 38px;
-    height: 38px;
-    min-width: 38px;
-    min-height: 38px;
-    align-self: center;
-}
-
-/* Обёртка количества: абсолютный слой на всю клетку, содержимое (бейдж с
-   цифрой) прижимается флексом в правый нижний угол. Та же раскладка
-   продублирована инлайном в InventoryView.CreateCell — см. комментарий
-   там, почему якорение right/bottom не используется. */
-.inv-qty-wrap {
-    position: absolute;
-    left: 0;
-    right: 0;
-    top: 0;
-    bottom: 0;
-    justify-content: flex-end;
-    align-items: flex-end;
-}
-
-/* Цифра количества — чистый текст с тенью на тёмном фоне клетки: сама
-   клетка увеличена (62px) так, чтобы угол под цифру не занимала иконка.
-   Плашки-бейджа нет — репорт просил расширить квадратик слота, а не
-   обводить число. Размер — по содержимому (раскладку даёт обёртка). */
-.inv-qty {
-    margin-right: 1px;
-    margin-bottom: 1px;
-    font-size: var(--size-2xs);
-    color: rgb(255, 255, 255);
-}
-
-.inv-floating {
-    position: absolute;
-    width: 36px;
-    height: 36px;
-    border-radius: var(--radius-md);
-    opacity: 0.8;
-}
-
-/* ─── Хотбар ─── */
+/* Инвентарь HUD — макет visual/kern-ui (css/hud.css .inventory, .inv-slots, .inv-expand, .item-hint; micro.css, systems.css).
+   ПК: правый нижний угол; ячейки 64 в четыре строки с зазором 4, первый предмет снизу, столбцы прирастают влево;
+   полоса раскрытия 18 справа. Пустое место ячейки и выбранная ячейка — штриховка (KernVector, --hatch-color). */
 
 .inv-root {
     position: absolute;
@@ -180,213 +8,139 @@
     top: 0;
     right: 0;
     bottom: 0;
-    /* Прозрачность для кликов: picking-mode="Ignore" на InventoryRoot в
-       Inventory.uxml. ВАЖНО: Ignore наследуется на всё поддерево, поэтому
-       интерактивные элементы (хотбар, кнопки, слоты) явно возвращают
-       picking-mode="Position" — паттерн как в ObserverJoystick.uxml. */
 }
 
-/* ─── Раскладка снята со старого клиента ───────────────────────────────
-   Панель там висела в ПРАВОМ ВЕРХНЕМ углу со смещением (-13, -53), а не
-   внизу по центру. Сетка: GridLayoutGroup 55x55 без промежутков и полей,
-   StartCorner = UpperRight, StartAxis = Vertical, Constraint =
-   FixedRowCount со счётом 4. То есть предметы заполняют столбец сверху
-   вниз, а новые столбцы прирастают ВЛЕВО.
-
-   В UI Toolkit нет GridLayoutGroup, и то же самое делается переносом:
-   flex-direction: column + flex-wrap задают заполнение по столбцам,
-   фиксированная высота 264px (4 x 66) задаёт четыре строки, а wrap-reverse
-   разворачивает ось переноса, чтобы первый столбец оказался справа.
-
-   Внешний вид — наш: панель остаётся sci-fi-panel, ячейки берут наши
-   границы, скругления и цвета из токенов. Перенесена геометрия, не стиль. */
-.inv-hotbar {
+.inventory {
     position: absolute;
-    top: 53px;
-    right: 13px;
+    right: var(--margin);
+    bottom: var(--margin);
     flex-direction: row;
-    align-items: flex-start;
-    padding: 0;
-    border-radius: var(--radius-md);
+    align-items: stretch;
 }
 
-/* Столбцы строятся явными контейнерами, а не переносом строк.
-   Перенос (flex-wrap) в Yoga раскладывал их лесенкой: высота контейнера в
-   точности равна четырём клеткам, и на границе он то влезал, то нет.
-   Явный столбец такой неопределённости не имеет.
-   row-reverse: первый столбец справа, следующие прирастают влево — как
-   StartCorner = UpperRight в старом клиенте. */
-.inv-hotbar-slots {
+/* Ряд столбцов растёт влево; в столбце первый предмет снизу */
+.inv-slots {
     flex-direction: row-reverse;
-    align-items: flex-start;
+    align-items: flex-end;
 }
 
 .inv-slot-column {
-    flex-direction: column;
+    flex-direction: column-reverse;
+    margin-left: 4px;
 }
 
-.inv-grid-container {
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    margin-top: var(--space-5);
-}
-
-/* Узкая вертикальная полоса слева от сетки — как в старом клиенте:
-   15 в ширину, 264 в высоту, то есть ровно по высоте четырёх строк. */
-/* По задумке это узкая полоска с маленьким треугольником по центру высоты,
-   ПРОЗРАЧНАЯ — сквозь неё виден мир. Белая полупрозрачная заливка (0.5)
-   была ошибкой и убрана: видимость даёт только белый треугольник с тёмной
-   тенью, читаемый и на светлом, и на тёмном фоне. При наведении/нажатии —
-   едва заметная белая дымка, чтобы полосу можно было найти мышью. */
-.inv-toggle-btn {
-    width: 15px;
-    min-width: 15px;
-    height: 264px;
-    margin: 0;
-    padding: 0;
-    justify-content: center;
-    align-items: center;
-    background-color: rgba(255, 255, 255, 0);
-    border-width: 0;
-    color: var(--light-solid);
-    text-shadow: 1px -1px 2px rgba(0, 0, 0, 0.9);
-    font-size: var(--size-sm);
-}
-
-.inv-toggle-btn:hover {
-    background-color: var(--light-sheen);
-    color: var(--light-solid);
-}
-
-/* Нажатие и фокус обязаны быть перебиты явно. Без этих правил работает
-   .unity-button:active/:focus из дефолтной темы (unity-theme://default):
-   такое правило специфичнее базового .inv-toggle-btn, и на клике полоса
-   заливается чужим полупрозрачным серым прямоугольником, который к тому
-   же висит, пока кнопка держит фокус. Здесь — белая дымка из light-
-   токенов меню: полоса остаётся прозрачной, мир за ней виден. */
-.inv-toggle-btn:active,
-.inv-toggle-btn:focus {
-    background-color: var(--light-edge);
-}
-
-.inv-header-left {
-    flex-direction: row;
-    align-items: center;
-}
-
-.inv-button {
-    width: 50px;
-    height: 50px;
-    min-width: 50px;
-    min-height: 50px;
-    flex-shrink: 0;
-    flex-grow: 0;
-    margin: 3px;
-    background-color: var(--light-sheen);
-    border-width: 1px;
-    border-color: var(--accent-cyan-fill);
-    border-radius: var(--radius-md);
-    padding: 0;
-    justify-content: center;
-    align-items: center;
-}
-
-.inv-button:hover {
-    background-color: var(--accent-cyan-glow);
-    border-color: var(--accent-cyan-dense);
-}
-
-/* ─── Тултип выбранного предмета ─── */
-
-.inv-tooltip-card {
-    position: absolute;
-    top: var(--space-12);
-    left: 50%;
-    translate: -50% 0;
-    min-width: 320px;
-    max-width: 480px;
-}
-
-.inv-tooltip-header {
-    flex-direction: row;
-    align-items: center;
-    margin-bottom: var(--space-3);
-}
-
-.inv-tooltip-icon {
-    width: 42px;
-    height: 42px;
-    margin-right: var(--space-4);
-}
-
-.inv-tooltip-meta {
-    flex-direction: column;
-    align-items: flex-start;
-    flex-grow: 1;
-}
-
-.inv-tooltip-meta .sci-fi-badge-gold {
-    margin-top: var(--space-1);
-}
-
-/* Подсказки клавиш в шапке плашки: некликабельные «кейкапы» ENTER/ESC
-   (picking-mode=Ignore) с подписью действия. Кейкапы выдержаны в стиле
-   окна: тёмная подложка, тонкая рамка, акцент по цвету действия. */
-.inv-tooltip-keys {
-    flex-direction: column;
-    align-items: flex-end;
-    margin-left: auto;
-}
-
-.inv-key-hint {
-    flex-direction: row;
-    align-items: center;
-    margin-top: var(--space-1);
-}
-
-.inv-key-cap {
-    min-width: 36px;
-    padding: 1px 6px;
-    background-color: var(--surface-raised);
-    border-width: 1px;
-    border-color: var(--border-cyan);
-    border-radius: var(--radius-sm);
-    color: var(--text-primary);
-    font-size: var(--size-micro);
-    -unity-text-align: middle-center;
-    -unity-font-style: bold;
-}
-
-.inv-key-cap--cancel {
-    border-color: var(--accent-gold);
-    color: var(--accent-gold);
-}
-
-.inv-key-hint-label {
-    margin-left: var(--space-2);
-    font-size: var(--size-sm);
-    color: var(--text-secondary);
-}
-
-.inv-tooltip-title {
-    font-size: var(--size-base);
-    -unity-font-style: bold;
-    color: var(--text-primary);
-    margin-bottom: var(--space-1);
-}
-
-.inv-tooltip-desc {
-    font-size: var(--size-sm);
-    color: var(--text-secondary);
-    white-space: normal;
-}
-
-/* Обёртка полного списка: на десктопе высота не ограничена, и прокрутка
-   не появляется — раскладка та же, что без обёртки. */
 .inv-scroll {
     flex-grow: 0;
     flex-shrink: 0;
 }
 
-.inv-qty.text-size-2xs { font-size: var(--size-2xs); }
+.inv-slot {
+    width: var(--ctl-xxl);
+    height: var(--ctl-xxl);
+    margin-top: 4px;
+    align-items: center;
+    justify-content: center;
+    border-width: 1px;
+    border-color: var(--seam);
+    background-color: rgba(17, 16, 24, 0.88);
+    transition-property: background-color, border-color;
+    transition-duration: var(--dur-fast);
+}
+
+.inv-slot.is-hover {
+    border-color: var(--seam-strong);
+}
+
+.inv-slot.is-on {
+    border-color: var(--bone);
+    --hatch-color: rgba(216, 213, 238, 0.1);
+    --hatch-step: 4;
+}
+
+.inv-slot__icon {
+    width: var(--ctl-l);
+    height: var(--ctl-l);
+    -unity-background-scale-mode: scale-to-fit;
+}
+
+/* Номер ячейки — место предмета в списке: «01» */
+.inv-slot__index {
+    position: absolute;
+    left: 4px;
+    top: 2px;
+    margin: 0;
+    padding: 0;
+    -unity-font-definition: var(--face-mono);
+    font-size: var(--t-0);
+    -unity-font-style: normal;
+    color: var(--dim);
+}
+
+.inv-slot__qty {
+    position: absolute;
+    right: 5px;
+    bottom: 3px;
+    margin: 0;
+    padding: 0;
+    -unity-font-definition: var(--face-mono);
+    font-size: var(--t-4);
+    -unity-font-style: normal;
+    letter-spacing: 2px;
+    color: var(--bone);
+}
+
+/* Полоса раскрытия: справа у края экрана, список раскрывается влево */
+.inv-expand {
+    width: 18px;
+    margin: 4px 0 0 4px;
+    padding: 0;
+    align-items: center;
+    justify-content: center;
+    border-width: 1px;
+    border-radius: 0;
+    border-color: var(--seam);
+    background-color: rgba(17, 16, 24, 0.88);
+    background-image: none;
+    --hatch-color: rgba(216, 213, 238, 0.1);
+    --hatch-step: 4;
+    transition-property: background-color, border-color;
+    transition-duration: var(--dur-fast);
+}
+
+.inv-expand:hover {
+    border-color: var(--seam-strong);
+    background-color: rgba(17, 16, 24, 0.88);
+}
+
+.inv-expand:active {
+    background-color: var(--well);
+}
+
+.inv-expand > .ico {
+    width: 14px;
+    height: 14px;
+}
+
+.inv-expand:hover > .ico {
+    -unity-background-image-tint-color: var(--bone);
+}
+
+.inv-expand > .ico.is-flipped {
+    scale: -1 1;
+}
+
+/* Подсказка выбранного предмета — над игроком по центру */
+.item-hint {
+    position: absolute;
+    left: 50%;
+    top: 168px;
+    translate: -50% 0;
+    margin: 0;
+    padding: 6px 14px;
+    border-width: 1px;
+    border-color: var(--seam);
+    background-color: rgba(17, 16, 24, 0.88);
+    color: var(--bone);
+    font-size: var(--t-body);
+    white-space: nowrap;
+}

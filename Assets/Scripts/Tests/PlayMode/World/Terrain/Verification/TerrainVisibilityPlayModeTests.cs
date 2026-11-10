@@ -45,7 +45,7 @@ public sealed class TerrainVisibilityPlayModeTests
         _runInBackground = Application.runInBackground;
         Application.runInBackground = true;
         _authentication = DummyAuthenticationScope.Seed(TestDummyToken);
-        yield return PlayModeHarness.StartAtGateway();
+        yield return PlayModeHarness.StartAtMainMenu();
         yield return PlayModeHarness.EnterMainGame(PlayModeHarness.FindBootstrap()!);
     }
 

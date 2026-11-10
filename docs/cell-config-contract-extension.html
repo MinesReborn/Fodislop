@@ -27,145 +27,60 @@ ol, ul { margin: 10px 0; padding-left: 22px; } li { margin: 5px 0; }
 </style>
 </head>
 <body>
+<h1>Контракт конфигурации клетки: текущее состояние</h1>
+<p class="lead">Актуальная карта клиентского пакета <code>CellConfigurationPacket</code>, его применения при загрузке мира и оставшихся границах подтверждения. Эта страница заменяет прежнее предложение расширить пакет битовыми флагами и полями тайлинга.</p>
 
-<h1>Расширение контракта конфигурации клетки</h1>
-<p class="lead">Что сейчас захардкожено в клиенте, почему это должно приезжать с сервера
-и какие поля для этого нужно добавить в <code>CellConfigurationPacket</code>.</p>
+<div class="warn"><strong>Граница доказательств.</strong> В checkout присутствуют клиент и подмодуль <code>MinesServerNetworking</code>, но не production-сервер, который формирует конфигурации для реального мира. Наличие поля в DTO и сериализаторе подтверждает клиентский wire-контракт; оно само по себе не подтверждает значения, отправляемые production-сервером.</div>
 
-<h2>1. Что контракт несёт сегодня</h2>
-<p><code>MinesServer.Networking.Server.Packets.Connection.CellConfigurationPacket</code> —
-<code>readonly record struct</code>, <code>LayoutKind.Sequential, Pack = 1</code>,
-читается и пишется через <code>UnsafeRead</code>/<code>UnsafeWrite</code>. Размер фиксирован,
-поэтому любое новое поле меняет размер пакета и требует согласованной правки обеих сторон.</p>
-
+<h2>1. Пакет и сериализация</h2>
+<p>Текущая структура объявлена в <code>Packages/MinesServerNetworking/MinesServer.Networking/Server/Packets/Connection/CellConfigurationPacket.cs</code>. Это не описанный в старой версии страницы фиксированный массив байтов и не <code>LayoutKind.Sequential</code>: <code>Size</code>, <code>Encode</code> и <code>Decode</code> задают последовательный поток с однобайтовыми длинами ASCII-строк.</p>
 <table>
-<tr><th>Поле</th><th>Тип</th><th>Байт</th><th>Что задаёт</th></tr>
-<tr><td><code>Properties</code></td><td><code>CellConfigProperties</code></td><td>1</td>
-  <td>Флаги: Passable, Breakable, DropsShadow, ReceivesShadow, Blending, Glowing. <strong>Биты 6 и 7 свободны.</strong></td></tr>
-<tr><td><code>Distortion</code></td><td><code>CellDistortionType</code></td><td>1</td>
-  <td>Neutral / Cause / Block — участие клетки в искажении узлов сетки.</td></tr>
-<tr><td><code>Animation</code></td><td><code>CellAnimationType</code></td><td>1</td>
-  <td>None / Blinking / Shimmer / Rainbow.</td></tr>
-<tr><td><code>AnimationSpeed</code></td><td><code>byte</code></td><td>1</td><td>Скорость анимации.</td></tr>
-<tr><td><code>FrameOffset</code></td><td><code>byte</code></td><td>1</td><td>Смещение кадра.</td></tr>
-<tr><td><code>Color</code></td><td><code>int</code></td><td>4</td><td>Цвет миникарты.</td></tr>
-<tr><td><code>ReliefGroup</code></td><td><code>byte</code></td><td>1</td>
-  <td>Рельефная семья. <strong>Единственное поле вида, которое уже приезжает с сервера.</strong></td></tr>
+<tr><th>Поле</th><th>Wire-представление</th><th>Назначение по типу</th></tr>
+<tr><td><code>Passable</code></td><td>1 байт</td><td>Проходимость.</td></tr>
+<tr><td><code>DrawLayer</code></td><td>1 байт enum</td><td>Слой отрисовки.</td></tr>
+<tr><td><code>Outline</code></td><td>1 байт enum</td><td>Вид контура.</td></tr>
+<tr><td><code>TextureName</code></td><td>1 байт длины + ASCII</td><td>Имя текстурного ресурса.</td></tr>
+<tr><td><code>DecalTextureName</code></td><td>1 байт длины + ASCII</td><td>Имя ресурса декали.</td></tr>
+<tr><td><code>ReliefGroup</code></td><td>1 байт</td><td>Идентификатор группы рельефа.</td></tr>
+<tr><td><code>AnimationType</code></td><td>1 байт enum</td><td>Тип анимации клетки.</td></tr>
+<tr><td><code>AnimationPalette</code></td><td>1 байт</td><td>Палитра анимации.</td></tr>
+<tr><td><code>FrameAnimationSpeed</code></td><td>4 байта float</td><td>Скорость кадровой анимации.</td></tr>
+<tr><td><code>MapColor</code></td><td>4 байта int</td><td>Цвет карты/мини-карты в ARGB-представлении.</td></tr>
+<tr><td><code>Emission</code></td><td>1 байт bool</td><td>Признак свечения.</td></tr>
+<tr><td><code>TextureAnchor</code></td><td>1 байт enum; значение по умолчанию <code>Cell</code></td><td>Привязка текстуры к клетке или мировым координатам.</td></tr>
 </table>
-<p>Итого 10 байт на тип клетки, 256 типов — 2560 байт за соединение.</p>
+<p>Фиксированная часть составляет 18 байт: 10 однобайтовых значений (включая два префикса длины), float и int. К ней добавляются длина и байты двух строк. Длина каждой строки ограничена 255 байтами; кодировщик отвергает более длинные имена. Пакетный формат требует согласованности отправителя и получателя, но длина конкретной записи зависит от имён текстур.</p>
 
-<h2>2. Что клиент решает сам, хотя это данные о клетке</h2>
-<p>Ниже — всё, что классифицирует клетку по её типу внутри клиента. Столбец «в оригинале» —
-откуда то же самое берёт клиент Mines: <code>CellRender.cellConfigs[id]</code>.</p>
-
-<table>
-<tr><th>Что</th><th>Где в клиенте</th><th>В оригинале</th><th>Последствие хардкода</th></tr>
-
-<tr><td>Кто адресует сплошной лист атласа, а кто тайл на клетку</td>
-  <td><code>TerrainSheetCatalog.IsContinuousSheet</code> — явный список типов</td>
-  <td><code>textureType == 1</code> (списки <code>crysy</code> и <code>rocky</code>)</td>
-  <td>Новый тип клетки с сервера рисуется тайлами и разваливается на штампы, пока список не правят руками.</td></tr>
-
-<tr><td>Кто участвует в кайме рельефа</td>
-  <td><code>TerrainReliefRimCatalog</code> — перечисление семей</td>
-  <td><code>textureType == 1</code>, семья — <code>reliefType</code></td>
-  <td>Семья уже серверная, а участие — нет. Разъезжаются два источника правды об одном и том же.</td></tr>
-
-<tr><td>Размер участка листа в клетках</td>
-  <td>выводится из размера подкартинки в атласе, делённого на размер тайла</td>
-  <td><code>wx</code>/<code>wy</code> (у кристаллов и скал 10×8), смещение <code>dx</code>/<code>dy</code></td>
-  <td>Период тайлинга задаёт размер PNG, а не замысел. У нас все листы 320×320, то есть 10×10, тогда как в оригинале период по вертикали 8.</td></tr>
-
-<tr><td>Скруглённый силуэт</td>
-  <td><code>MapCellConfigCatalog.IsRoundableLoose</code> — список из 25 типов</td>
-  <td>отдельная ветка вида</td>
-  <td>Определяет и картинку, и <em>физическую</em> занятость для света: ошибка в списке меняет тени.</td></tr>
-
-<tr><td>Дороги не перекрывают свет</td>
-  <td>решено: массы нет у любой проходимой клетки (<code>Passable</code>)</td>
-  <td>свойства клетки</td>
-  <td>Отдельного признака дороги больше нет.</td></tr>
-
-<tr><td>Постройки и искусственные блоки</td>
-  <td><code>MapCellConfigCatalog.IsBuildingOrArtificialBlock</code>, <code>TerrainQuadBuilder.IsBuildingBlock</code></td>
-  <td><code>blocky</code>, <code>textureType == 4</code></td>
-  <td>Гасит <code>Glowing</code> и исключает из декалей — то есть переопределяет серверный флаг клиентским списком.</td></tr>
-
-<tr><td>Профиль анимации и фаза</td>
-  <td><code>TerrainAnimationProfileCatalog.Get</code>: FacetedCrystal, PrismaticCrystal и фазы <code>XGreen=1 … XCyan=5</code></td>
-  <td><code>animType</code>, <code>animSpeed</code>, <code>dx2</code>/<code>dy2</code></td>
-  <td><code>Animation</code> и <code>AnimationSpeed</code> в пакете есть, но клиент их частично переопределяет.</td></tr>
-
-<tr><td>Декали: семья, доля клеток, раскладка вариантов</td>
-  <td><code>TerrainDecalCatalog</code></td>
-  <td>нет прямого аналога</td>
-  <td>Плотность и состав декалей нельзя менять без пересборки клиента.</td></tr>
-</table>
-
-<div class="warn">
-<p><strong>Главный симптом.</strong> Рельефная семья приезжает с сервера, а «кто тайлится» и
-«кто с каймой» — нет. Поэтому на вопрос «по какой системе тайлить» сегодня нет ответа в данных:
-он рассыпан по трём спискам в трёх файлах клиента, и сервер на него влиять не может.</p>
-</div>
-
-<h2>3. Предлагаемые поля</h2>
-
-<h3>3.1. Два свободных бита в <code>Properties</code></h3>
-<table>
-<tr><th>Бит</th><th>Имя</th><th>Заменяет</th></tr>
-<tr><td>1 &lt;&lt; 6</td><td><code>RoundedSilhouette</code></td><td><code>IsRoundableLoose</code></td></tr>
-<tr><td>1 &lt;&lt; 7</td><td><code>TransmitsLight</code></td><td>не нужен: свет решает <code>Passable</code></td></tr>
-</table>
-<p>Размер пакета не меняется.</p>
-
-<h3>3.2. Новые поля</h3>
-<table>
-<tr><th>Поле</th><th>Тип</th><th>Байт</th><th>Значения</th><th>Заменяет</th></tr>
-<tr><td><code>TextureKind</code></td><td><code>byte</code> enum</td><td>1</td>
-  <td>Ground = 0, Sheet = 1, Block = 4, SandAutotile = 16</td>
-  <td><code>TerrainSheetCatalog</code> и участие в кайме — одним полем, как <code>textureType</code> в оригинале</td></tr>
-<tr><td><code>SheetTilesX</code></td><td><code>byte</code></td><td>1</td><td>период тайлинга по X в клетках</td><td rowspan="2">вывод размера участка из размера PNG</td></tr>
-<tr><td><code>SheetTilesY</code></td><td><code>byte</code></td><td>1</td><td>период по Y</td></tr>
-<tr><td><code>AnimationProfile</code></td><td><code>byte</code> enum</td><td>1</td>
-  <td>Default, FacetedCrystal, PrismaticCrystal</td><td><code>TerrainAnimationProfileCatalog</code></td></tr>
-<tr><td><code>AnimationPhase</code></td><td><code>byte</code></td><td>1</td>
-  <td>индекс фазы, сегодня <code>XGreen = 1 … XCyan = 5</code></td><td>таблицу фаз в клиенте</td></tr>
-<tr><td><code>DecalFamily</code></td><td><code>byte</code> enum</td><td>1</td>
-  <td>None, Stone, Sand, Road, Ground</td><td rowspan="2"><code>TerrainDecalCatalog</code></td></tr>
-<tr><td><code>DecalPercent</code></td><td><code>byte</code></td><td>1</td><td>доля клеток с декалью, 0–100</td></tr>
-</table>
-
-<div class="note">
-<p><strong>Цена.</strong> Плюс 7 байт на тип клетки: 10 → 17. На 256 типов это 4352 байта,
-один раз за соединение. Пакет по-прежнему фиксированного размера и читается одним
-<code>UnsafeRead</code>.</p>
-<p><strong>Смещение <code>dx</code>/<code>dy</code> из оригинала не нужно.</strong> Там один общий атлас
-128×128 тайлов, и участок надо адресовать абсолютно. У нас на тип клетки своя подкартинка,
-её начало уже известно из <code>AtlasRect</code>. Нужен только размер участка.</p>
-</div>
-
-<h2>4. Порядок работ</h2>
+<h2>2. Как клиент применяет конфигурации</h2>
 <ol>
-<li><strong>Расширить пакет</strong> в <code>darkar25.fodinae.networking</code>: два бита в
-<code>CellConfigProperties</code> и семь новых полей. Обе стороны обязаны обновиться вместе —
-размер структуры меняется, а декодер читает её одним блоком.</li>
-<li><strong>Заполнить значения в дамми</strong> — <code>DummyCellConfigurationUtilities</code>
-становится единственным местом, где эти свойства задаются. Значения переносятся из клиентских
-списков один в один, без изменения поведения.</li>
-<li><strong>Снять хардкод в клиенте</strong>: <code>TerrainSheetCatalog</code>,
-<code>TerrainReliefRimCatalog</code>, <code>TerrainAnimationProfileCatalog</code>,
-<code>TerrainDecalCatalog</code>, предикаты <code>MapCellConfigCatalog</code> —
-все читают конфигурацию клетки.</li>
-<li><strong>Закрепить тестом</strong>, что каждый тип клетки сконфигурирован: сейчас это
-делает <code>RequireEveryCellTypeConfigured</code>, его надо расширить на новые поля, иначе
-незаполненное поле молча даст нулевое значение вместо ошибки.</li>
+<li><code>MapManager.LoadCellContent</code> получает <code>WorldInitPacket</code>, готовит обновление локального <code>BlockRegistry</code> по <code>Cells</code>, загружает каталог по <code>Cells</code>, <code>TileGroups</code> и <code>AssetsManifest</code>, затем фиксирует обновление реестра.</li>
+<li><code>MapCellConfigCatalog</code> проверяет наличие списка конфигураций, ссылки на текстуры/декали в manifest и дубли имён ресурсов; по именам декалей настраивается <code>TerrainDecalCatalog</code>.</li>
+<li>Группы из <code>TileGroups</code> превращаются в отображение типа клетки на индекс группы. Имена из manifest используются для разрешения world assets.</li>
+<li><code>MovementSpeedPacket</code> обрабатывается отдельно через <code>UpdateMovementSpeeds</code>; значения скорости перемещения не являются частью <code>CellConfigurationPacket</code>.</li>
 </ol>
+<p>Детали того, как поля используются при рендеринге, принадлежат реализации соответствующих подсистем; список полей пакета не означает, что любая подсистема уже полностью управляется сервером.</p>
 
-<div class="warn">
-<p><strong>Порядок обязателен.</strong> Пункт 2 нельзя сделать раньше пункта 1: пока пакет не несёт
-поле, перенос «на дамми» означал бы завести второй источник правды рядом с первым, а не убрать
-хардкод. Пункт 3 нельзя делать раньше пункта 2 — клиент останется без данных.</p>
-</div>
+<h2>3. Цвет карты: важное исключение</h2>
+<p><code>MapCellConfigCatalog.GetCellMinimapColor32</code> сначала проверяет <code>MapBlockColors.IsAuthored(type)</code>. Для типов с локально заданным цветом возвращается палитра клиента, даже если пакет содержит <code>MapColor</code>. Для остальных типов используется ненулевой <code>MapColor</code>; при нулевом значении возвращается <code>MissingServerColor</code>.</p>
+<p><code>MapBlockColors</code> строит и кеширует палитру при первом обращении, обходя тогдашний <code>BlockRegistry.Blocks</code>. Реестр сначала загружает <code>cells.json</code>, но серверное обновление может быть зафиксировано до первого обращения к палитре. Само наличие локальной таблицы не доказывает, что она уже инициализирована до сетевого обновления; порядок первого обращения в production следует подтверждать отдельно.</p>
+<p><code>DummyCellConfigurationFactory</code> строит пакетные конфигурации из локального определения клетки, но этот путь не доказывает, какие значения формирует production-сервер. Комментарии в <code>MapBlockColors</code> описывают текущий server-side placeholder, однако источник production-кода в этом репозитории отсутствует: это следует считать зафиксированным клиентским свидетельством, а не независимо проверенным серверным поведением.</p>
 
+<h2>4. Что подтверждено и что остаётся открытым</h2>
+<table>
+<tr><th>Вопрос</th><th>Состояние</th><th>Что можно утверждать</th></tr>
+<tr><td>Поля <code>Emission</code> и <code>TextureAnchor</code></td><td class="ok">Есть в пакете и кодеке</td><td>Новые поля, предложенные в прежней версии страницы, уже присутствуют в текущей структуре.</td></tr>
+<tr><td>Тайлинг и координатная привязка</td><td class="part">Частично описаны контрактом</td><td><code>TextureAnchor</code> различает клеточную и мировую привязку. Отдельных полей периода листа <code>SheetTilesX/Y</code> в этой структуре нет; нельзя делать вывод, что их предлагается добавить без отдельного подтверждённого требования.</td></tr>
+<tr><td>Декали</td><td class="ok">Имя ресурса есть</td><td>Пакет передаёт <code>DecalTextureName</code>; доля появления и семейство декалей отдельными полями не передаются.</td></tr>
+<tr><td>Цвет production-клеток</td><td class="miss">Не подтверждён полностью</td><td>Клиентский путь цвета и приоритет локальной палитры видны в коде. Значения, реально формируемые production-сервером, требуют его исходника или протокольных данных.</td></tr>
+<tr><td>Согласованность версий сторон</td><td class="part">Требует внешнего подтверждения</td><td>Клиентский encoder/decoder определяет формат этой копии. Совпадение deployed server с этим wire-контрактом из клиентского checkout не устанавливается.</td></tr>
+</table>
+
+<h2>5. Как актуализировать эту страницу дальше</h2>
+<ul>
+<li>При изменении DTO сверять вместе поля, порядок записи/чтения и вычисление <code>Size</code>.</li>
+<li>Для утверждений о production-значениях ссылаться на формирователь пакета на сервере либо на сохранённый реальный wire sample с описанием версии и источника.</li>
+<li>Не переносить гипотезы о серверной стороне из комментариев клиента в категорию проверенного production-поведения.</li>
+<li>Изменения контракта документировать после того, как они появились в актуальном источнике; не оставлять выполненную миграцию в форме плана.</li>
+</ul>
 </body>
 </html>

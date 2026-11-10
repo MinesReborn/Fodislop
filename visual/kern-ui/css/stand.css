@@ -1,6 +1,5 @@
 /* Стенд: панель управления макетом над кадром и сам кадр игры.
    Кадр всегда 1080 px в высоту (эталон Kern) и вписывается в окно целиком. */
-* { box-sizing: border-box; margin: 0; padding: 0; }
 html, body { height: 100%; }
 body { background: var(--stand-bg); color: var(--bone); font: var(--t-body)/1.4 var(--font); font-variant-numeric: tabular-nums; display: flex; flex-direction: column; overflow: hidden; }
 
@@ -9,11 +8,11 @@ body { background: var(--stand-bg); color: var(--bone); font: var(--t-body)/1.4 
 .stand-row { display: flex; align-items: center; gap: var(--sp-4) 22px; flex-wrap: wrap; min-height: var(--ctl-xs); }
 .stand-group { display: flex; align-items: center; gap: var(--sp-4); }
 .stand-group[hidden] { display: none; }
-.stand-label { color: var(--smoke); font-size: var(--t-3); letter-spacing: .04em; text-transform: uppercase; }
+.stand-label { color: var(--smoke); font-size: var(--t-3); text-transform: uppercase; }
 .stand-step { color: var(--seam-strong); font-size: var(--t-8); margin-right: -2px; }
 /* Сегмент: кнопки одной группы — одной плашкой, выбранная подсвечена */
-.stand-seg { display: flex; padding: var(--sp-1); gap: var(--sp-1); border-radius: var(--r-l); background: var(--graphite-solid); border: 1px solid var(--stand-line); }
-.stand-seg button, .stand-act { font: inherit; color: var(--ash); background: transparent; border: 0; border-radius: var(--r-s); padding: var(--sp-2) var(--sp-5); cursor: pointer; white-space: nowrap; }
+.stand-seg { display: flex; padding: var(--sp-1); gap: var(--sp-1); background: var(--graphite-solid); border: 1px solid var(--stand-line); }
+.stand-seg button, .stand-act { font: inherit; color: var(--ash); background: transparent; border: 0; padding: var(--sp-2) var(--sp-5); cursor: pointer; white-space: nowrap; }
 .stand-seg button:hover, .stand-act:hover { color: var(--bone); background: var(--plate-solid); }
 .stand-seg button.is-on { color: var(--on-signal); background: var(--signal); font-weight: var(--fw-semi); }
 .stand-act { border: 1px solid var(--stand-line); }
@@ -21,7 +20,7 @@ body { background: var(--stand-bg); color: var(--bone); font: var(--t-body)/1.4 
 .stand-chain { flex-wrap: nowrap; gap: var(--sp-7); }
 .stand-pick { display: flex; align-items: center; gap: var(--sp-4); }
 .stand-pick[hidden] { display: none; }
-.stand-pick select { font: inherit; color: var(--bone); background: var(--graphite-solid); border: 1px solid var(--stand-line); border-radius: var(--r-l); padding: 5px 28px 5px var(--sp-5); cursor: pointer;
+.stand-pick select { font: inherit; color: var(--bone); background: var(--graphite-solid); border: 1px solid var(--stand-line); padding: 5px 28px 5px var(--sp-5); cursor: pointer;
   appearance: none; background-image: linear-gradient(45deg, transparent 50%, var(--ash) 50%), linear-gradient(135deg, var(--ash) 50%, transparent 50%);
   background-position: calc(100% - 14px) 50%, calc(100% - 9px) 50%; background-size: 5px 5px; background-repeat: no-repeat; }
 .stand-pick select:hover { border-color: var(--stand-line-hover); }
@@ -32,10 +31,13 @@ body { background: var(--stand-bg); color: var(--bone); font: var(--t-body)/1.4 
 .stand-hint { margin-left: auto; display: flex; gap: var(--sp-8); color: var(--smoke); }
 
 .stand-stage { flex: 1; min-height: 0; position: relative; overflow: hidden; }
-.frame { position: relative; height: var(--fh, 1080px); width: var(--fw, calc(1080px * var(--aspect, 1.7778))); overflow: hidden; position: absolute; left: 50%; top: 50%; transform-origin: center; background: var(--black); }
+/* ?embed=1 — врезка: только кадр на чёрном */
+html.embed .stand-bar { display: none; }
+html.embed body, html.embed .stand-stage { background: var(--void); }
+.frame { height: var(--fh, 1080px); width: var(--fw, calc(1080px * var(--aspect, 1.7778))); overflow: hidden; position: absolute; left: 50%; top: 50%; transform-origin: center; background: var(--black); }
 @media (max-width: 2400px) { .stand-hint { display: none !important; } }
 /* Устройство: кадр в dp экрана (паспорт из MobileDeviceMatrix), углы и вырез камеры — часть стенда */
 .frame.bezel { border-radius: var(--corner, 0); box-shadow: 0 0 0 10px var(--stand-bezel), 0 0 0 11px var(--stand-bezel-edge); }
 .cutout { display: none; position: absolute; z-index: var(--z-device); pointer-events: none; background: var(--black); }
-.frame[data-device="promax"] .cutout { display: block; left: 11px; top: 50%; width: 37px; height: 126px; margin-top: -63px; border-radius: var(--r-pill); }
+.frame[data-device="promax"] .cutout { display: block; left: 11px; top: 50%; width: 37px; height: 126px; margin-top: -63px; border-radius: 0; }
 .frame[data-device="pixel8"] .cutout { display: block; left: 18px; top: 50%; width: 13px; height: 13px; margin-top: -6px; border-radius: var(--r-round); }

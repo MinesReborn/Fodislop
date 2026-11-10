@@ -53,6 +53,28 @@ float3 SurfaceIncidentLighting(int2 pixel, float3 centerIncident)
     return incident;
 }
 
+// Среднее по текселям поля, которые накрывает один световой пиксель.
+// Нужно только отладочным видам: при плотности поля выше плотности
+// приёмника точечный выбор одного текселя показывал не то, что лежит в
+// поле. Больше 4×4 выборок не берём — это диагностика, а не транспорт.
+float4 LoadFieldFootprint(Texture2D<float4> field, int2 lightPixel)
+{
+    float texelsPerLight = max(_FieldTexelsPerLightTexel, 1.0);
+    int span = (int)clamp(round(texelsPerLight), 1.0, 4.0);
+    int stridePx = max(1, (int)round(texelsPerLight) / span);
+    int2 first = int2(floor(float2(lightPixel) * texelsPerLight));
+    float4 sum = 0.0;
+    [loop] for (int y = 0; y < span; y++)
+    {
+        [loop] for (int x = 0; x < span; x++)
+        {
+            sum += field.Load(int3(MaterialPixel(first + int2(x, y) * stridePx), 0));
+        }
+    }
+
+    return sum / float(span * span);
+}
+
 [numthreads(8, 8, 1)]
 void CompositeLighting(uint3 dispatchId : SV_DispatchThreadID)
 {
@@ -83,22 +105,28 @@ void CompositeLighting(uint3 dispatchId : SV_DispatchThreadID)
     int2 materialPixel = MaterialPixel(LightPxToFieldTexel(pixel));
 
     float4 material = _MaterialField.Load(int3(materialPixel.x, materialPixel.y, 0)).rgba;
-    float4 glow = _GlowField.Load(int3(materialPixel.x, materialPixel.y, 0)).rgba;
+
+    // Отладочные виды показывают поле, а не один его тексель. Поле переноса
+    // плотнее приёмника (FieldPixelsPerCell ≥ LightPixelsPerLightTexel),
+    // поэтому один световой пиксель накрывает несколько текселей: выбор
+    // одного из них (LightPxToFieldTexel) терял три четверти поля при
+    // плотности 2 и врал о содержимом. Сам расчёт ниже по-прежнему берёт
+    // точный транспортный тексель через materialPixel.
     if (_DebugView == 1) // Occupancy
     {
-        _Result[pixel] = float4(material.aaa, 1.0);
+        _Result[pixel] = float4(LoadFieldFootprint(_MaterialField, pixel).aaa, 1.0);
         return;
     }
 
     if (_DebugView == 2) // Albedo
     {
-        _Result[pixel] = float4(material.rgb, 1.0);
+        _Result[pixel] = float4(LoadFieldFootprint(_MaterialField, pixel).rgb, 1.0);
         return;
     }
 
     if (_DebugView == 3) // Glow
     {
-        _Result[pixel] = float4(glow.rgb, 1.0);
+        _Result[pixel] = float4(LoadFieldFootprint(_GlowField, pixel).rgb, 1.0);
         return;
     }
 

@@ -28,13 +28,13 @@
     visibility: hidden;
 }
 
-.world-label-name {
-    font-size: var(--size-sm);
-    color: var(--light-solid);
-    text-shadow: 1px 1px 0 rgba(0, 0, 0, 0.8);
-}
-
+/* Ник над роботом — макет visual/kern-ui (css/events.css .wl-name): 13 px, полужирный, отбивка тенью вниз */
 .world-label-nickname {
+    -unity-font-definition: var(--face-text);
+    font-size: var(--t-5);
+    -unity-font-style: bold;
+    color: var(--bone);
+    text-shadow: 0 1px 0 rgba(0, 0, 0, 0.9);
     margin: 0;
     padding: 0;
     white-space: nowrap;
@@ -42,78 +42,43 @@
     transform-origin: 0% 0%;
 }
 
-/* Облако локального чата.
- *
- * Рамка рисуется спрайтом LocalChatBubble с 9-slice, а не стилями. Спрайт
- * назначается кодом (WorldLabels.ApplyBubbleFrame) вместе с ScaleMode.ScaleToFit
- * и границами из sprite.border: без них спрайт растягивается целиком, скругления
- * исходника превращаются в эллипс, а хвост — в полосу под текстом. Правило
- * background-image в USS не годится: resource() отдаёт Texture2D, у которого нет
- * border, и 9-slice не включается.
- *
- * Поэтому здесь нет ни background-color, ни border-*: подложка-цвет или контур
- * из темы перекрыли бы спрайт, и рамка снова разошлась бы с текстом.
- *
- * Рамка полупрозрачная, как в оригинальном клиенте: белый тон с альфой
- * 157/255 (LocalChat.prefab, m_Color a=0.6156863). Тон задаётся в коде рядом с
- * самим спрайтом, а не здесь: правило unity-background-image-tint-color в USS не
- * разрешается, потому что background-image задан из кода, и рамка оставалась
- * непрозрачной (замерено: tint = RGBA(1,1,1,1)). Тоном, а не альфой в ассете,
- * чтобы PNG оставался белым и переиспользуемым.
- *
- * Высота облака постоянная — 32 px, ровно высота исходного спрайта. При такой
- * высоте вертикальный 9-slice не растягивается вовсе: сверху 7 px и снизу 22 px
- * берутся из ассета, а полоса между ними совпадает с исходными 3 px. Это то же,
- * что делает оригинал через ContentSizeFitter.VerticalFit = Unconstrained, и
- * поэтому хвост всегда одной формы. По той же причине рамка — отдельный
- * элемент, а текст лежит в нём вложенным Label: в одном элементе высота обязана
- * расти под перенос, и постоянной высоты добиться нельзя.
- *
- * Поля не задаются: отступ создаёт сама рамка. По бокам тело спрайта на средних
- * строках непрозрачно от края до края, контура там нет.
- *
- * Текст тёмный --text-on-gold: заливка спрайта белая, и светлый --text-primary
- * на ней не читался.
- *
- * Поля, кегль и высота не пересчитываются по зуму: облако масштабируется целиком
- * через style.scale на рамке, иначе на отдалении текст отставал бы от рамки.
- *
- * Позиция задаётся не стилем, а якорем: облако вешается в WorldLabels.Entry за
- * точку хвоста, поэтому translate ведёт нижнюю грань в верхнюю грань клетки
- * робота, а тело облака уходит вправо от хвоста.
- */
+/* Облако локального чата — макет (css/events.css .wl-chat, systems.css): рамка seam-strong,
+   плотный графит, поля 2/6, строка 12 px высотой 16; под рамкой хвост — черта 1×6 в 5 px от левого края.
+   Масштаб по зуму — style.scale на рамке от левого верхнего угла; якорь — нижний конец хвоста (WorldLabels.Entry). */
 .world-label-chat {
     position: absolute;
     left: 0;
     top: 0;
-    height: 32px;
     align-items: flex-start;
+    padding: 2px 6px;
+    border-width: 1px;
+    border-color: var(--seam-strong);
+    background-color: rgba(17, 16, 24, 0.92);
+    transform-origin: 0% 0%;
 }
 
-/* Текст внутри рамки.
- *
- * Стоит в потоке, а не absolute: рамка без детей схлопнулась бы по ширине, и
- * облако перестало бы расти по тексту.
- *
- * Высота 18 px — это тело спрайта: хвост занимает оставшиеся 14 px снизу и
- * текста не касается. Обрезка по ширине, а не перенос: перенос растил бы число
- * строк, а высота рамки постоянна, и вторая строка ушла бы под хвост.
- *
- * Поля обнулены явно: базовая тема unity-theme://default задаёт Label поля
- * margin-top и margin-bottom, и без этого текст центрировался по боксу целиком
- * вместо тела и уезжал под хвост (замерено: marginTop 4.27 при высоте бокса
- * 32 px и теле спрайта 18 px).
- */
+/* Текст обрезается по ширине, а не переносится: облако — одна строка */
 .world-label-chat-text {
-    height: 18px;
+    height: 16px;
     margin: 0;
-    font-size: var(--size-sm);
-    color: var(--text-on-gold);
-    -unity-text-align: middle-center;
+    padding: 0;
+    -unity-font-definition: var(--face-text);
+    font-size: var(--t-4);
+    -unity-font-style: normal;
+    color: var(--bone);
+    -unity-text-align: middle-left;
     -unity-text-overflow-position: end;
     text-overflow: ellipsis;
     overflow: hidden;
     white-space: nowrap;
     max-width: 360px;
-    padding: 0 3px;
+}
+
+.world-label-chat__tail {
+    position: absolute;
+    left: 4px;
+    top: 100%;
+    width: 1px;
+    height: 6px;
+    background-color: var(--seam-strong);
 }

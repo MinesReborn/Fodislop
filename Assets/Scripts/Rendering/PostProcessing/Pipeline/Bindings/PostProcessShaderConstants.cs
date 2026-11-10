@@ -17,6 +17,7 @@ internal static class PostProcessShaderConstants
     public static readonly int VignetteColorId = Shader.PropertyToID("_VignetteColor");
     public static readonly int VignetteSmoothnessId = Shader.PropertyToID("_VignetteSmoothness");
     public static readonly int VignetteCenterId = Shader.PropertyToID("_VignetteCenter");
+    public static readonly int ChromaticAberrationId = Shader.PropertyToID("_ChromaticAberration");
 
     public static readonly int DisplayPaperWhiteNitsId = Shader.PropertyToID("_DisplayPaperWhiteNits");
     public static readonly int DisplayPeakRelativeId = Shader.PropertyToID("_DisplayPeakRelative");

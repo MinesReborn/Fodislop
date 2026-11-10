@@ -16,11 +16,12 @@ using VContainer;
 
 using Kern.Core.Rendering;
 using Kern.Diagnostics.Memory;
-using Kern.Game.VisualEffects.Tentacles;
+using Kern.Game.Visual.Entities.Tentacles;
 
 namespace Kern.Game.Rendering
 {
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, sourceNamespace: "Kern.Game", sourceAssembly: null, sourceClassName: "WorldEntityBatchRenderer")]
+    [DefaultExecutionOrder(150)]
     public class WorldEntityBatchRenderer : MonoBehaviour, Kern.Core.Interfaces.WorldLighting.ILightingGeometryContributor
     {
         // Matches the five-point tail used by the stable June implementation:
@@ -30,7 +31,9 @@ namespace Kern.Game.Rendering
         private const int VERTS_PER_TENTACLE = TentacleGeometry.VerticesPerTentacle;
         private const int INDICES_PER_TENTACLE = TentacleGeometry.IndicesPerTentacle;
         private const int INITIAL_CAPACITY = 64;
-        private const int BATCH_SORTING_ORDER = -1;
+        // Роботы, хвосты и прочие сущности — над фоном террейна, но под его
+        // блоками (стенки и передний план вынесены в отдельный рендерер).
+        private const int BATCH_SORTING_ORDER = WorldRenderLayers.WorldEntitySortingOrder;
         private const int OVERLAY_BATCH_SORTING_ORDER = 600;
         private const int TENTACLE_SORTING_ORDER = -1;
         private static readonly float s_visibilityPrefetchMargin =
@@ -48,6 +51,9 @@ namespace Kern.Game.Rendering
         private static readonly int s_glowFieldThresholdId =
             Shader.PropertyToID("_GlowFieldThreshold");
 
+        private static readonly int s_entityGlowEmissionId =
+            Shader.PropertyToID("_EntityGlowEmission");
+
         private static bool s_tuningGlobalsApplied;
 
         private readonly List<Tentacle> _tentacles = new();
@@ -56,10 +62,7 @@ namespace Kern.Game.Rendering
         private readonly SpatialShardGrid<SpriteHandle> _spatialGrid = new();
         private readonly WorldEntityVisibility _visibility;
         private readonly WorldEntityLightingEmitter _lightingEmitter;
-        private Vector3[] _verts = new Vector3[VERTS_PER_TENTACLE * INITIAL_CAPACITY];
-        private Vector2[] _uvs = new Vector2[VERTS_PER_TENTACLE * INITIAL_CAPACITY];
-        private Color32[] _colors = new Color32[VERTS_PER_TENTACLE * INITIAL_CAPACITY];
-        private int[] _tris = new int[INDICES_PER_TENTACLE * INITIAL_CAPACITY];
+        private readonly WorldEntityGeometryBuffers _geometry;
         private Mesh? _mesh;
         private WorldEntityOverlayBatch? _overlayBatch;
         private WorldEntityTextureAtlas? _atlas;
@@ -74,6 +77,8 @@ namespace Kern.Game.Rendering
         [Inject]
         private IGameplayCamera? _gameplayCamera = null;
         [Inject]
+        private IWorldPresentationState _presentationState = null!;
+        [Inject]
         private LightingGeometryRegistry? _lightingGeometryRegistry = null;
 
         // Light-emitting sprites are drawn into the lighting fields from their
@@ -85,6 +90,8 @@ namespace Kern.Game.Rendering
 
         public WorldEntityBatchRenderer()
         {
+            _geometry = new WorldEntityGeometryBuffers(VERTS_PER_TENTACLE * INITIAL_CAPACITY,
+                INDICES_PER_TENTACLE * INITIAL_CAPACITY, GetAtlasRect);
             _visibility = new WorldEntityVisibility(_spatialGrid, s_visibilityPrefetchMargin);
             _lightingEmitter = new WorldEntityLightingEmitter(_sprites, () => _batchMaterial, GetAtlasRect);
         }
@@ -214,6 +221,11 @@ namespace Kern.Game.Rendering
         {
             using var marker = s_lateUpdateMarker.Auto();
             using var allocationScope = AllocationLedger.Measure(s_allocationEntry);
+            if (_presentationState.IsTeleportPreparing)
+            {
+                return;
+            }
+
             for (int i = 0; i < _sprites.Count; i++)
             {
                 SpriteHandle handle = _sprites[i];
@@ -227,21 +239,17 @@ namespace Kern.Game.Rendering
             _lightingEmitter.UpdateRevision();
 
             Camera? camera = _gameplayCamera?.Camera;
-            if (_visibility.UpdateCameraState(camera))
+            bool cameraCoverageInvalidated = _visibility.UpdateCameraState(camera);
+            if (cameraCoverageInvalidated)
             {
                 _geometryDirty = true;
             }
 
-            if (!_geometryDirty)
+            bool hasCamera = _visibility.TryGetCollectionRect(camera, cameraCoverageInvalidated, out Rect visibleRect);
+            _visibility.Collect(_sprites, hasCamera, visibleRect, OVERLAY_BATCH_SORTING_ORDER, TENTACLE_SORTING_ORDER);
+            if (_visibility.HasVisibleSpriteChanges())
             {
-                for (int i = 0; i < _sprites.Count; i++)
-                {
-                    if (_sprites[i].HasChanged())
-                    {
-                        _geometryDirty = true;
-                        break;
-                    }
-                }
+                _geometryDirty = true;
             }
 
             if (!_geometryDirty || _mesh == null)
@@ -249,8 +257,6 @@ namespace Kern.Game.Rendering
                 return;
             }
 
-            bool hasCamera = _visibility.TryGetVisibleRect(camera, out Rect visibleRect);
-            _visibility.Collect(_sprites, hasCamera, visibleRect, OVERLAY_BATCH_SORTING_ORDER, TENTACLE_SORTING_ORDER);
             RebuildMesh(hasCamera, visibleRect);
             _overlayBatch?.Rebuild(_visibility.Overlay, GetAtlasRect, _mesh.bounds);
 
@@ -259,6 +265,7 @@ namespace Kern.Game.Rendering
                 _sprites[i].CaptureState();
             }
 
+            _visibility.CaptureVisibleSpriteState();
             _geometryDirty = false;
         }
 
@@ -308,6 +315,9 @@ namespace Kern.Game.Rendering
             Shader.SetGlobalFloat(
                 s_glowFieldThresholdId,
                 WorldRenderConfigHolder.GlowFieldThreshold);
+            Shader.SetGlobalFloat(
+                s_entityGlowEmissionId,
+                WorldRenderConfigHolder.EntityGlowEmission);
             s_tuningGlobalsApplied = true;
         }
 
@@ -335,11 +345,11 @@ namespace Kern.Game.Rendering
             int activeSpriteCount = _visibility.UnderTentacles.Count + _visibility.OverTentacles.Count;
             int vertexCount = (activeCount * VERTS_PER_TENTACLE) + (activeSpriteCount * 4);
             int indexCount = (activeCount * INDICES_PER_TENTACLE) + (activeSpriteCount * 6);
-            EnsureGeometryCapacity(vertexCount, indexCount);
+            _geometry.EnsureGeometryCapacity(vertexCount, indexCount);
 
             int vertexCursor = 0;
             int indexCursor = 0;
-            WriteSprites(_visibility.UnderTentacles, ref vertexCursor, ref indexCursor);
+            _geometry.WriteSprites(_visibility.UnderTentacles, ref vertexCursor, ref indexCursor);
 
             for (int i = 0; i < _tentacles.Count; i++)
             {
@@ -351,23 +361,23 @@ namespace Kern.Game.Rendering
 
                 int vertexOffset = vertexCursor;
                 tentacle.WriteGeometry(
-                    _verts,
-                    _uvs,
+                    _geometry.Vertices,
+                    _geometry.Uvs,
                     vertexOffset,
                     GetAtlasRect(tentacle.Texture));
                 for (int vertex = 0; vertex < VERTS_PER_TENTACLE; vertex++)
                 {
-                    _colors[vertexOffset + vertex] = Color.white;
+                    _geometry.Colors[vertexOffset + vertex] = Color.white;
                 }
 
                 int indexOffset = indexCursor;
-                TentacleGeometry.WriteIndices(_tris, indexOffset, vertexOffset);
+                TentacleGeometry.WriteIndices(_geometry.Indices, indexOffset, vertexOffset);
 
                 vertexCursor += VERTS_PER_TENTACLE;
                 indexCursor += INDICES_PER_TENTACLE;
             }
 
-            WriteSprites(_visibility.OverTentacles, ref vertexCursor, ref indexCursor);
+            _geometry.WriteSprites(_visibility.OverTentacles, ref vertexCursor, ref indexCursor);
 
             vertexCount = vertexCursor;
             indexCount = indexCursor;
@@ -382,13 +392,13 @@ namespace Kern.Game.Rendering
 
             if (vertexCount > 0)
             {
-                mesh.SetVertices(_verts, 0, vertexCount, MeshUpdateFlags.DontRecalculateBounds);
-                mesh.SetUVs(0, _uvs, 0, vertexCount, MeshUpdateFlags.DontRecalculateBounds);
-                mesh.SetColors(_colors, 0, vertexCount, MeshUpdateFlags.DontRecalculateBounds);
+                mesh.SetVertices(_geometry.Vertices, 0, vertexCount, MeshUpdateFlags.DontRecalculateBounds);
+                mesh.SetUVs(0, _geometry.Uvs, 0, vertexCount, MeshUpdateFlags.DontRecalculateBounds);
+                mesh.SetColors(_geometry.Colors, 0, vertexCount, MeshUpdateFlags.DontRecalculateBounds);
                 if (topologyChanged)
                 {
                     mesh.SetIndices(
-                        _tris,
+                        _geometry.Indices,
                         0,
                         indexCount,
                         MeshTopology.Triangles,
@@ -404,12 +414,12 @@ namespace Kern.Game.Rendering
                 }
                 else
                 {
-                    Vector3 minimum = _verts[0];
+                    Vector3 minimum = _geometry.Vertices[0];
                     Vector3 maximum = minimum;
                     for (int i = 1; i < vertexCount; i++)
                     {
-                        minimum = Vector3.Min(minimum, _verts[i]);
-                        maximum = Vector3.Max(maximum, _verts[i]);
+                        minimum = Vector3.Min(minimum, _geometry.Vertices[i]);
+                        maximum = Vector3.Max(maximum, _geometry.Vertices[i]);
                     }
 
                     mesh.bounds = new Bounds(
@@ -444,47 +454,6 @@ namespace Kern.Game.Rendering
             }
 
             _lightingEmitter.RenderAmbientOcclusionField(commandBuffer, context);
-        }
-
-        private void WriteSprites(
-            List<SpriteHandle> handles,
-            ref int vertexCursor,
-            ref int indexCursor)
-        {
-            for (int i = 0; i < handles.Count; i++)
-            {
-                SpriteHandle handle = handles[i];
-                Sprite sprite = handle.Sprite ?? throw new InvalidOperationException(
-                    "An enabled batched sprite requires a Sprite.");
-                WorldEntityGeometry.WriteSprite(
-                    _verts,
-                    _uvs,
-                    _colors,
-                    _tris,
-                    handle,
-                    GetAtlasRect(sprite.texture),
-                    vertexCursor,
-                    indexCursor);
-                vertexCursor += 4;
-                indexCursor += 6;
-            }
-        }
-
-        private void EnsureGeometryCapacity(int vertexCount, int indexCount)
-        {
-            int vertexCapacity = Mathf.Max(1, vertexCount);
-            if (_verts.Length < vertexCapacity)
-            {
-                Array.Resize(ref _verts, vertexCapacity);
-                Array.Resize(ref _uvs, vertexCapacity);
-                Array.Resize(ref _colors, vertexCapacity);
-            }
-
-            int indexCapacity = Mathf.Max(1, indexCount);
-            if (_tris.Length < indexCapacity)
-            {
-                Array.Resize(ref _tris, indexCapacity);
-            }
         }
 
         protected void OnDestroy()

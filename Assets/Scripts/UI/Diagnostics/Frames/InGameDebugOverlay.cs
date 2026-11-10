@@ -187,7 +187,8 @@ namespace Kern.UI.Diagnostics
         {
             EnsureWindows();
             Keyboard? keyboard = Keyboard.current;
-            if (keyboard != null &&
+            if (Debug.isDebugBuild &&
+                keyboard != null &&
                 !ToolWindows.HasKeyboardCapture &&
                 keyboard.f1Key.wasPressedThisFrame)
             {
@@ -205,8 +206,8 @@ namespace Kern.UI.Diagnostics
                     _debugSettings.TailMotionDebugMode);
             }
 
-            // Включить инструменты может не только F1 (F5 открывает грейдинг
-            // напрямую), поэтому раскладка сверяется с реестром каждый кадр.
+            // Раскладка сверяется с реестром каждый кадр: инструменты могут
+            // включиться не только отсюда.
             useGUILayout = ToolWindows.Enabled;
             if (!ToolWindows.Enabled)
             {

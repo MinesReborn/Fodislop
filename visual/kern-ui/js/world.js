@@ -3,25 +3,31 @@
 (() => {
   const CELL = 32;
   const W = 220, H = 140;                 // карта шире кадра: её же рисует миникарта
+  // pass — проходима (пустота, дорога), sand — сыпучая, road — дорога или опора, alive — живая клетка («живка»), crystal — кристалл
   const TYPES = {
-    empty: { file: 'Empty', mm: '#2a1d12' },
+    empty: { file: 'Empty', mm: '#2a1d12', pass: true },
     rock: { file: 'Rock', mm: '#2b2f86' },
     grock: { file: 'GRock', mm: '#3b4a3b' },
     heavy: { file: 'HeavyRock', mm: '#3a3a44' },
     black: { file: 'BlackRock', mm: '#1d1f24' },
-    sand: { file: 'YellowSand', mm: '#c99b4f' },
-    rusty: { file: 'RustySand', mm: '#9a5a33' },
-    white: { file: 'WhiteSand', mm: '#b9b6ad' },
+    sand: { file: 'YellowSand', mm: '#c99b4f', sand: true },
+    rusty: { file: 'RustySand', mm: '#9a5a33', sand: true },
+    white: { file: 'WhiteSand', mm: '#b9b6ad', sand: true },
     boulder: { file: 'Boulder1', mm: '#5d5a55' },
     boulder2: { file: 'Boulder2', mm: '#5d5a55' },
-    road: { file: 'Road', mm: '#6d6a64' },
-    support: { file: 'Support', mm: '#8a7a5a' },
+    road: { file: 'Road', mm: '#6d6a64', pass: true, road: true },
+    support: { file: 'Support', mm: '#8a7a5a', road: true },
     g: { file: 'Green', mm: '#3ee86b', crystal: 'g' },
     b: { file: 'Blue', mm: '#6f8cff', crystal: 'b' },
     r: { file: 'Red', mm: '#ff7a74', crystal: 'r' },
     c: { file: 'Cyan', mm: '#39e8f0', crystal: 'c' },
     w: { file: 'White', mm: '#eef1f3', crystal: 'w' },
     v: { file: 'Violet', mm: '#f15fd6', crystal: 'v' },
+    // Живые клетки: цвет на карте — mapColor из cells.json клиента; атлас — пять вариантов столбиком, рисуется верхний
+    aliveC: { file: 'AliveCyan', mm: '#327698', alive: 'c' },
+    aliveR: { file: 'AliveRed', mm: '#993f37', alive: 'r' },
+    aliveV: { file: 'AliveViol', mm: '#815998', alive: 'v' },
+    aliveB: { file: 'AliveBlue', mm: '#204993', alive: 'b' },
   };
   let seed = 7;
   const rand = () => (seed = (seed * 1664525 + 1013904223) >>> 0) / 4294967296;
@@ -53,6 +59,20 @@
   for (let x = PX - 40; x <= PX - 8; x++) map[PY + 2][x] = 'road';
   for (let x = PX - 38; x <= PX - 8; x += 6) map[PY - 1][x] = 'support';
   for (let i = 0; i < 9; i++) map[PY - 5 + (i % 3)][PX + 4 + Math.floor(i / 3)] = ['c', 'g', 'b'][i % 3];
+  // Живки: гнёзда неправильной формы — одно у забоя, остальные дальше по карте
+  [[PX + 14, PY + 5, 'aliveR'], [PX - 30, PY + 22, 'aliveC'], [PX + 46, PY - 30, 'aliveV'], [PX + 60, PY + 40, 'aliveB'], [PX - 70, PY - 40, 'aliveC']].forEach(([gx, gy, t]) => {
+    for (let y = -3; y <= 3; y++) for (let x = -3; x <= 3; x++) if (map[gy + y]?.[gx + x] && x * x + y * y + noise(gx + x, gy + y) * 6 < 10) map[gy + y][gx + x] = t;
+  });
+
+  // Давность разведки: клиент видит мир чанками 32×32, которые присылает сервер. Контейнер карты помнит, когда чанк пришёл
+  // последний раз (seen, мс; 0 — не приходил ни разу): карта рисует давнее бледнее, неполученное не рисует.
+  // В образце: вокруг игрока — сейчас, дальше — минуты, часы, сутки назад, в углах — не был ни разу
+  const CHUNK = 32, now = Date.now();
+  const seen = Array.from({ length: Math.ceil(H / CHUNK) }, (_, cy) => Array.from({ length: Math.ceil(W / CHUNK) }, (_, cx) => {
+    const d = Math.max(Math.abs(cx - Math.floor(PX / CHUNK)), Math.abs(cy - Math.floor(PY / CHUNK)));
+    const ago = [0, 6e5, 3 * 36e5, 2 * 864e5][Math.min(3, d)];
+    return (cx === 0 || cx === 6) && (cy === 0 || cy === 4) ? 0 : now - ago;
+  }));
 
   const images = {};
   const load = Object.values(TYPES).map(t => new Promise(res => {
@@ -63,7 +83,7 @@
   robot.src = 'img/bee.png';
 
   // Другие роботы рядом (позиции — пример; ник и клан — из данных игрока)
-  const world = { map, PX, PY, TYPES, CELL, marks: [],
+  const world = { map, PX, PY, TYPES, CELL, CHUNK, seen, marks: [],
     bots: [{ nick: 'ШАХТЁР-102', clan: true, x: PX - 12, y: PY }, { nick: 'ROCKBOT', clan: false, x: PX - 4, y: PY - 2 }] };
   world.draw = () => {
     const canvas = document.getElementById('world');
@@ -78,8 +98,10 @@
     const ox = PX - Math.floor(cols / 2), oy = PY - Math.floor(rows / 2);
     const offX = (W / 2) - (PX - ox) * CELL - CELL / 2, offY = (H / 2) - (PY - oy) * CELL - CELL / 2;
     world.view = { ox, oy, offX, offY };
+    world.touch(ox, oy, ox + cols, oy + rows);                    // видимое сервер присылает сейчас
     const px = v => Math.round(v * r);                           // края клеток на целых пикселях — без щелей
-    const cell = (img, x, y) => ctx.drawImage(img, px(offX + x * CELL), px(offY + y * CELL),
+    // Атлас выше своей ширины (живые клетки — варианты столбиком) — берётся верхний квадрат
+    const cell = (img, x, y) => ctx.drawImage(img, 0, 0, img.naturalWidth, Math.min(img.naturalWidth, img.naturalHeight), px(offX + x * CELL), px(offY + y * CELL),
       px(offX + (x + 1) * CELL) - px(offX + x * CELL), px(offY + (y + 1) * CELL) - px(offY + y * CELL));
     for (let y = 0; y < rows; y++) for (let x = 0; x < cols; x++) {
       const t = TYPES[map[oy + y]?.[ox + x] || 'black'];
@@ -101,11 +123,16 @@
   world.drawMinimap = () => {
     const mm = document.getElementById('minimap');
     if (!mm) return;
-    const ctx = mm.getContext('2d'), s = 2;
+    // Режим — тот же, что на карте мира (js/mapmodes.js)
+    const M = window.kernMapModes, s = 2;
+    const ctx = mm.getContext('2d');
     const cw = mm.width / s, ch = mm.height / s;
+    ctx.fillStyle = M?.background() || '#000'; ctx.fillRect(0, 0, mm.width, mm.height);
     for (let y = 0; y < ch; y++) for (let x = 0; x < cw; x++) {
-      const t = TYPES[map[PY - Math.floor(ch / 2) + y]?.[PX - Math.floor(cw / 2) + x] || 'black'];
-      ctx.fillStyle = t.mm; ctx.fillRect(x * s, y * s, s, s);
+      const gx = PX - Math.floor(cw / 2) + x, gy = PY - Math.floor(ch / 2) + y, t = map[gy]?.[gx];
+      const c = M ? (t ? M.color(t, gx, gy) : null) : TYPES[t || 'black'].mm;
+      if (!c) continue;
+      ctx.fillStyle = c; ctx.fillRect(x * s, y * s, s, s);
     }
     ctx.fillStyle = 'rgba(11,15,18,.35)'; ctx.fillRect(0, 0, mm.width, mm.height);
     // Цели на миникарте: миссия и своя метка — в краю, если дальше видимого
@@ -120,12 +147,20 @@
     const x = v.ox + Math.floor((px - v.offX) / CELL), y = v.oy + Math.floor((py - v.offY) / CELL);
     return map[y] && map[y][x] ? { x, y, type: map[y][x] } : null;
   };
-  world.dig = (x, y) => { const t = TYPES[map[y][x]]; map[y][x] = 'empty'; world.draw(); return t; };
+  world.dig = (x, y) => { const t = TYPES[map[y][x]]; map[y][x] = 'empty'; world.touch(x, y, x, y); world.draw(); return t; };
+  // Чанки прямоугольника клеток пришли от сервера — запомнить время
+  world.touch = (x0, y0, x1, y1) => {
+    const t = Date.now();
+    for (let cy = Math.max(0, Math.floor(y0 / CHUNK)); cy <= Math.min(seen.length - 1, Math.floor(y1 / CHUNK)); cy++)
+      for (let cx = Math.max(0, Math.floor(x0 / CHUNK)); cx <= Math.min(seen[0].length - 1, Math.floor(x1 / CHUNK)); cx++) seen[cy][cx] = t;
+  };
+  world.seenAt = (x, y) => seen[Math.floor(y / CHUNK)]?.[Math.floor(x / CHUNK)] ?? 0;
   // Стик: малое отклонение — повернуться, сильное — шаг (в пустоту; в породу — только поворот)
   const STEP = { up: [0, -1], down: [0, 1], left: [-1, 0], right: [1, 0] };
   world.facing = 'right';
   world.face = dir => { if (world.facing !== dir) { world.facing = dir; world.draw(); } };
   world.step = dir => {
+    if (world.locked) return;                                    // подсказка обучения с линзой держит робота (js/tutorial.js)
     world.facing = dir;
     const [dx, dy] = STEP[dir];
     if (map[PY + dy]?.[PX + dx] === 'empty') { PX += dx; PY += dy; world.PX = PX; world.PY = PY; }

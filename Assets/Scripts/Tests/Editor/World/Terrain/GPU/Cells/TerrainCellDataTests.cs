@@ -59,16 +59,19 @@ public sealed class TerrainCellDataTests
         TerrainTypeRow row = TerrainCellData.PackType(new TerrainTypeFields(
             Type: CellType.Rock,
             Block: new BlockDefinition(
+                Passable: false,
+                MovementCooldownMs: 100,
                 DrawLayer: CellDrawLayer.Foreground,
-                Emission: true,
                 Outline: CellOutline.Corner,
+                TextureName: "",
                 TextureAnchor: CellTextureAnchor.World,
-                ShaderAnimation: CellAnimationType.Shimmer,
-                FrameAnimationSpeed: 1.5f,
-                SurfaceEffect: CellSurfaceEffect.Faceted,
-                SurfaceEffectPalette: 0,
-                DecalAtlas: CellDecalAtlas.Rock,
+                TileGroup: null,
+                DecalTextureName: null,
                 ReliefGroup: 4,
+                AnimationType: CellAnimationType.Faceted,
+                AnimationPalette: 0,
+                FrameAnimationSpeed: 1.5f,
+                Emission: true,
                 MapColor: default),
             Slot: 2,
             AtlasRect: new Vector4(0.25f, 0.5f, 0.125f, 1f),
@@ -78,15 +81,16 @@ public sealed class TerrainCellDataTests
             OpaqueOwn: true,
             OpaqueAny: true,
             HasTileGroup: true,
-            TileGroupId: 3));
+            TileGroupId: 3,
+            DecalTextureIndex: 2));
 
         // Тайл 1/32 — атлас 1024: x 256, y 512 << 12, кадров 3 << 24;
         // w 128, h 1024 << 12, кайма 4 << 24.
         Assert.That(row.AtlasXY, Is.EqualTo(0x03200100u));
         Assert.That(row.AtlasWH, Is.EqualTo(0x04400080u));
         // слот 2, блок (бит пола 0), непрозрачен 10 и 20, по миру 40, угол 5 << 7,
-        // мерцание 2 << 10, грани 2 << 12, камень 2 << 17.
-        Assert.That(row.Look, Is.EqualTo(0x00042AF2u));
+        // тип Faceted 12 << 19, decal ID 2 << 23.
+        Assert.That(row.Look, Is.EqualTo(0x016002F2u));
         // скорость 1.5 в half — 3E00, свечение 255 << 16, тайлгруппа (3 + 1) << 24.
         Assert.That(row.SpeedGlowTile, Is.EqualTo(0x04FF3E00u));
     }
@@ -98,16 +102,19 @@ public sealed class TerrainCellDataTests
         TerrainTypeRow row = TerrainCellData.PackType(new TerrainTypeFields(
             Type: type,
             Block: new BlockDefinition(
+                Passable: false,
+                MovementCooldownMs: 100,
                 DrawLayer: CellDrawLayer.Background,
-                Emission: false,
                 Outline: CellOutline.Wall,
+                TextureName: "",
                 TextureAnchor: CellTextureAnchor.Cell,
-                ShaderAnimation: CellAnimationType.None,
-                FrameAnimationSpeed: 50f,
-                SurfaceEffect: CellSurfaceEffect.Prismatic,
-                SurfaceEffectPalette: 5,
-                DecalAtlas: CellDecalAtlas.None,
+                TileGroup: null,
+                DecalTextureName: null,
                 ReliefGroup: 0,
+                AnimationType: CellAnimationType.Prismatic,
+                AnimationPalette: 5,
+                FrameAnimationSpeed: 50f,
+                Emission: false,
                 MapColor: default),
             Slot: 0,
             AtlasRect: Vector4.zero,
@@ -122,8 +129,8 @@ public sealed class TerrainCellDataTests
         // кадров 1 << 24; прямоугольника нет.
         Assert.That(row.AtlasXY, Is.EqualTo(0x01000000u));
         Assert.That(row.AtlasWH, Is.Zero);
-        // проходим 8, стена 4 << 7, радужный кристалл 3 << 12, палитра 5 << 14.
-        Assert.That(row.Look, Is.EqualTo(0x00017208u));
+        // проходим 8, стена 4 << 7, палитра 5 << 14, тип Prismatic 13 << 19.
+        Assert.That(row.Look, Is.EqualTo(0x00694208u));
         // скорость 50 в half — 5240, свечения нет; номер тайлгруппы без
         // самой группы не пишется.
         Assert.That(row.SpeedGlowTile, Is.EqualTo(0x5240u));
@@ -144,13 +151,9 @@ public sealed class TerrainCellDataTests
     }
 
     [Test]
-    public void DecalRulesLandOnTheirBits()
+    public void DecalPlacementIsDeterministicForTextureIndex()
     {
-        // камень: 30 | 7 << 7 | атлас камня 1 << 15.
-        Assert.That(TerrainCellData.PackDecal(TerrainDecalCatalog.RockRule), Is.EqualTo(0x839Eu));
-        // земля: доля из конфига, зерно — CellType.Empty.
-        Assert.That(
-            TerrainCellData.PackDecal(TerrainDecalCatalog.GroundRule),
-            Is.EqualTo(TerrainConfigHolder.GroundDecalPlacementPercent | ((uint)CellType.Empty << 7)));
+        Assert.That(TerrainDecalCatalog.Place(2, 3, 0), Is.EqualTo(639));
+        Assert.That(TerrainDecalCatalog.Place(0, 3, 0), Is.Zero);
     }
 }

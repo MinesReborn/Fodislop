@@ -3,10 +3,13 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Linq;
 using Kern.Core;
 using MinesServer.Data;
 using MinesServer.Networking.Server.Packets.Connection;
 using MinesServer.Networking.Server.Packets.Information;
+using Kern.World.Terrain;
+using Kern.World.Textures;
 using UnityEngine;
 
 namespace Kern.World;
@@ -16,12 +19,74 @@ public sealed class MapCellConfigCatalog
     private CellConfigurationPacket[]? _cellConfigurations;
     private readonly Dictionary<CellType, int> _cellToTileGroup = new();
     private readonly Dictionary<CellType, ushort> _cellMoveSpeeds = new();
+    private readonly Dictionary<string, AssetsDefinitionPacket> _assetsByName = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, string?> _assetNamesByShortName = new(StringComparer.OrdinalIgnoreCase);
 
-    public void LoadConfigurations(CellConfigurationPacket[]? configurations, byte[][]? tileGroups)
+    public void LoadConfigurations(
+        CellConfigurationPacket[]? configurations,
+        byte[][]? tileGroups,
+        AssetsDefinitionPacket[]? assetManifest = null)
     {
         ValidateCellConfigurations(configurations);
 
+        // Всё проверяется на локальных копиях, а состояние подменяется одним куском в конце: обновление
+        // посреди игры, упавшее на проверке, не должно оставить каталог наполовину новым
+        var assetsByName = new Dictionary<string, AssetsDefinitionPacket>(StringComparer.Ordinal);
+        if (assetManifest != null)
+        {
+            foreach (AssetsDefinitionPacket asset in assetManifest)
+            {
+                ValidateAssetDefinition(asset);
+                if (!assetsByName.TryAdd(asset.Filename, asset))
+                {
+                    throw new InvalidDataException($"WorldInitPacket.AssetsManifest contains duplicate filename '{asset.Filename}'.");
+                }
+            }
+        }
+
+        var decalTextureNames = configurations!
+            .Select(configuration => configuration.DecalTextureName)
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .Distinct(StringComparer.Ordinal)
+            .ToArray();
+        long textureArrayBytes = (long)TerrainDecalFactory.TextureWidth *
+            TerrainDecalFactory.TextureHeight * (decalTextureNames.Length + 1) * 4;
+        if (textureArrayBytes > 64L * 1024 * 1024)
+        {
+            throw new InvalidDataException("World decal texture array exceeds the 64 MiB client limit.");
+        }
+
+        foreach (CellConfigurationPacket configuration in configurations!)
+        {
+            if (!string.IsNullOrEmpty(configuration.TextureName) &&
+                !assetsByName.ContainsKey(configuration.TextureName))
+            {
+                throw new InvalidDataException(
+                    $"Cell configuration references texture '{configuration.TextureName}', which is absent from WorldInitPacket.AssetsManifest.");
+            }
+
+            if (!string.IsNullOrEmpty(configuration.DecalTextureName) &&
+                !assetsByName.ContainsKey(configuration.DecalTextureName))
+            {
+                throw new InvalidDataException(
+                    $"Cell configuration references decal texture '{configuration.DecalTextureName}', which is absent from WorldInitPacket.AssetsManifest.");
+            }
+        }
+
         _cellConfigurations = configurations;
+        _assetsByName.Clear();
+        _assetNamesByShortName.Clear();
+        foreach (AssetsDefinitionPacket asset in assetsByName.Values)
+        {
+            _assetsByName.Add(asset.Filename, asset);
+            string shortName = Path.GetFileNameWithoutExtension(asset.Filename);
+            if (!_assetNamesByShortName.TryAdd(shortName, asset.Filename))
+            {
+                _assetNamesByShortName[shortName] = null;
+            }
+        }
+
+        TerrainDecalCatalog.Configure(decalTextureNames);
 
         _cellToTileGroup.Clear();
         if (tileGroups != null)
@@ -39,6 +104,43 @@ public sealed class MapCellConfigCatalog
                 }
             }
         }
+    }
+
+    public bool TryGetAssetDefinition(string? filename, out AssetsDefinitionPacket definition)
+    {
+        if (string.IsNullOrEmpty(filename))
+        {
+            definition = default;
+            return false;
+        }
+
+        return _assetsByName.TryGetValue(filename, out definition);
+    }
+
+    public string ResolveAssetName(string shortName)
+    {
+        if (!_assetNamesByShortName.TryGetValue(shortName, out string? filename))
+        {
+            return shortName;
+        }
+
+        return filename ?? throw new InvalidDataException(
+            $"World asset name '{shortName}' is ambiguous in the server manifest.");
+    }
+
+    public bool TryGetAudioBanks(out IReadOnlyList<AssetsDefinitionPacket> banks)
+    {
+        if (_cellConfigurations == null)
+        {
+            banks = Array.Empty<AssetsDefinitionPacket>();
+            return false;
+        }
+
+        banks = _assetsByName.Values
+            .Where(asset => Path.GetExtension(asset.Filename) == ".bank")
+            .OrderBy(asset => asset.Filename, StringComparer.Ordinal)
+            .ToArray();
+        return true;
     }
 
     public void UpdateMovementSpeeds(MovementSpeedPacket packet)
@@ -117,7 +219,7 @@ public sealed class MapCellConfigCatalog
     /// террейна.
     ///
     /// Палитра клиента — временный fallback: сервер пока шлёт заглушку в
-    /// <c>CellConfigurationPacket.Color</c> (<c>0xFFFFFFFF</c> для всех
+    /// <c>CellConfigurationPacket.MapColor</c> (<c>0xFFFFFFFF</c> для всех
     /// 256 типов, поэтому доверять пакету для описанных типов нельзя. Пакет
     /// читается только там, где палитра ничего не знает, — то есть для типа,
     /// которого в клиентской таблице ещё нет.
@@ -135,9 +237,9 @@ public sealed class MapCellConfigCatalog
         }
 
         CellConfigurationPacket config = GetCellConfig(type);
-        if (config.Color != 0)
+        if (config.MapColor != 0)
         {
-            int argb = config.Color;
+            int argb = config.MapColor;
             byte a = (byte)((argb >> 24) & 0xFF);
             if (a == 0)
             {
@@ -161,6 +263,8 @@ public sealed class MapCellConfigCatalog
         _cellConfigurations = null;
         _cellToTileGroup.Clear();
         _cellMoveSpeeds.Clear();
+        _assetsByName.Clear();
+        TerrainDecalCatalog.Configure(Array.Empty<string>());
     }
 
     private static void ValidateCellConfigurations(CellConfigurationPacket[]? configurations)
@@ -169,6 +273,41 @@ public sealed class MapCellConfigCatalog
         {
             throw new InvalidDataException(
                 "WorldInitPacket.Cells is missing or empty; terrain cannot be initialized.");
+        }
+    }
+
+    private static void ValidateAssetDefinition(in AssetsDefinitionPacket asset)
+    {
+        if (string.IsNullOrWhiteSpace(asset.Filename) || asset.Filename.Length > byte.MaxValue)
+        {
+            throw new InvalidDataException($"World asset '{asset.Filename}' has an invalid filename.");
+        }
+
+        string normalizedPath = asset.Filename.Replace('\\', '/');
+        if (normalizedPath.StartsWith('/') || normalizedPath.Split('/').Any(segment => segment is "." or ".."))
+        {
+            throw new InvalidDataException($"World asset '{asset.Filename}' must be a safe relative filename.");
+        }
+
+        foreach (char character in asset.Filename)
+        {
+            if (character > 0x7F)
+            {
+                throw new InvalidDataException($"World asset '{asset.Filename}' must contain ASCII characters only.");
+            }
+        }
+
+        if (asset.ETag.Length != 0 && asset.ETag.Length != 32)
+        {
+            throw new InvalidDataException($"World asset '{asset.Filename}' ETag must be a 32-character MD5 value or empty.");
+        }
+
+        foreach (char character in asset.ETag)
+        {
+            if (!Uri.IsHexDigit(character))
+            {
+                throw new InvalidDataException($"World asset '{asset.Filename}' ETag contains a non-hex character.");
+            }
         }
     }
 }

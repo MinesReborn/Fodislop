@@ -1,467 +1,351 @@
-/* ═══════════════════════════════════════════════════════════
-   Chat — стили чата
-   ═══════════════════════════════════════════════════════════ */
+/* Чат — макет visual/kern-ui (ПК: css/hud.css .chat-peek, .chat-column; events.css .chat-list; micro.css, systems.css).
+   Свёрнутый — три строки справа от левой колонки (поле 24 + колонка 264 + шаг 8), высота двух рядов HUD;
+   раскрытый — окно 460×340 на том же месте. Интервал букв UI Toolkit — в сотых кегля. */
 
-.chat-container {
-    background-color: var(--surface-panel);
-    border-color: var(--border-subtle);
-    border-width: 1px;
-    border-radius: var(--radius-md);
-    padding: var(--space-6);
-    width: 400px;
-    max-height: 300px;
+/* Чат живёт вне корня .hud: шрифт, цвет и сброс кнопок — свои; отступы подписей заданы их классами */
+.chat-peek,
+.chat-column {
+    -unity-font-definition: var(--face-text);
+    color: var(--bone);
 }
 
-.chat-scroll {
-    flex-grow: 1;
-    margin-bottom: var(--space-3);
+.chat-column Button,
+.chat-column Button:hover,
+.chat-column Button:active,
+.chat-column Button:focus {
+    margin: 0;
+    border-radius: 0;
+    background-image: none;
 }
 
-.chat-message {
-    font-size: var(--size-sm);
-    color: var(--text-primary);
-    padding: var(--space-1);
-    white-space: normal;
+.chat-column .icon-btn.chat-head-btn {
+    width: var(--row);
+    height: var(--row);
+    margin-left: 4px;
+    border-width: 0;
+    background-color: rgba(0, 0, 0, 0);
 }
 
-.chat-input {
-    background-color: var(--surface-shelf-solid);
-    border-color: var(--border-subtle);
-    border-width: 1px;
-    border-radius: var(--radius-sm);
-    padding: var(--space-2) var(--space-4);
-    color: var(--text-primary);
-    font-size: var(--size-sm);
+.chat-column .icon-btn.chat-head-btn > .ico {
+    width: 20px;
+    height: 20px;
 }
 
-/* ─── Глобальный чат (GlobalChatUI) ─── */
+/* Наведение (hud.css .icon-btn:hover): поле светлее и значок — кость */
+.chat-column .icon-btn.chat-head-btn:hover {
+    background-color: var(--plate-hover);
+}
 
-.gchat-panel {
+.chat-column .icon-btn.chat-head-btn:hover > .ico {
+    -unity-background-image-tint-color: var(--bone);
+}
+
+/* ── Свёрнутый чат: метка канала и три последние строки ── */
+.chat-peek {
     position: absolute;
-    /* Широкая полоса лога сразу справа от мини-карты (левая колонка HUD),
-       прижата к низу экрана: от 198px (16 отступ + 174 карта + 8 зазор) до
-       160px от правого края - чтобы не заходить в правый нижний угол, где
-       живёт меню умений. Рамка и скругление — общий рецепт окон меню.
-       Окно перетаскивается и растягивается (ChatWindowInteractionController):
-       после первого вмешательства геометрию ведёт C# из client_config.json. */
-    left: 198px;
-    right: 160px;
-    bottom: var(--space-8);
-    height: 180px;
-    background-color: var(--surface-slate-dense);
+    left: 296px;
+    bottom: var(--margin);
+    height: 80px;
+    max-width: 560px;
+    margin: 0;
+    padding: 0 12px;
+    flex-direction: row;
+    align-items: center;
+    overflow: hidden;
     border-width: 1px;
-    border-color: var(--border-cyan);
-    border-radius: var(--radius-md);
-    padding: var(--space-4);
-    flex-direction: column;
+    border-color: var(--seam);
+    border-radius: 0;
+    background-color: rgba(17, 16, 24, 0.88);
+    background-image: none;
 }
 
-/* Захват окна: прозрачная полоса во всю ширину поверх верхнего края.
-   Сообщения и кнопки она не перекрывает (ниже неё), при наведении чуть
-   подсвечивается бирюзовым, как интерактив в меню. */
-.gchat-drag-strip {
+.chat-peek:hover,
+.chat-peek:active,
+.chat-peek:focus {
+    border-color: var(--seam);
+    background-color: rgba(17, 16, 24, 0.88);
+}
+
+.chat-peek-tag {
+    margin: 0 10px 0 0;
+    padding: 0;
+    -unity-font-definition: var(--face-mono);
+    font-size: var(--t-0);
+    -unity-font-style: normal;
+    letter-spacing: 14px;
+    color: var(--dim);
+}
+
+.chat-peek-lines {
+    flex-direction: column;
+    align-items: flex-start;
+    max-width: 500px;
+}
+
+.chat-peek-line {
+    margin: 0 0 2px 0;
+    padding: 0;
+    height: 19px;
+    font-size: var(--t-body);
+    -unity-font-style: normal;
+    -unity-text-align: middle-left; /* свёрнутый чат — кнопка: без этого строки наследуют её центр */
+    color: var(--bone);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* ── Окно чата ── */
+.chat-column {
+    position: absolute;
+    left: 296px;
+    bottom: var(--margin);
+    width: 460px;
+    height: 340px;
+    max-height: 45%;
+    flex-direction: column;
+    overflow: hidden;
+    border-width: 1px;
+    border-color: var(--seam-strong);
+    background-color: rgba(17, 16, 24, 0.88);
+}
+
+.chat-head {
+    height: 43px;
+    flex-shrink: 0;
+    padding: 6px 6px 0 12px;
+    flex-direction: row;
+    align-items: center;
+    border-bottom-width: 1px;
+    border-color: var(--seam);
+    /* Полоса штриховки 3 px у шва (hud.css .chat-head: var(--hatch) left bottom / 100% 3px) */
+    --hatch-color: rgba(216, 213, 238, 0.1);
+    --hatch-band: 3;
+}
+
+/* Название текущего канала (макет: выбранная .chat-tab без подчёркивания) — 13 px, fw 500 → жирное */
+.chat-title {
+    flex-grow: 1;
+    margin: 0;
+    padding: 6px 16px 8px 0;
+    font-size: var(--t-small);
+    -unity-font-style: bold;
+    color: var(--bone);
+    -unity-text-align: middle-left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.chat-head-btn {
+    flex-shrink: 0;
+}
+
+/* Счётчик непрочитанного на кнопке */
+.badge {
     position: absolute;
     top: 0;
-    left: 0;
     right: 0;
-    /* высоту (22px) задаёт ChatWindowInteractionController */
-    border-top-left-radius: var(--radius-md);
-    border-top-right-radius: var(--radius-md);
-}
-
-.gchat-drag-strip:hover {
-    background-color: var(--accent-cyan-tint);
-}
-
-/* Грани и углы ресайза: прозрачные зоны по краям рамки; курсор и логику
-   задаёт контроллер. hover — та же бирюзовая подсказка.
-   position: absolute обязателен: без него инлайновые top/left/right/bottom
-   из контроллера не работают, и зоны встают в поток колонки под вводом. */
-.gchat-resize-zone {
-    position: absolute;
-}
-
-.gchat-resize-zone:hover {
-    background-color: var(--accent-cyan-tint);
-}
-
-.gchat-header {
-    -unity-font-definition: var(--face-display);
-    font-size: var(--size-base);
+    min-width: 15px;
+    height: 15px;
+    margin: 0;
+    padding: 0 4px;
+    background-color: var(--danger);
+    color: var(--white);
+    -unity-font-definition: var(--face-mono);
+    font-size: var(--t-2);
     -unity-font-style: bold;
-    color: var(--accent-gold);
-    margin-bottom: var(--space-2);
-}
-
-.gchat-channel-tabs {
-    flex-direction: row;
-    margin-bottom: var(--space-3);
-}
-
-.gchat-channel-button {
-    flex-grow: 1;
-    height: 26px;
-    padding: 0 var(--space-4);
-    background-color: var(--surface-shelf-dense);
-    border-width: 1px;
-    border-color: var(--border-line);
-    color: var(--text-secondary);
     -unity-text-align: middle-center;
 }
 
-.gchat-channel-button--active {
-    background-color: var(--accent-gold-glow);
-    border-color: var(--accent-gold);
-    color: var(--light-solid);
-}
-
-.gchat-mute-status {
-    color: var(--accent-gold);
-    margin-bottom: var(--space-3);
+.chat-sys {
+    margin: 0;
+    padding: 6px 12px 0;
+    -unity-font-definition: var(--face-mono);
+    font-size: var(--t-1);
+    -unity-font-style: bold;
+    letter-spacing: 6px;
+    color: var(--dim);
     white-space: normal;
 }
 
-.gchat-scroll {
+.chat-log {
     flex-grow: 1;
-    margin-bottom: var(--space-3);
-    background-color: var(--surface-void-haze);
-    border-width: 1px;
-    border-color: var(--border-line);
+    flex-basis: 0;
+    padding: 8px 12px;
 }
 
-/* Скроллбар лога — минималистичный: вместо дефолтной жирной полосы со
-   стрелками тонкая дорожка с ручкой-капсулой. У ВСЕХ частей скроллера
-   гасятся минимальные размеры и состояния: дефолтная тема держит свои
-   части на min-width/min-height и подсвечивает их при наведении — width
-   эти минимумы не перебивает, из-за чего поверх тонкой дорожки проявлялась
-   широкая дефолтная полоса. Ручка чуть заметнее рамки, на наведении и
-   перетаскивании подсвечивается цианью. */
-.gchat-scroll .unity-scroller--vertical {
-    width: 6px;
-    min-width: 0;
-    padding: 0;
-    overflow: hidden;
-    background-color: transparent;
+/* Строки не ужимаются: у UI Toolkit flex-shrink 1 и нет минимума по содержимому, как в браузере, — при длинной
+   ленте строки сжимались ниже своего текста и налезали друг на друга вместо прокрутки */
+/* Строка ленты: ряд «время | текст», под рядом — пунктир (макет .chat-log li: padding-bottom 6, gap 4) */
+.chat-line-row {
+    flex-shrink: 0;
+    flex-direction: row;
+    align-items: flex-start;
+    margin: 0 0 4px 0;
+    padding: 0 0 6px 0;
+    --dash-color: rgba(50, 47, 70, 0.6);
 }
 
-.gchat-scroll .unity-scroller__low-button,
-.gchat-scroll .unity-scroller__high-button {
-    display: none;
-    width: 0;
-    height: 0;
+.chat-line--clickable:hover {
+    background-color: var(--plate-hover);
 }
 
-.gchat-scroll .unity-scroller__slider,
-.gchat-scroll .unity-scroller__slider:hover {
-    min-width: 0;
-    min-height: 0;
+/* Время строки: моно, приглушённое, колонкой перед текстом (макет .chat-log li time: margin-right 6px) */
+.chat-line__time {
+    flex-shrink: 0;
+    width: 45px;
     margin: 0;
     padding: 0;
-    border-width: 0;
-    background-color: transparent;
-}
-
-.gchat-scroll .unity-base-slider__tracker,
-.gchat-scroll .unity-base-slider__tracker:hover,
-.gchat-scroll .unity-base-slider__dragger-border {
-    width: 100%;
-    min-width: 0;
-    min-height: 0;
-    border-width: 0;
-    border-radius: 0;
-    background-color: transparent;
-}
-
-.gchat-scroll .unity-base-slider__dragger {
-    width: 6px;
-    min-width: 0;
-    border-width: 0;
-    border-radius: 3px;
-    background-color: var(--border-line);
-}
-
-.gchat-scroll .unity-base-slider__dragger:hover {
-    background-color: var(--accent-cyan-glow);
-}
-
-.gchat-scroll .unity-base-slider__dragger:active {
-    background-color: var(--accent-cyan-fill);
-}
-
-.gchat-message {
-    font-size: var(--size-sm);
-    color: var(--light-solid);
-    margin-bottom: var(--space-1);
-    padding-left: var(--space-1);
-    padding-right: var(--space-1);
-    white-space: normal;
+    -unity-font-definition: var(--face-mono);
+    font-size: var(--t-small);
     -unity-font-style: normal;
+    color: var(--dim);
 }
 
-.gchat-bottom-row {
-    flex-direction: row;
-    height: var(--space-11);
-    flex-shrink: 0;
-    flex-grow: 0;
-}
-
-.gchat-input {
-    flex-grow: 1;
+/* Текст строки: ник и сообщение, перенос внутри колонки текста */
+.chat-line {
     flex-shrink: 1;
-    min-width: 0;
-    font-size: var(--size-sm);
-    color: var(--light-solid);
-    background-color: transparent;
-    border-width: 1px;
-    border-color: var(--border-line);
-    padding: var(--space-1) var(--space-2);
-}
-
-.gchat-send-button {
-    width: var(--space-12);
-    flex-shrink: 0;
-    padding: 0;
-    background-color: var(--surface-shelf-solid);
-    color: var(--light-solid);
-    font-size: var(--size-base);
-    -unity-text-align: middle-center;
-    border-width: 1px;
-    border-left-width: 0;
-    border-color: var(--border-line);
-}
-
-.gchat-color-button {
-    width: var(--space-11);
-    height: var(--space-11);
-    flex-shrink: 0;
-    padding: 0;
-    border-width: 1px;
-    border-left-width: 0;
-    border-color: var(--border-line);
-}
-
-/* Пикер цвета: плавающий попап над строкой ввода (40px = 8 паддинг панели +
-   28 ряд + 4 зазор), налезает на ленту сообщений. Рецепт меню: сланец,
-   циановая рамка, скругление. */
-.gchat-color-grid {
-    position: absolute;
-    bottom: 40px;
-    right: var(--space-4);
-    flex-direction: row;
-    flex-wrap: wrap;
-    width: 170px;
-    flex-shrink: 0;
-    justify-content: center;
-    background-color: var(--surface-slate-dense);
-    border-width: 1px;
-    border-color: var(--border-cyan);
-    border-radius: var(--radius-md);
-    padding: var(--space-2);
-}
-
-.gchat-swatch {
-    width: var(--space-9);
-    height: var(--space-9);
-    margin: 1px;
-    padding: 0;
-    border-width: 1px;
-    border-color: var(--text-disabled);
-}
-
-/* Кнопка-пикер смайлов: квадрат в ряду ввода, как кнопка цвета; глиф
-   кнопке ставит ChatEmojiController (emoji-шрифтом). */
-.gchat-emoji-button {
-    width: var(--space-11);
-    height: var(--space-11);
-    flex-shrink: 0;
-    padding: 0;
-    border-width: 1px;
-    border-left-width: 0;
-    border-color: var(--border-line);
-}
-
-/* Пикер смайлов: тот же плавающий попап над строкой ввода, 4 в ряд.
-   Открытие одного пикера закрывает второй (GlobalChatUI). */
-.gchat-emoji-grid {
-    position: absolute;
-    bottom: 40px;
-    right: var(--space-4);
-    flex-direction: row;
-    flex-wrap: wrap;
-    width: 170px;
-    flex-shrink: 0;
-    justify-content: center;
-    background-color: var(--surface-slate-dense);
-    border-width: 1px;
-    border-color: var(--border-cyan);
-    border-radius: var(--radius-md);
-    padding: var(--space-2);
-}
-
-.gchat-emoji-item {
-    width: var(--space-9);
-    height: var(--space-9);
-    margin: 1px;
-    padding: 0;
-    border-width: 1px;
-    border-color: var(--text-disabled);
-}
-
-.gchat-internal-input {
-    background-color: transparent;
-    border-width: 0;
-    padding: 0;
-    margin: 0;
-    font-size: var(--size-base);
-    color: var(--light-solid);
-}
-
-/* ─── Список чатов («Чаты» → выбор канала/привата) ───
-   Попап над панелью лога; строки строятся кодом из ChatListPacket (48). */
-
-.gchat-chats-popup {
-    position: absolute;
-    left: 0;
-    bottom: 0;
-    width: 360px;
-    max-height: 320px;
-    align-self: flex-end;
-    background-color: var(--surface-slate-dense);
-    border-width: var(--space-1);
-    border-color: var(--accent-cyan-deep);
-    padding: var(--space-3);
-    flex-direction: column;
-}
-
-.gchat-chats-header {
-    font-size: var(--size-base);
-    -unity-font-style: bold;
-    color: var(--accent-gold);
-    margin-bottom: var(--space-2);
-}
-
-.gchat-chats-scroll {
     flex-grow: 1;
-    margin-bottom: var(--space-2);
-    background-color: var(--surface-void-haze);
-    border-width: 1px;
-    border-color: var(--border-line);
+    margin: 0;
+    padding: 0;
+    font-size: var(--t-small);
+    color: var(--bone);
+    white-space: normal;
 }
 
-.gchat-chat-row {
+.chat-form {
+    flex-shrink: 0;
+    padding: 8px 12px 10px;
+    border-top-width: 1px;
+    border-color: var(--seam);
+}
+
+/* Поле ввода чата (и «сказать рядом»): лунка, в фокусе — сигнал слева */
+.chat-input {
+    height: 34px;
+    margin: 0;
+    padding: 0;
+}
+
+.chat-input > .unity-text-field__input,
+.chat-input .unity-base-text-field__input {
+    margin: 0;
+    padding: 0 12px;
+    border-width: 1px;
+    border-radius: 0;
+    border-color: var(--seam-strong);
+    background-color: var(--well);
+    color: var(--bone);
+    font-size: var(--t-small);
+    -unity-font-definition: var(--face-text);
+}
+
+.chat-input:focus > .unity-text-field__input,
+.chat-input:focus .unity-base-text-field__input {
+    border-color: var(--signal);
+    border-left-width: 3px;
+    padding-left: 10px; /* макет: inset 2px 0 0 — тень текст не сдвигает, рамка 3 px сдвигала бы на 2 */
+}
+
+.chat-input .unity-text-element--placeholder,
+.chat-input .unity-base-text-field__input--placeholder {
+    color: var(--smoke);
+}
+
+/* ── Все каналы: поверх ленты, под шапкой ── */
+/* Отступ 1 px — внутри рамки колонки: абсолютные отступы UI Toolkit считаются от внешнего края (макет: padding-box) */
+.chat-list {
+    position: absolute;
+    left: 1px;
+    right: 1px;
+    top: 44px;
+    bottom: 1px;
+    padding: 8px;
+    background-color: var(--graphite-solid);
+}
+
+.chat-list-row {
+    flex-shrink: 0;
+    margin: 0 0 2px 0;
+    padding: 8px 10px;
     flex-direction: column;
     align-items: stretch;
-    padding: var(--space-2);
-    margin-bottom: var(--space-1);
-    background-color: var(--surface-shelf-dense);
-    border-width: 1px;
-    border-color: var(--border-line);
+    border-width: 0;
+    border-radius: 0;
+    background-color: rgba(0, 0, 0, 0);
+    --dash-color: var(--seam);
 }
 
-.gchat-chat-row-name {
-    font-size: var(--size-sm);
+.chat-list-row:hover {
+    background-color: var(--plate-hover);
+}
+
+.chat-list-row.is-on {
+    background-color: rgba(216, 213, 238, 0.08);
+}
+
+.chat-list-row__head {
+    flex-direction: row;
+    align-items: center;
+    margin-bottom: 2px;
+}
+
+.chat-list-row__name {
+    flex-grow: 1;
+    margin: 0;
+    padding: 0;
+    font-size: var(--t-6);
     -unity-font-style: bold;
-    color: var(--light-solid);
+    color: var(--bone);
+    -unity-text-align: middle-left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-.gchat-chat-row-preview {
-    font-size: var(--size-sm);
-    color: var(--text-secondary);
-    white-space: normal;
-}
-
-.gchat-chats-close {
-    height: 26px;
-    flex-shrink: 0;
-    background-color: var(--surface-shelf-solid);
-    border-width: 1px;
-    border-color: var(--border-line);
-    color: var(--text-secondary);
+.chat-list-row__count {
+    min-width: 18px;
+    height: 18px;
+    margin: 0 0 0 8px;
+    padding: 0 6px;
+    background-color: var(--danger);
+    color: var(--white);
+    -unity-font-definition: var(--face-mono);
+    font-size: var(--t-3);
+    -unity-font-style: bold;
     -unity-text-align: middle-center;
 }
 
-/* Кликабельная строка сообщения (клик → серверное окно отправителя). */
-
-.gchat-message--clickable:hover {
-    background-color: var(--surface-shelf-dense);
+.chat-list-row__preview {
+    margin: 0;
+    padding: 0;
+    font-size: var(--t-4);
+    color: var(--ash);
+    -unity-text-align: middle-left;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
-/* ─── Локальный чат (LocalChatInput) ───
-   Одна строка по центру низа: глобальное окно живёт справа по центру
-   (.gchat-panel), дно по центру кадра HUD не занимает — джойстик прижат
-   влево, корзина с инвентарём вверх. */
-
+/* ── Локальный чат («сказать рядом», клавиша T): строка по центру ── */
 .lchat-panel {
     position: absolute;
     left: 50%;
     top: 45%;
     translate: -50% 0;
-    width: 420px;
+    width: 460px;
     flex-direction: row;
     align-items: center;
-    background-color: var(--surface-slate-dense);
-    border-width: 1px;
-    border-color: var(--border-cyan);
-    border-radius: var(--radius-sm);
-    padding: var(--space-1) var(--space-2);
 }
 
 .lchat-input {
     flex-grow: 1;
     flex-shrink: 1;
     min-width: 0;
-    background-color: transparent;
-    border-width: 0;
-    padding: var(--space-1) var(--space-2);
-    font-size: var(--size-sm);
-    color: var(--light-solid);
 }
 
-.lchat-internal-input {
-    background-color: transparent;
-    border-width: 0;
-    padding: 0;
-    margin: 0;
-    font-size: var(--size-base);
-    color: var(--light-solid);
-}
-
-/* Кнопка отправки локального чата нужна только пальцу: на клавиатуре
-   отправляет Enter. Показывает её Touch.uss. */
+/* Кнопка отправки нужна только пальцу: на клавиатуре отправляет Enter. Показывает её Touch.uss */
 .lchat-send {
     display: none;
-}
-
-/* ─── Кнопка чата в HUD (низ слева) ───
-   Чат открывается и закрывается кликом, не только по TAB. Иконка — белый
-   контурный бабл (ChatIcon.png, уже белый — тинт не меняется), без подложки
-   и рамок. Сдвиг вправо (182px): самый угол занят серверным окном робота,
-   кнопка сидит вплотную к его правому краю (у окна ~164px ширины). */
-.chat-toggle-btn {
-    position: absolute;
-    left: 182px;
-    bottom: 12px;
-    width: 40px;
-    height: 40px;
-    background-color: transparent;
-    border-width: 0;
-    background-size: contain;
-    background-position: center center;
-    -unity-background-image-tint-color: var(--light-solid);
-}
-
-/* E2-C: бейдж непрочитанных — кружок с числом в правом верхнем углу кнопки. */
-.chat-toggle-badge {
-    position: absolute;
-    top: -4px;
-    right: -6px;
-    min-width: 16px;
-    height: 16px;
-    padding: 0 3px;
-    border-radius: var(--radius-pill);
-    background-color: var(--state-danger, #d64541);
-    color: var(--light-solid);
-    font-size: 10px;
-    -unity-text-align: middle-center;
-    -unity-font-style: bold;
 }

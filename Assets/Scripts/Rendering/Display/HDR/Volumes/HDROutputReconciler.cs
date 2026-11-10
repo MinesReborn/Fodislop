@@ -2,6 +2,7 @@
 
 using System;
 using Kern.Rendering.PostProcessing;
+using Unity.Profiling;
 using Kern.Core.Interfaces;
 using UnityEngine;
 using UnityEngine.SceneManagement;
@@ -12,9 +13,15 @@ using VContainer.Unity;
 namespace Kern.Rendering.Display;
 public sealed class HDROutputReconciler : IStartable, ITickable, IDisposable
 {
-    // Probing every frame is pointless: HDR availability changes on the
-    // scale of plugging in a monitor, not of a frame.
-    private const float ProbeIntervalSeconds = 1f;
+    // Переключение вывода приходит событиями (дисплеи, фокус, сцена,
+    // настройка из меню), а опрос нужен только как страховка от пропущенного
+    // события. Раз в секунду он читал состояние дисплея на главном потоке
+    // и перекрашивал камеру чаще, чем что-либо могло измениться.
+    private const float ProbeIntervalSeconds = 5f;
+
+    // Чтение вывода и перекраска камеры идут вне участков кадра: без
+    // собственного маркера их цена попадала в отчёт как безымянный провис.
+    private static readonly ProfilerMarker s_applyMarker = new("Kern.Display.HDROutput.Apply");
 
     // Через именованный контракт, а не через сырую Camera: тот же объект,
     // но бутстрап заводил IGameplayCamera именно для потребителей DI.
@@ -23,6 +30,10 @@ public sealed class HDROutputReconciler : IStartable, ITickable, IDisposable
     private Volume? _volume;
     private VolumeProfile? _profile;
     private Tonemapping? _tonemapping;
+
+    // Монитор провисов открывает рекордеры по имени до первого тика этого
+    // класса; инициализация типа регистрирует маркер заранее.
+    public static void PrimeDiagnostics() => _ = s_applyMarker;
 
     public HDROutputReconciler(IGameplayCamera camera)
     {
@@ -137,6 +148,7 @@ public sealed class HDROutputReconciler : IStartable, ITickable, IDisposable
 
     private void Apply()
     {
+        using var marker = s_applyMarker.Auto();
         Camera camera = _camera.Camera;
         if (camera == null)
         {

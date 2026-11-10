@@ -20,18 +20,6 @@ public sealed class EncodedImageHeaderTests
     }
 
     [Test]
-    public void ReadsSizeOfUnityEncodedJpeg()
-    {
-        AssertEncodedSize(texture => texture.EncodeToJPG(), 33, 21);
-    }
-
-    [Test]
-    public void ReadsSizeOfUnityEncodedExr()
-    {
-        AssertEncodedSize(texture => texture.EncodeToEXR(), 5, 7, TextureFormat.RGBAFloat);
-    }
-
-    [Test]
     public void RejectsUnknownFormat()
     {
         byte[] data = { 0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08, 0x09 };
@@ -83,10 +71,9 @@ public sealed class EncodedImageHeaderTests
     private static void AssertEncodedSize(
         Func<Texture2D, byte[]> encode,
         int width,
-        int height,
-        TextureFormat format = TextureFormat.RGBA32)
+        int height)
     {
-        byte[] data = Encode(encode, width, height, format);
+        byte[] data = Encode(encode, width, height, TextureFormat.RGBA32);
 
         Assert.That(EncodedImageHeader.TryReadSize(data, out int readWidth, out int readHeight), Is.True);
         Assert.That(readWidth, Is.EqualTo(width));

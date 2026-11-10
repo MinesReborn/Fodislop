@@ -7,11 +7,11 @@
 <pre id="out"></pre>
 <script>
 const URLS = ['screen=boot', 'screen=auth', 'screen=auth&auth=register&autherr=1', 'screen=auth&forgot=1', 'screen=onboarding&onbstep=0', 'screen=onboarding&onbstep=1', 'screen=onboarding&onbstep=2',
-  'screen=menu', 'screen=menu&update=1&updwin=1', 'screen=menu&health=run', 'screen=descent', 'game', 'game&state=busy&mark=1', 'game&chat=1', 'game&pm=ШАХТЁР-102',
+  'screen=menu', 'screen=menu&update=1&updwin=1', 'screen=descent', 'game', 'game&state=busy&mark=1', 'game&chat=1', 'game&pm=ШАХТЁР-102',
   'game&clan=1&clanrole=leader', 'game&mail=1', 'game&profile=1', 'game&profile=ГЛУБИНА', 'game&profile=ШАХТЁР-102', 'game&skills=0', 'game&skills=-1', 'game&skills=5', 'game&inv=1', 'game&inv=3',
   'game&menu=1', 'game&pause=1&device=promax', 'game&device=promax', 'game&input=xbox', 'game&settings=graphics', 'game&settings=audio', 'game&settings=interface', 'game&profile=settings', 'game&settings=controls',
   'game&prog=1', 'game&prog=debug', 'game&prog=list', 'game&prog=error', 'game&map=1&mark=1', 'game&event=reconnect', 'game&event=lost', 'game&event=kicked', 'game&event=modal', 'game&event=link',
-  'game&buildings=1', 'game&assets=40'];
+  'game&buildings=1', 'game&assets=40', 'game&srvwin=donate', 'game&mission=first&tut=mission', 'game&mission=timer&tut=prog', 'game&mission=image&tut=center', 'game&mission=build', 'game&mission=single', 'game&mission=done', 'game&mission=long'];
 const SKIP = '.stand-bar, script, style, svg, .nick-link, .nick, .wl-name, .wl-chat, .chat-log li:not(.sys), #chatPeek3, .prog-cell, #progName, #progPickName, [translate="no"]';
 const found = new Set();
 const norm = s => s.replace(/\s+/g, ' ').trim().replace(/\d+/g, '#');

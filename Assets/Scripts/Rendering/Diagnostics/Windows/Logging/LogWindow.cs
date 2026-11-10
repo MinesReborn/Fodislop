@@ -30,7 +30,7 @@ public sealed class LogWindow : ToolWindow
     private bool _showErrors = true;
     private bool _followEnd = true;
     private bool _frozen;
-    private string _summary = string.Empty;
+    private string _summary = "ожидание первой выборки логов";
     private float _nextRefresh;
 
     public LogWindow()
@@ -70,7 +70,7 @@ public sealed class LogWindow : ToolWindow
         _showWarnings = true;
         _showErrors = true;
         _nextRefresh = 0f;
-        _summary = string.Empty;
+        _summary = "ожидание первой выборки логов";
         _source.Clear();
         _rows.Clear();
         _rowKinds.Clear();

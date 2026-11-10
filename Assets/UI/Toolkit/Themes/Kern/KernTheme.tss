@@ -6,20 +6,30 @@
 @import url("../../../../Resources/UI/WorldLabels/Styles/WorldLabels.uss");
 @import url("../../../../Resources/UI/Theme/Tokens/Styles/ThemeTokens.uss");
 @import url("../../../../Resources/UI/Theme/Tokens/Styles/TokenClasses.uss");
-@import url("../../../../Resources/UI/Theme/Animation/Styles/Animations.uss");
+/* Токены макета visual/kern-ui (emit-uss-tokens). Старые ThemeTokens уходят вместе с последним старым листом. */
+@import url("../../../../Resources/UI/Theme/Tokens/Styles/KernTokens.uss");
 @import url("../../../../Resources/UI/Theme/Foundation/Styles/Theme.uss");
 @import url("../../../../Resources/UI/Theme/Decoration/Styles/SciFi.uss");
 @import url("../../../../Resources/UI/Controls/Panels/Styles/Panel.uss");
 @import url("../../../../Resources/UI/Controls/Buttons/Styles/Button.uss");
 @import url("../../../../Resources/UI/Controls/TextFields/Styles/Input.uss");
+/* Общие классы макета visual/kern-ui: фон экранов, знак, вкладки, поле-строка, переключатель, ползунок, шкала ступенями */
+@import url("../../../../Resources/UI/Theme/Kern/Styles/Kern.uss");
+/* Значки макета: .ico, .ico--<имя> (выгрузка SVG-спрайта) */
+@import url("../../../../Resources/UI/Theme/Kern/Styles/Icons.uss");
 @import url("../../../../Resources/UI/HUD/Player/Styles/HUD.uss");
 @import url("../../../../Resources/UI/Chat/Global/Styles/Chat.uss");
 @import url("../../../../Resources/UI/Chat/Input/Styles/ChatInput.uss");
 @import url("../../../../Resources/UI/Inventory/Styles/Inventory.uss");
 @import url("../../../../Resources/UI/Programmator/Styles/Programmator.uss");
 @import url("../../../../Resources/UI/Settings/Pause/Styles/PauseMenu.uss");
+/* Окно настроек — одно на меню и игру */
+@import url("../../../../Resources/UI/Settings/Window/Styles/SettingsWindow.uss");
+/* Калибровка дисплея — экран поверх всего, узор под ним рисует проход вывода */
+@import url("../../../../Resources/UI/Settings/Calibration/Styles/Calibration.uss");
 @import url("../../../../Resources/UI/Windows/Modal/Styles/Modal.uss");
 @import url("../../../../Resources/UI/ServerWindows/Styles/PacketWindow.uss");
 @import url("../../../../Resources/UI/Gateway/Styles/Auth.uss");
+@import url("../../../../Resources/UI/Menu/Styles/MainMenu.uss");
 /* Сенсорная раскладка — последней: переопределяет правила экранов. */
 @import url("../../../../Resources/UI/Screen/Touch/Styles/Touch.uss");

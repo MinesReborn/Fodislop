@@ -15,7 +15,7 @@ using Kern.UI.Screens;
 namespace Kern.UI.Connection
 {
     [UnityEngine.Scripting.APIUpdating.MovedFrom(true, sourceNamespace: "Kern.UI", sourceAssembly: null, sourceClassName: "ReconnectUI")]
-    public class ReconnectUI : MonoBehaviour
+    public class ReconnectUI : MonoBehaviour, ILocalizableUI
     {
         [Inject]
         private UIDocument _doc = null!;
@@ -42,11 +42,21 @@ namespace Kern.UI.Connection
         private Label? _reconnectLabel;
         private Label? _disconnectLabel;
         private Button? _disconnectOkButton;
+        private Label? _disconnectTitle;
+        private Label? _disconnectServerReason;
+        private string? _disconnectOkTextKey;
+        private string? _reconnectStatus;
+        private string? _disconnectReason;
         private bool _reconnectStatusSet;
         private bool _initialized;
 
         private void OnDestroy()
         {
+            if (_loc != null)
+            {
+                _loc.UnregisterLocalizable(this);
+            }
+
             if (_connection != null)
             {
                 _connection.OnReconnectStatusChanged -= ShowReconnecting;
@@ -94,6 +104,7 @@ namespace Kern.UI.Connection
             }
 
             CreateUI();
+            _loc.RegisterLocalizable(this);
             _initialized = true;
         }
 
@@ -107,10 +118,6 @@ namespace Kern.UI.Connection
                     "[ReconnectUI] Resources/UI/Connection/Reconnection/Templates/Reconnect.uxml is required.");
             TemplateContainer tree = template.Instantiate();
 
-            // Статические ключи Uxml резолвятся сразу при сборке (контракт
-            // един для всех экранов; здесь их нет — тексты ставит код).
-            UILocalizer.Apply(tree, _loc);
-
             _reconnectOverlay = tree.Q<VisualElement>("ReconnectOverlay") ??
                 throw new InvalidOperationException("[ReconnectUI] ReconnectOverlay is missing from Reconnect.uxml.");
             _disconnectOverlay = tree.Q<VisualElement>("DisconnectOverlay") ??
@@ -121,9 +128,18 @@ namespace Kern.UI.Connection
                 throw new InvalidOperationException("[ReconnectUI] DisconnectLabel is missing from Reconnect.uxml.");
             _disconnectOkButton = tree.Q<Button>("DisconnectOkButton") ??
                 throw new InvalidOperationException("[ReconnectUI] DisconnectOkButton is missing from Reconnect.uxml.");
-            // A4-S: после кика мультилогином/разрыва игрок возвращается на экран
-            // входа (токен сохранён — повторный вход по кнопке Play на Gateway).
-            _disconnectOkButton.clicked += ExitToGateway;
+            _disconnectOkTextKey = _disconnectOkButton.text;
+            _disconnectOkButton.clicked += ExitToMainMenu;
+            _disconnectTitle = tree.Q<Label>("DisconnectTitle") ??
+                throw new InvalidOperationException("[ReconnectUI] DisconnectTitle is missing from Reconnect.uxml.");
+            _disconnectServerReason = tree.Q<Label>("DisconnectReason") ??
+                throw new InvalidOperationException("[ReconnectUI] DisconnectReason is missing from Reconnect.uxml.");
+            Button reconnectMenu = tree.Q<Button>("ReconnectMenuButton") ??
+                throw new InvalidOperationException("[ReconnectUI] ReconnectMenuButton is missing from Reconnect.uxml.");
+            // Пока идёт переподключение, выход в меню остаётся (макет: #netMenu)
+            reconnectMenu.clicked += ExitToMainMenu;
+
+            UILocalizer.Apply(tree, _loc);
 
             _reconnectOverlay.SetEnabled(false);
             _disconnectOverlay.SetEnabled(false);
@@ -135,6 +151,33 @@ namespace Kern.UI.Connection
         private string Resolve(string text)
         {
             return _loc != null && _loc.HasKey(text) ? _loc.Get(text) : text;
+        }
+
+        public void ApplyLocalizedText()
+        {
+            UILocalizer.AssertLocalizationServiceAvailable(_loc, nameof(ReconnectUI));
+            if (_reconnectOverlay == null || _disconnectOverlay == null || _loc == null)
+            {
+                return;
+            }
+
+            UILocalizer.Apply(_reconnectOverlay, _loc);
+            UILocalizer.Apply(_disconnectOverlay, _loc);
+
+            if (_reconnectLabel != null && _reconnectStatus != null)
+            {
+                _reconnectLabel.text = Resolve(_reconnectStatus);
+            }
+
+            if (_disconnectLabel != null && _disconnectReason != null)
+            {
+                ApplyDisconnectText();
+            }
+
+            if (_disconnectOkButton != null && _disconnectOkTextKey != null)
+            {
+                _disconnectOkButton.text = _loc.Get(_disconnectOkTextKey);
+            }
         }
 
         public void ShowReconnecting(string status)
@@ -156,7 +199,8 @@ namespace Kern.UI.Connection
 
             HideOverlay(_disconnectOverlay);
 
-            _reconnectLabel.text = Resolve(status);
+            _reconnectStatus = status;
+            _reconnectLabel.text = Resolve(_reconnectStatus);
 
             _reconnectStatusSet = true;
             UIState.Show(_reconnectOverlay);
@@ -183,27 +227,12 @@ namespace Kern.UI.Connection
 
             HideOverlay(_reconnectOverlay);
 
-            _disconnectLabel.text = Resolve(reason);
+            _disconnectReason = reason;
+            ApplyDisconnectText();
 
             UIState.Show(_disconnectOverlay);
             _disconnectOverlay.SetEnabled(true);
             _disconnectOverlay.pickingMode = PickingMode.Position;
-        }
-
-        // Кик/разрыв — соединение уже мертво: единственный выход из блокирующего
-        // оверлея это экран входа. Токен не трогаем (сохранён — повторный вход
-        // по кнопке Play на Gateway).
-        private void ExitToGateway()
-        {
-            if (_sceneNavigator == null || _operations == null)
-            {
-                return;
-            }
-
-            Hide();
-            _operations.Run(
-                "reconnect_exit_to_gateway",
-                cancellationToken => _sceneNavigator.TransitionAsync(SceneNames.Gateway, cancellationToken));
         }
 
         public void SetStatus(string status)
@@ -220,7 +249,8 @@ namespace Kern.UI.Connection
 
             if (_reconnectLabel != null)
             {
-                _reconnectLabel.text = Resolve(status);
+                _reconnectStatus = status;
+                _reconnectLabel.text = Resolve(_reconnectStatus);
             }
 
             if (!_reconnectStatusSet && _doc != null && _reconnectOverlay != null)
@@ -229,6 +259,42 @@ namespace Kern.UI.Connection
                 _reconnectOverlay.SetEnabled(true);
                 _reconnectOverlay.pickingMode = PickingMode.Position;
             }
+        }
+
+        // Обрыв связи — «Связь потеряна» и сообщение клиента; причина от сервера (DisconnectPacket) —
+        // «Отключено сервером», «Сервер закрыл соединение.» и сама причина плашкой (макет: js/events.js showNet)
+        private void ApplyDisconnectText()
+        {
+            if (_disconnectLabel == null || _disconnectTitle == null || _disconnectServerReason == null || _disconnectReason == null)
+            {
+                return;
+            }
+
+            bool lost = _loc == null ||
+                string.Equals(_disconnectReason, _loc.Get("network.error.connection_lost"), StringComparison.Ordinal) ||
+                string.Equals(_disconnectReason, "network.error.connection_lost", StringComparison.Ordinal);
+            if (lost)
+            {
+                _disconnectTitle.text = Caps(Resolve("network.lost_title"));
+                _disconnectLabel.text = Resolve(_disconnectReason);
+                UIState.Hide(_disconnectServerReason);
+                return;
+            }
+
+            _disconnectTitle.text = Caps(Resolve("network.kicked_title"));
+            _disconnectLabel.text = Resolve("network.kicked_text");
+            _disconnectServerReason.text = _loc!.Get("network.kicked_reason", Resolve(_disconnectReason));
+            UIState.Show(_disconnectServerReason);
+        }
+
+        private static string Caps(string text) => text.ToUpperInvariant();
+
+        private void ExitToMainMenu()
+        {
+            Hide();
+            _operations.Run(
+                "reconnect_exit_to_main_menu",
+                cancellationToken => _sceneNavigator.TransitionAsync(SceneNames.MainMenu, cancellationToken));
         }
 
         public void Hide()

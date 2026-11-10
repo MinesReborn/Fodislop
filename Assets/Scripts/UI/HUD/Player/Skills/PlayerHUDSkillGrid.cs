@@ -1,174 +1,105 @@
 #nullable enable
 
 using System.Collections.Generic;
+using Kern.AssetPipeline.Loading;
 using MinesServer.Data;
 using UnityEngine;
 using UnityEngine.UIElements;
 
-using Kern.AssetPipeline.Loading;
-
 namespace Kern.UI.HUD;
 
-// Сетка умений PlayerHUD: иконка умения, под ней полоса опыта с процентами
-// (SkillProgressBar), над иконкой - "up" при готовности апгрейда
-// (xp >= 100%), прыгающее вверх-вниз для привлечения внимания. Место под
-// "up" резервируется отступом рамки, сама надпись растянута ровно по ширине
-// иконки, поэтому всегда отцентрирована по умению.
+// Рост навыков (макет visual/kern-ui: .mini-skills, js/hud.js showMini): круглый значок навыка,
+// справа вплотную — полоска опыта цвета навыка во всю высоту значка. Растущий навык виден 5 с после роста,
+// готовый к улучшению остаётся: полоска полная цвета тревоги, над значком — слово «up» цвета навыка.
 public sealed class PlayerHUDSkillGrid
 {
-    private const int SKILL_GRID_COLS = 4;
-    private const string ReadyText = "up";
-    private const long BounceIntervalMs = 40L;
+    private const long VisibleMs = 5000;
 
-    private readonly Dictionary<SkillType, (Label arrow, SkillProgressBar bar)> _skillIcons = new();
-    private readonly Dictionary<SkillType, IVisualElementScheduledItem> _bounceSchedules = new();
+    private sealed class Item
+    {
+        public VisualElement Root = null!;
+        public VisualElement Fill = null!;
+        public IVisualElementScheduledItem? Hide;
+    }
 
-    private VisualElement? _skillContainer;
-    private VisualElement? _currentSkillRow;
-    private int _skillCountInRow;
+    private readonly Dictionary<SkillType, Item> _items = new();
+    private VisualElement? _container;
 
     public void Initialize(VisualElement skillContainer)
     {
-        _skillContainer = skillContainer;
-        _currentSkillRow = null;
-        _skillCountInRow = 0;
-        _skillIcons.Clear();
+        _container = skillContainer;
+        _container.Clear();
+        _items.Clear();
     }
 
     public void UpdateSkillProgress(SkillType skill, long current, long max)
     {
-        if (!_skillIcons.TryGetValue(skill, out var icon))
+        if (_container == null)
         {
-            icon = CreateSkillIcon(skill);
+            return;
         }
 
-        // Сырой процент БЕЗ Clamp01: перелив сверх 100% (current > max)
-        // доезжает до полосы - заливка краснеет, проценты показывают
-        // сверхнорму ("120%"). Длину заливки клампит сам SkillProgressBar.
+        if (!_items.TryGetValue(skill, out Item? item))
+        {
+            item = Create(skill);
+            _items[skill] = item;
+        }
+
+        if (item.Root.parent == null)
+        {
+            _container.Add(item.Root);
+        }
+
         float progress = max > 0 ? current / (float)max : 0f;
         bool ready = progress >= 1f;
+        item.Root.EnableInClassList("is-ready", ready);
+        item.Fill.style.height = Length.Percent(ready ? 100f : Mathf.Clamp01(progress) * 100f);
 
-        // Полоса плавно догоняет целевое заполнение - заливка движется,
-        // пока умение прокачивается.
-        icon.bar.SetTarget(progress);
-
-        icon.arrow.text = ready ? ReadyText : string.Empty;
-        if (ready)
+        item.Hide?.Pause();
+        item.Hide = null;
+        if (!ready)
         {
-            StartBounce(skill, icon.arrow);
-        }
-        else
-        {
-            StopBounce(skill, icon.arrow);
+            item.Hide = item.Root.schedule.Execute(() => item.Root.RemoveFromHierarchy()).StartingIn(VisibleMs);
         }
     }
 
     public void ClearSchedules()
     {
-        foreach (var schedule in _bounceSchedules.Values)
+        foreach (Item item in _items.Values)
         {
-            schedule.Pause();
-        }
-
-        _bounceSchedules.Clear();
-
-        foreach (var (_, bar) in _skillIcons.Values)
-        {
-            bar.PauseAnimation();
+            item.Hide?.Pause();
+            item.Hide = null;
         }
     }
 
-    // "up" прыгает вверх-вниз (0..-4px), как в старом клиенте.
-    private void StartBounce(SkillType skill, Label arrow)
+    private static Item Create(SkillType skill)
     {
-        if (_bounceSchedules.ContainsKey(skill))
+        var root = new VisualElement { pickingMode = PickingMode.Position };
+        root.AddToClassList("mini-skill");
+        // Цвет навыка (--skill-*) — класс по типу; у навыков без своего цвета — общий
+        root.AddToClassList("mini-skill--" + skill);
+
+        var icon = new VisualElement { pickingMode = PickingMode.Ignore };
+        icon.AddToClassList("mini-skill__ico");
+        Texture2D? texture = Resources.Load<Texture2D>($"UI/HUD/Player/Skills/Icons/{skill}");
+        if (texture != null)
         {
-            return;
+            RuntimeTextureFactory.ApplySampling(texture, FilterMode.Point, TextureWrapMode.Clamp);
+            icon.style.backgroundImage = new StyleBackground(texture);
         }
 
-        float elapsed = 0f;
-        IVisualElementScheduledItem schedule = arrow.schedule.Execute(() =>
-        {
-            elapsed += BounceIntervalMs / 1000f;
-            float y = -Mathf.PingPong(elapsed * 10f, 4f);
-            arrow.style.translate = new Translate(0, y);
-        }).Every(BounceIntervalMs);
-        _bounceSchedules[skill] = schedule;
-    }
+        var bar = new VisualElement { pickingMode = PickingMode.Ignore };
+        bar.AddToClassList("mini-skill__bar");
+        var fill = new VisualElement { pickingMode = PickingMode.Ignore };
+        fill.AddToClassList("mini-skill__fill");
+        bar.Add(fill);
 
-    private void StopBounce(SkillType skill, Label arrow)
-    {
-        if (_bounceSchedules.TryGetValue(skill, out var existing))
-        {
-            existing.Pause();
-            _bounceSchedules.Remove(skill);
-        }
+        var up = new VisualElement { pickingMode = PickingMode.Ignore };
+        up.AddToClassList("mini-skill__up");
 
-        arrow.style.translate = new Translate(0, 0);
-    }
-
-    private void EnsureSkillRow()
-    {
-        if (_currentSkillRow != null && _skillCountInRow < SKILL_GRID_COLS)
-        {
-            return;
-        }
-
-        _currentSkillRow = new VisualElement();
-        _currentSkillRow.AddToClassList("hud-skill-row");
-        _skillContainer?.Add(_currentSkillRow);
-        _skillCountInRow = 0;
-    }
-
-    private (Label arrow, SkillProgressBar bar) CreateSkillIcon(SkillType skill)
-    {
-        EnsureSkillRow();
-
-        // Ячейка - колонка без подложки: рамка с иконкой, под ней полоса
-        // опыта. Верхний отступ рамки резервирует место под "up"; надпись
-        // привязана к рамке и растянута по ширине иконки, поэтому
-        // центрирована ровно по умению.
-        var cell = new VisualElement();
-        cell.AddToClassList("hud-skill-icon");
-
-        // Рамка вокруг иконки - точка привязки "up".
-        var iconFrame = new VisualElement();
-        iconFrame.AddToClassList("hud-skill-icon-frame");
-
-        var iconImage = new Image();
-        iconImage.AddToClassList("hud-skill-icon-image");
-
-        Texture2D? tex = Resources.Load<Texture2D>($"UI/HUD/Player/Skills/Icons/{skill}");
-        if (tex != null)
-        {
-            RuntimeTextureFactory.ApplySampling(
-                tex,
-                FilterMode.Point,
-                TextureWrapMode.Clamp);
-            iconImage.image = tex;
-        }
-
-        iconFrame.Add(iconImage);
-
-        // "up" при готовности апгрейда: абсолютный слой НАД иконкой, растянутый
-        // ровно на ширину рамки (left/right: 0), поэтому middle-center центрирует
-        // текст точно по умению - без зависимости от stretch и измерения шрифта.
-        // Прыжок вверх-вниз уводит надпись в зарезервированную зону над иконкой.
-        var arrow = new Label(ReadyText);
-        arrow.AddToClassList("hud-skill-arrow");
-        iconFrame.Add(arrow);
-
-        cell.Add(iconFrame);
-
-        // Полоса опыта с процентами - ПОД иконкой, центрируется ячейкой.
-        var bar = new SkillProgressBar();
-        cell.Add(bar);
-
-        _currentSkillRow?.Add(cell);
-        _skillCountInRow++;
-
-        var result = (arrow, bar);
-        _skillIcons[skill] = result;
-        return result;
+        root.Add(icon);
+        root.Add(bar);
+        root.Add(up);
+        return new Item { Root = root, Fill = fill };
     }
 }

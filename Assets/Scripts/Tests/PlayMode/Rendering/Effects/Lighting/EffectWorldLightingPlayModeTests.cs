@@ -5,7 +5,7 @@ using System.Linq;
 using Kern.Core;
 using Kern.Core.Interfaces;
 using Kern.Game.Entities.Robots;
-using Kern.Game.Events.Audio;
+using Kern.Game.Events.Playback;
 using Kern.Rendering;
 using Kern.Rendering.Display;
 using Kern.World.Lighting;
@@ -32,22 +32,22 @@ public sealed class EffectWorldLightingPlayModeTests
     public IEnumerator GunShotReusesRenderersAfterEffectIsCleared()
     {
         _authentication = DummyAuthenticationScope.Seed("playmode-gunshot-reuse");
-        yield return PlayModeHarness.StartAtGateway();
+        yield return PlayModeHarness.StartAtMainMenu();
         var bootstrap = PlayModeHarness.FindBootstrap()!;
         yield return PlayModeHarness.EnterMainGame(bootstrap);
-        var effects = PlayModeHarness.RequireInGame<ServerAudioEventManager>();
+        var effects = PlayModeHarness.RequireInGame<ServerEventPlaybackManager>();
         var local = PlayModeHarness.RequireInGame<ILocalPlayerState>().Current!;
-        effects.ClearAllEffects();
+        effects.ClearActiveEvents();
         try
         {
-            effects.PlayEffect(VFX.GunShot, checked((ushort)local.Position.x), checked((ushort)local.Position.y),
+            effects.PlayEffect(VisualEffect.GunShot, checked((ushort)local.Position.x), checked((ushort)local.Position.y),
                 checked((ushort)local.BotId));
             LineRenderer[] first = Object.FindObjectsByType<LineRenderer>()
                 .Where(line => line.transform.parent != null && line.transform.parent.name == "SpriteAnimations/GunShot")
                 .ToArray();
             Assert.That(first.Length, Is.EqualTo(44));
-            effects.ClearAllEffects();
-            effects.PlayEffect(VFX.GunShot, checked((ushort)local.Position.x), checked((ushort)local.Position.y),
+            effects.ClearActiveEvents();
+            effects.PlayEffect(VisualEffect.GunShot, checked((ushort)local.Position.x), checked((ushort)local.Position.y),
                 checked((ushort)local.BotId));
             LineRenderer[] second = Object.FindObjectsByType<LineRenderer>()
                 .Where(line => line.transform.parent != null && line.transform.parent.name == "SpriteAnimations/GunShot")
@@ -56,7 +56,7 @@ public sealed class EffectWorldLightingPlayModeTests
         }
         finally
         {
-            effects.ClearAllEffects();
+            effects.ClearActiveEvents();
         }
     }
 
@@ -65,13 +65,13 @@ public sealed class EffectWorldLightingPlayModeTests
     public IEnumerator MainGame_HealHurtMining_EmitAndRemoveDynamicRadiance()
     {
         _authentication = DummyAuthenticationScope.Seed("playmode-effect-world-light");
-        yield return PlayModeHarness.StartAtGateway();
+        yield return PlayModeHarness.StartAtMainMenu();
         var bootstrap = PlayModeHarness.FindBootstrap()!;
         var config = bootstrap.Container.Resolve<IClientConfigManager>();
         GraphicsPreset originalPreset = config.Config.GraphicsPreset;
         yield return PlayModeHarness.EnterMainGame(bootstrap);
         var lighting = PlayModeHarness.RequireInGame<LightingEngine>();
-        var effects = PlayModeHarness.RequireInGame<ServerAudioEventManager>();
+        var effects = PlayModeHarness.RequireInGame<ServerEventPlaybackManager>();
         var graphics = PlayModeHarness.RequireInGame<GraphicsSettingsController>();
         var local = PlayModeHarness.RequireInGame<ILocalPlayerState>().Current!;
         Robot[] robots = Object.FindObjectsByType<Robot>();
@@ -81,12 +81,12 @@ public sealed class EffectWorldLightingPlayModeTests
         try
         {
             foreach (Robot robot in robots) { robot.enabled = false; }
-            effects.ClearAllEffects();
+            effects.ClearActiveEvents();
             lighting.ClearDynamicLights();
             graphics.SelectPreset(GraphicsPreset.Standard);
             yield return PlayModeHarness.Frames(10);
             Time.timeScale = 0f; // Compare one actual animation frame with/without its source.
-            foreach (VFX effect in new[] { VFX.Heal, VFX.Hurt, VFX.Bz })
+            foreach (VisualEffect effect in new[] { VisualEffect.Heal, VisualEffect.Hurt, VisualEffect.Bz })
             {
                 effects.enabled = true;
                 effects.PlayEffect(effect, checked((ushort)local.Position.x), checked((ushort)local.Position.y),
@@ -106,14 +106,14 @@ public sealed class EffectWorldLightingPlayModeTests
                 float removed = -1f;
                 yield return ReadRadiancePatch(lighting, local.transform.position, value => removed = value);
                 Assert.That(removed, Is.Zero, "The dynamic target retained stale effect radiance.");
-                effects.ClearAllEffects();
+                effects.ClearActiveEvents();
                 Assert.That(lighting.DynamicLightCount, Is.Zero);
                 TestContext.WriteLine($"effect={effect}; actualPeak={emitted:R}; removedPeak={removed:R}");
             }
         }
         finally
         {
-            effects.ClearAllEffects();
+            effects.ClearActiveEvents();
             effects.enabled = effectsEnabled;
             lighting.ClearDynamicLights();
             Time.timeScale = originalTimeScale;

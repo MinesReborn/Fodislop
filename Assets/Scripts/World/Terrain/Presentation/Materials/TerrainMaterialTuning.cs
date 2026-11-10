@@ -18,12 +18,6 @@ internal static class TerrainMaterialTuning
         Shader.PropertyToID("_RimQuantizationEnabled");
     private static readonly int s_rimFalloffPropertyId =
         Shader.PropertyToID("_RimFalloff");
-    private static readonly int s_groundDecalStrengthPropertyId =
-        Shader.PropertyToID("_GroundDecalStrength");
-    private static readonly int s_rockDecalStrengthPropertyId =
-        Shader.PropertyToID("_RockDecalStrength");
-    private static readonly int s_decalPlacementOffsetPropertyId =
-        Shader.PropertyToID("_DecalPlacementOffset");
     private static readonly int s_terrainDebugDeltaContrastPropertyId =
         Shader.PropertyToID("_TerrainDebugDeltaContrast");
     private static readonly int s_facetedGlintDirectionPropertyId =
@@ -95,9 +89,6 @@ internal static class TerrainMaterialTuning
         material.SetFloat(s_emissionBrightnessStartId, TerrainConfigHolder.EmissionBrightnessStart);
         material.SetFloat(s_emissionBrightnessEndId, TerrainConfigHolder.EmissionBrightnessEnd);
         material.SetFloat(s_surfaceEmissionStrengthId, TerrainConfigHolder.SurfaceEmissionStrength);
-        material.SetFloat(s_groundDecalStrengthPropertyId, TerrainConfigHolder.GroundDecalStrength);
-        material.SetFloat(s_rockDecalStrengthPropertyId, TerrainConfigHolder.RockDecalStrength);
-        material.SetFloat(s_decalPlacementOffsetPropertyId, TerrainConfigHolder.DecalPlacementOffset);
         material.SetFloat(
             s_terrainDebugDeltaContrastPropertyId,
             TerrainConfigHolder.TerrainDebugDeltaContrast);

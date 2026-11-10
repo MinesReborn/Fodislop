@@ -38,21 +38,20 @@ internal static class FrameBreakdownSystemBuilder
         rows.Add(new FrameBreakdownRow(FrameBreakdownRowKind.Header, $"ОКНА ИНСТРУМЕНТОВ — {total:F2} мс ЗА КАДР"));
         rows.Add(new FrameBreakdownRow(
             FrameBreakdownRowKind.Text,
-            $"Секундомер внутри каждого окна, {events} событий IMGUI за кадр. Окна редактора сюда не попадают."));
+            $"Секундомер внутри каждого окна; за кадр учтено {events} событий IMGUI."));
         double scale = Math.Max(total, 1d);
         foreach (ToolWindow window in toolWindows)
         {
             rows.Add(new FrameBreakdownRow(
                 FrameBreakdownRowKind.Text,
-                $"{window.Title}   {window.DrawMilliseconds:F2} мс   ({window.DrawEvents} соб.)   " +
-                $"мусор: Tick {window.TickAllocatedBytes / 1024d:F1} КБ, отрисовка {window.DrawAllocatedBytes / 1024d:F1} КБ",
+                $"{window.Title}   {window.DrawMilliseconds:F2} мс   ({window.DrawEvents} соб.)",
                 (float)(window.DrawMilliseconds / scale),
                 ToolTheme.Accent));
         }
 
         rows.Add(new FrameBreakdownRow(
             FrameBreakdownRowKind.Header,
-            Application.isEditor ? "МАРКЕРЫ ИНТЕРФЕЙСА — ВМЕСТЕ С ОКНАМИ РЕДАКТОРА" : "МАРКЕРЫ ИНТЕРФЕЙСА"));
+            "МАРКЕРЫ UI И IMGUI"));
         addProbeList(rows, interfaceProbes, ToolTheme.Warning, search, true, 0d);
     }
 

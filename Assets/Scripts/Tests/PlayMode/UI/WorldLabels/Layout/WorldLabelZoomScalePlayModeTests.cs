@@ -38,7 +38,7 @@ namespace Kern.Tests.PlayMode;
 /// проверял бы сам себя.
 ///
 /// Ожидаемые числа посчитаны здесь, а не вызваны из production-кода: база
-/// 12px — это --size-sm из ThemeTokens.uss, 17.5 — ReferenceOrthographicSize,
+/// 13px — это --t-5 из WorldLabels.uss (ник по макету), 17.5 — ReferenceOrthographicSize,
 /// а якорь облака проверяется по боксу элемента в панели и по проекции камеры,
 /// без знания о формуле, которой WorldLabels пишет translate.
 /// </summary>
@@ -54,26 +54,17 @@ public sealed class WorldLabelZoomScalePlayModeTests
     private const string ProbeMessage = "привет";
 
     private const string NicknameClass = "world-label-name";
-    private const string ChatClass = "world-label-chat";
 
-    // Базовый кегль 12px взят из ThemeTokens.uss (--size-sm), опорный зум 17.5 —
+    // Базовый кегль 13px — ник по макету (WorldLabels.uss, --t-5), опорный зум 17.5 —
     // из контрактов камеры. Оба значения продублированы намеренно: оракул
     // проверки не должен считать ожидаемый результат тем же кодом, который
     // его производит.
-    private const float ThemeFontSizePx = 12f;
+    private const float ThemeFontSizePx = 13f;
     private const float ReferenceZoom = 17.5f;
 
-    // Поля облака из WorldLabels.uss: 3px сверху и с боков, 15px снизу под хвост
-    // спрайта. Панель в ScaleWithScreenSize пересчитывает USS-пиксели в пункты, и
-    // коэффициент панели постоянен для всех измерений этого теста, поэтому
-    // сравнения идут либо к первому замеру, либо через отношение к боковому полю.
-    private const float TailPaddingPx = 15f;
-    private const float SidePaddingPx = 3f;
-
-    // Центр хвоста в исходном спрайте LocalChatBubble (32x32, хвост на x=7..9).
-    // Продублирован намеренно: оракул проверки не должен считать ожидаемое
-    // положение тем же числом, которым его записывает WorldLabels.
-    private const float TailAnchorSourceX = 8f;
+    // Хвост облака — макет .wl-chat::after: черта шириной 1 px, её нижний конец — точка привязки.
+    private const string ChatTextClass = "world-label-chat-text";
+    private const string ChatTailClass = "world-label-chat__tail";
 
     private const float FontSizeTolerancePx = 0.5f;
     private const float PanelAnchorTolerancePx = 1f;
@@ -96,7 +87,7 @@ public sealed class WorldLabelZoomScalePlayModeTests
     [UnitySetUp]
     public IEnumerator SetUp()
     {
-        yield return PlayModeHarness.StartAtGateway();
+        yield return PlayModeHarness.StartAtMainMenu();
         BootstrapLifetimeScope bootstrap = PlayModeHarness.FindBootstrap()!;
         yield return PlayModeHarness.EnterMainGame(bootstrap);
 
@@ -200,25 +191,21 @@ public sealed class WorldLabelZoomScalePlayModeTests
     public IEnumerator ChatBubble_ScalesItsWholeBoxAndKeepsTheTailOnTheCellTop()
     {
         yield return ShowBubble();
-        Label? found = null;
+        VisualElement? found = null;
         yield return PlayModeHarness.WaitUntil(
-            () => (found = FindVisible(ChatClass, ProbeMessage)) != null,
+            () => (found = FindVisibleBubble()) != null,
             PlayModeHarness.UITimeoutSeconds,
             "The local chat bubble never became visible.");
-        Label bubble = found!;
+        VisualElement bubble = found!;
 
         float startZoom = _camera.orthographicSize;
         IResolvedStyle start = bubble.resolvedStyle;
 
         // Облако масштабируется одним множителем на весь бокс, поэтому в раскладке
         // кегль и поля остаются базовыми, а меняется style.scale. Проверяется
-        // именно это: иначе облако text-only масштабировалось бы, а рамка из
-        // 9-slice осталась бы прежней.
+        // именно это: иначе масштабировался бы только текст, а рамка и хвост остались бы прежними.
         float startScale = start.scale.value.x;
         Assert.That(startScale, Is.EqualTo(ReferenceZoom / startZoom).Within(0.005f));
-        Assert.That(start.paddingBottom / start.paddingLeft,
-            Is.EqualTo(TailPaddingPx / SidePaddingPx).Within(0.01f),
-            "The bubble does not reserve room for the sprite tail below the text.");
         Assert.That(start.width, Is.GreaterThan(0f), "The bubble has no box: nothing was measured.");
         AssertTailOnCellTop(bubble, "the starting zoom", startScale);
 
@@ -226,10 +213,10 @@ public sealed class WorldLabelZoomScalePlayModeTests
         yield return ZoomUntil(zoom => zoom <= startZoom * 0.6f, WheelUp);
         yield return ShowBubble();
         yield return PlayModeHarness.WaitUntil(
-            () => FindVisible(ChatClass, ProbeMessage) != null,
+            () => FindVisibleBubble() != null,
             PlayModeHarness.UITimeoutSeconds,
             "The bubble did not come back after the zoom.");
-        bubble = FindVisible(ChatClass, ProbeMessage)!;
+        bubble = FindVisibleBubble()!;
 
         float nearZoom = _camera.orthographicSize;
         float nearScale = bubble.resolvedStyle.scale.value.x;
@@ -242,27 +229,21 @@ public sealed class WorldLabelZoomScalePlayModeTests
             Is.GreaterThan(startScale + 0.01f),
             "The bubble did not grow on zoom in.");
 
-        // Рамка спрайта не растягивается, поэтому поля в раскладке обязаны
-        // остаться базовыми при любом зуме: умноженные на зум отдельно от рамки,
-        // они стали бы короче хвоста, и текст наезжал бы на него при отдалении.
-        // Кегль в раскладке тоже базовый — его теперь умножает style.scale.
+        // Поля и кегль в раскладке обязаны остаться базовыми при любом зуме: облако
+        // масштабирует целиком style.scale, а не раскладка.
         IResolvedStyle nearStyle = bubble.resolvedStyle;
-        Assert.That(nearStyle.paddingBottom / nearStyle.paddingLeft,
-            Is.EqualTo(TailPaddingPx / SidePaddingPx).Within(0.01f),
-            "The tail padding changed with zoom: it is being scaled separately from the frame.");
-        Assert.That(nearStyle.fontSize / nearStyle.paddingLeft,
-            Is.EqualTo(start.fontSize / start.paddingLeft).Within(0.02f),
-            "The bubble font size was rescaled in layout instead of being scaled as a whole box.");
+        Assert.That(nearStyle.paddingLeft, Is.EqualTo(start.paddingLeft).Within(0.01f),
+            "The bubble padding was rescaled in layout instead of being scaled as a whole box.");
         AssertTailOnCellTop(bubble, "the close-up camera", nearScale);
 
         // Отдаление: облако уменьшается, хвост остаётся над роботом.
         yield return ZoomUntil(zoom => zoom >= nearZoom * 1.5f, WheelDown);
         yield return ShowBubble();
         yield return PlayModeHarness.WaitUntil(
-            () => FindVisible(ChatClass, ProbeMessage) != null,
+            () => FindVisibleBubble() != null,
             PlayModeHarness.UITimeoutSeconds,
             "The bubble did not come back after the second zoom.");
-        bubble = FindVisible(ChatClass, ProbeMessage)!;
+        bubble = FindVisibleBubble()!;
 
         float farZoom = _camera.orthographicSize;
         float farScale = bubble.resolvedStyle.scale.value.x;
@@ -277,41 +258,7 @@ public sealed class WorldLabelZoomScalePlayModeTests
         AssertTailOnCellTop(bubble, "the pulled-away camera", farScale);
     }
 
-    [UnityTest]
-    public IEnumerator ChatBubble_TakesItsSliceBordersFromTheSprite()
-    {
-        // Рамка рисуется спрайтом с 9-slice, и UI Toolkit берёт границы из
-        // sprite.border. Проверяется сверкой resolvedStyle с загруженным
-        // спрайтом: захардкоженные в коде границы разъедутся с ассетом при
-        // первом же перерисовывании хвоста, и облако продолжит рисоваться, но
-        // уже неправильно.
-        yield return ShowBubble();
-        yield return PlayModeHarness.WaitUntil(
-            () => FindVisible(ChatClass, ProbeMessage) != null,
-            PlayModeHarness.UITimeoutSeconds,
-            "The local chat bubble never became visible.");
-        Label bubble = FindVisible(ChatClass, ProbeMessage)!;
-
-        Sprite sprite = bubble.resolvedStyle.backgroundImage.sprite;
-        Assert.That(sprite, Is.Not.Null, "The bubble has no sprite background.");
-        Assert.That(sprite!.name, Is.EqualTo("LocalChatBubble"));
-
-        IResolvedStyle style = bubble.resolvedStyle;
-        BackgroundSize size = style.backgroundSize;
-        Assert.That(
-            size.sizeType,
-            Is.EqualTo(BackgroundSizeType.Length),
-            "The 9-slice background needs an explicit size; otherwise the sprite is fitted into " +
-            "the box whole and the tail becomes a band.");
-        Assert.That(size.x.value, Is.EqualTo(100f).Within(0.01f));
-        Assert.That(size.y.value, Is.EqualTo(100f).Within(0.01f));
-        Assert.That(style.unitySliceLeft, Is.EqualTo(sprite.border.x));
-        Assert.That(style.unitySliceRight, Is.EqualTo(sprite.border.z));
-        Assert.That(style.unitySliceTop, Is.EqualTo(sprite.border.w));
-        Assert.That(style.unitySliceBottom, Is.EqualTo(sprite.border.y));
-    }
-
-    // Проверка кегля против опорного зума: USS задаёт базу 12px на панель, и
+    // Проверка кегля против опорного зума: USS задаёт базу 13px на панель, и
     // единственное, что обязано её менять, — масштаб зума.
     private static void AssertWorldFontSize(float measuredFontSize, float zoom, string phase)
     {
@@ -323,27 +270,27 @@ public sealed class WorldLabelZoomScalePlayModeTests
             $"({ThemeFontSizePx}px world base at zoom {ReferenceZoom}), measured {measuredFontSize:F2}px.");
     }
 
-    // Облако вешается за точку хвоста, а не за центр бокса: хвост заморожен в
-    // нерастяжимом левом тайле 9-slice и всегда стоит в TailAnchorSourceX px от
-    // левого края, поэтому нижний центр увёл бы хвост в сторону от робота.
+    // Облако вешается за нижний конец хвоста, а не за центр бокса: хвост стоит у левого
+    // края, поэтому нижний центр увёл бы его в сторону от робота.
     //
-    // Оракул — бокс элемента в панели, его масштаб и проекция той же точки
-    // через камеру, то есть ровно то, что видит игрок; формула переноса метки
-    // не используется.
-    private void AssertTailOnCellTop(Label bubble, string phase, float scale)
+    // Оракул — бокс хвоста в панели и проекция той же точки через камеру, то есть ровно
+    // то, что видит игрок; формула переноса метки не используется.
+    private void AssertTailOnCellTop(VisualElement bubble, string phase, float scale)
     {
         Assert.That(bubble.panel, Is.Not.Null, $"The bubble has no panel at {phase}.");
+        VisualElement tailElement = bubble.Q<VisualElement>(className: ChatTailClass)
+            ?? throw new AssertionException("The chat bubble has no tail.");
         Vector3 cellTop = CellCenter(ProbeX, ProbeY) + new Vector3(0f, 0.5f, 0f);
         Vector2 expected = RuntimePanelUtils.CameraTransformWorldToPanel(
             bubble.panel, cellTop, _camera);
-        Rect box = bubble.worldBound;
-        Vector2 tail = new(box.xMin + (TailAnchorSourceX * scale), box.yMin);
+        Rect box = tailElement.worldBound;
+        Vector2 tail = new(box.center.x, box.yMax);
         Assert.That(
             Vector2.Distance(tail, expected),
-            Is.LessThan(PanelAnchorTolerancePx),
-            $"At {phase} the bubble's tail anchor is {tail}, but cell top 1316:15 is " +
+            Is.LessThan(PanelAnchorTolerancePx * Mathf.Max(1f, scale)),
+            $"At {phase} the bubble's tail end is {tail}, but cell top 1316:15 is " +
             $"at {expected}: the anchor was not recomputed for the current box and scale " +
-            $"(zoom={_camera.orthographicSize:F3}, box={box.size}, scale={scale:F4}).");
+            $"(zoom={_camera.orthographicSize:F3}, tail={box}, scale={scale:F4}).");
     }
 
     private IEnumerator ShowBubble()
@@ -424,6 +371,9 @@ public sealed class WorldLabelZoomScalePlayModeTests
 
     private Vector3 CellCenter(ushort x, ushort y) =>
         WorldCoordinateConverter.ServerToUnityPos(x, y, _map.WorldHeight);
+
+    private VisualElement? FindVisibleBubble() =>
+        FindVisible(ChatTextClass, ProbeMessage)?.parent;
 
     private Label? FindVisible(string className, string text)
     {

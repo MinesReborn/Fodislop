@@ -1,6 +1,7 @@
 #nullable enable
 
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using Kern.Core;
@@ -26,6 +27,7 @@ namespace Kern.Game.Entities.Buildings
         private byte _variant;
         private byte _linkedClan;
         private CancellationTokenSource? _cts;
+        private bool _watchingAssets;
         private Sprite? _buildingSprite;
         private Sprite? _clanSprite;
         private WorldEntityBatchRenderer.SpriteHandle? _buildingBatchHandle;
@@ -81,8 +83,40 @@ namespace Kern.Game.Entities.Buildings
             LoadAssets();
         }
 
+        private static string BuildingPath(BuildingType buildingType, byte variant) =>
+            $"Visual/Pack/{buildingType}/{variant}.png";
+
+        private static string ClanPath(byte linkedClan) => $"Visual/Clan/{linkedClan}.png";
+
+        // Сервер заменил файлы посреди игры: перезагружаем картинки, только если среди них наши
+        private void OnAssetsChanged(IReadOnlyCollection<string> changed)
+        {
+            if (_cts == null || _buildingType is not BuildingType buildingType)
+            {
+                return;
+            }
+
+            string buildingPath = BuildingPath(buildingType, _variant);
+            string? clanPath = _linkedClan != 0 ? ClanPath(_linkedClan) : null;
+            foreach (string filename in changed)
+            {
+                if (string.Equals(filename, buildingPath, StringComparison.Ordinal) ||
+                    string.Equals(filename, clanPath, StringComparison.Ordinal))
+                {
+                    LoadAssets();
+                    return;
+                }
+            }
+        }
+
         private void LoadAssets()
         {
+            if (!_watchingAssets)
+            {
+                _assetLoader.AssetsChanged += OnAssetsChanged;
+                _watchingAssets = true;
+            }
+
             _cts?.Cancel();
             _cts = CancellationTokenSource.CreateLinkedTokenSource(this.GetCancellationTokenOnDestroy());
             CancellationToken entityToken = _cts.Token;
@@ -103,8 +137,12 @@ namespace Kern.Game.Entities.Buildings
 
         private async UniTask LoadBuildingAsync(CancellationToken token)
         {
-            string buildingName = _buildingType.ToString();
-            string buildingPath = $"Pack/{buildingName}/{_variant}";
+            if (_buildingType is not BuildingType buildingType)
+            {
+                return;
+            }
+
+            string buildingPath = BuildingPath(buildingType, _variant);
 
             Texture2D? buildingTexture = await TryLoadOptionalTextureAsync(
                 _assetLoader,
@@ -146,7 +184,7 @@ namespace Kern.Game.Entities.Buildings
 
             Texture2D? clanTexture = await TryLoadOptionalTextureAsync(
                 _assetLoader,
-                $"Clan/{_linkedClan}",
+                ClanPath(_linkedClan),
                 token);
             if (token.IsCancellationRequested || clanTexture == null || _clanTransform == null)
             {
@@ -243,6 +281,11 @@ namespace Kern.Game.Entities.Buildings
 
         protected void OnDestroy()
         {
+            if (_watchingAssets && _assetLoader != null)
+            {
+                _assetLoader.AssetsChanged -= OnAssetsChanged;
+            }
+
             _cts?.Cancel();
             _cts?.Dispose();
 

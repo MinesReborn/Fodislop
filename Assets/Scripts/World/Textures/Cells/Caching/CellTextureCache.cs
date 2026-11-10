@@ -39,6 +39,22 @@ public class CellTextureCache
     public Texture2D? GetCachedTexture(CellType cellType) =>
         _loadedTextures.TryGetValue(cellType, out var texture) ? texture : null;
 
+    /// <summary>Убирает тип из кэша и освобождает его текстуру, если кэш ею владел.</summary>
+    public void Remove(CellType cellType)
+    {
+        if (_textureCache.TryRemove(cellType, out CellTextureInfo removed) &&
+            removed.OwnsBaseTexture &&
+            removed.BaseTexture != null)
+        {
+            DestroyTexture(removed.BaseTexture);
+        }
+
+        _loadedTextures.TryRemove(cellType, out _);
+    }
+
+    /// <summary>Все загруженные типы на момент вызова.</summary>
+    public List<CellTextureInfo> Snapshot() => new(_textureCache.Values);
+
     public void Clear()
     {
         HashSet<Texture2D> ownedTextures = new();

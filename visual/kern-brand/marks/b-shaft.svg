@@ -1,7 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" stroke="#d8d5ee" stroke-width="2.5" stroke-linecap="square">
-  <!-- Б · Шахта к ядру: поверхность, ствол вниз, ядро на дне -->
-  <path d="M6 14h20M38 14h20"/>
-  <path d="M26 14v30M38 14v30"/>
-  <path d="M14 22h6M44 22h6M12 30h8M44 30h8M14 38h6M44 38h6" stroke-width="2"/>
-  <rect x="22" y="44" width="20" height="14" fill="#ff5a1f" stroke="none"/>
-</svg>

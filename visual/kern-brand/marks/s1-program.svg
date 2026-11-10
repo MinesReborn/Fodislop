@@ -1,5 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" stroke="#d8d5ee" stroke-width="3" stroke-linecap="square" stroke-linejoin="miter">
-  <!-- 1 · Программа: путь робота по клеткам сетки программатора к цели -->
-  <path d="M8 8h48v48H8z" stroke-width="2" stroke-opacity=".5"/><path d="M24 8v48M40 8v48M8 24h48M8 40h48" stroke-width="1.5" stroke-opacity=".35"/>
-  <path d="M16 16v16h16v16h8"/><path d="M44 44l4 4-4 4"/><rect x="41" y="41" width="14" height="14" fill="#ff5a1f" stroke="none"/>
-</svg>

@@ -1,0 +1,166 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Скачать Project Kern</title>
+<meta name="description" content="Project Kern для Windows, macOS, Linux, Android и iOS. Под землёй тоже есть политика.">
+<link rel="icon" href="../../marks/svg/mark-small.svg">
+<link rel="stylesheet" href="../../../kern-ui/css/reset.css">
+<link rel="stylesheet" href="../../../kern-ui/css/tokens.css">
+<link rel="stylesheet" href="../../web/foundation/web.css">
+<!-- Страница загрузки своего сайта. Данные — release.js (версия, файлы, размеры, SHA-256, требования): страницу не правят под выпуск.
+     Своя платформа определяется по устройству и встаёт первой с главной кнопкой; остальные — списком.
+     QR ведёт на эту же страницу: открыть её на телефоне и скачать APK там. -->
+<style>
+  .d-hero { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 48px; align-items: center; padding: 88px 0 72px; }
+  .d-hero .w-display { margin-top: 24px; }
+  .d-hero .w-lead { margin-top: 20px; }
+  .d-cta { display: flex; flex-wrap: wrap; gap: 12px; margin-top: 32px; }
+  @media (max-width: 620px) { .d-cta .w-btn { flex: 1 1 100%; } }
+  .d-meta { display: flex; flex-wrap: wrap; gap: 8px 24px; margin-top: 20px; font: var(--fw-semi) var(--t-3)/1.4 var(--font-mono); letter-spacing: var(--ls-caps); text-transform: uppercase; color: var(--dim); }
+  .d-meta b { color: var(--ash); font-weight: var(--fw-semi); }
+  .d-mark { justify-self: end; width: min(100%, 380px); aspect-ratio: 1; position: relative; }
+  .d-mark img { width: 100%; height: 100%; }
+  .d-mark::after { content: ""; position: absolute; inset: -6%; background: var(--ticks); --tick: 18px; --tick-c: rgb(var(--rgb-bone) / .4); }
+  @media (max-width: 860px) { .d-hero { grid-template-columns: 1fr; padding: 48px 0 40px; } .d-mark { display: none; } }
+
+  .d-list { display: grid; gap: 12px; margin-top: 28px; }
+  .d-item { display: grid; grid-template-columns: 56px minmax(0, 1fr) auto; gap: 20px; align-items: start; padding: 20px 24px; }
+  .d-item > .w-btn { align-self: center; }
+  .d-item.is-mine { --notch-edge: var(--seam-strong); }
+  .d-ico { width: 56px; height: 56px; display: grid; place-items: center; border: 1px solid var(--seam-strong); background: var(--well); }
+  .d-ico svg { width: 26px; height: 26px; fill: none; stroke: var(--bone); stroke-width: 1.5; stroke-linecap: square; stroke-linejoin: miter; }
+  .d-item h3 { display: flex; align-items: center; gap: 12px; font: var(--fw-bold) var(--t-11)/1.2 var(--font-display); }
+  .d-item p { margin-top: 4px; font-size: var(--t-6); color: var(--ash); }
+  .d-item .w-rows { margin-top: 10px; max-width: 560px; }
+  .d-item .w-row { padding: 5px 0; font-size: var(--t-5); }
+  .d-item .w-row b { font-size: var(--t-4); }
+  @media (max-width: 720px) { .d-item { grid-template-columns: 44px minmax(0, 1fr); padding: 16px; } .d-ico { width: 44px; height: 44px; } .d-item > .w-btn { grid-column: 1 / -1; } }
+
+  .d-apk { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 40px; align-items: start; margin-top: 28px; }
+  .d-qr { width: 216px; padding: 16px; background: var(--bone); }
+  .d-qr svg { width: 100%; height: auto; }
+  .d-qr p { margin-top: 10px; font: var(--fw-bold) var(--t-2)/1.3 var(--font-mono); letter-spacing: var(--ls-caps); text-transform: uppercase; color: var(--void); text-align: center; }
+  .d-steps { list-style: none; counter-reset: s; display: grid; gap: 0; }
+  .d-steps li { counter-increment: s; display: grid; grid-template-columns: 48px minmax(0, 1fr); gap: 16px; padding: 16px 0; border-bottom: 1px dashed var(--seam); color: var(--mist); }
+  .d-steps li::before { content: counter(s, decimal-leading-zero); font: var(--fw-bold) var(--t-10)/1.3 var(--font-mono); color: var(--bone); }
+  .d-steps b { color: var(--bone); font-weight: var(--fw-semi); }
+  @media (max-width: 720px) { .d-apk { grid-template-columns: 1fr; } .d-qr { width: 180px; } }
+</style>
+</head>
+<body>
+<header class="w-top"><div class="w-page">
+  <a class="w-brand" href="index.html"><img src="../../../kern-ui/img/brand/mark.svg" alt=""><b>Project Kern</b></a>
+  <nav class="w-nav"><a href="#all">Платформы</a><a href="#apk">Android</a><a href="#check">Проверка файла</a></nav>
+</div></header>
+
+<main class="w-page">
+  <section class="d-hero">
+    <div>
+      <p class="w-kicker"><b>Загрузка</b> // версия <span id="ver">—</span></p>
+      <h1 class="w-display">Скачать<br>Project Kern</h1>
+      <p class="w-lead">Под землёй тоже есть политика. Шахта, кланы и робот, которого ты программируешь сам — на компьютере и на телефоне.</p>
+      <div class="d-cta" id="cta"></div>
+      <p class="d-meta" id="meta"></p>
+    </div>
+    <div class="d-mark"><img src="../../marks/svg/app-icon.svg" alt=""></div>
+  </section>
+
+  <section class="w-section" id="all">
+    <p class="w-kicker"><b>Все платформы</b> // компьютер и телефон</p>
+    <div class="d-list" id="list"></div>
+  </section>
+
+  <section class="w-section" id="apk">
+    <p class="w-kicker"><b>Android</b> // установка APK</p>
+    <h2 class="w-h2" style="margin-top:24px">Установка без магазина</h2>
+    <div class="d-apk">
+      <div class="d-qr"><div id="qr"></div><p>Открыть на телефоне</p></div>
+      <ol class="d-steps">
+        <li><span>Открой эту страницу на телефоне — по QR-коду или ссылкой — и нажми <b>Скачать APK</b>.</span></li>
+        <li><span>Открой скачанный файл. Если телефон спросит, разреши установку из этого источника: <b>Настройки → Приложения → Специальный доступ → Установка неизвестных приложений</b>, выбери браузер и включи <b>Разрешить</b>.</span></li>
+        <li><span>Нажми <b>Установить</b>. Обновления приходят так же: новый APK ставится поверх, прогресс сохраняется на сервере.</span></li>
+        <li><span>Игра идёт в альбомной ориентации — поверни телефон.</span></li>
+      </ol>
+    </div>
+  </section>
+
+  <section class="w-section" id="check">
+    <p class="w-kicker"><b>Проверка файла</b> // sha-256</p>
+    <h2 class="w-h2" style="margin-top:24px">Файл тот, что мы выложили</h2>
+    <p class="w-text" style="margin-top:16px">Сравни контрольную сумму скачанного файла с суммой в списке выше. Не совпадает — файл повреждён или подменён, не запускай его и скачай заново с этой страницы.</p>
+    <div class="w-grid w-grid--3" style="margin-top:28px">
+      <div><p class="w-plate">Windows</p><code class="w-code" style="margin-top:10px">certutil -hashfile файл SHA256</code></div>
+      <div><p class="w-plate">macOS</p><code class="w-code" style="margin-top:10px">shasum -a 256 файл</code></div>
+      <div><p class="w-plate">Linux</p><code class="w-code" style="margin-top:10px">sha256sum файл</code></div>
+    </div>
+  </section>
+</main>
+
+<footer class="w-foot"><div class="w-page"><span>Project Kern</span><span>Под землёй тоже есть политика.</span><span class="w-sp"></span><span id="footVer"></span></div></footer>
+
+<!-- Значки платформ — линией 1.5, прямые углы, как иконки интерфейса игры -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="p-windows" viewBox="0 0 24 24"><path d="M3.5 5.5 10.5 4.5v7h-7zM12.5 4.2l8-1.2v8.5h-8zM3.5 12.5h7v7l-7-1zM12.5 12.5h8V21l-8-1.2z"/></symbol>
+  <symbol id="p-macos" viewBox="0 0 24 24"><path d="M3.5 4.5h17v12h-17zM9 20.5h6M12 16.5v4"/></symbol>
+  <symbol id="p-linux" viewBox="0 0 24 24"><path d="M3.5 4.5h17v15h-17zM7 9.5l3 2.5-3 2.5M12 15h5"/></symbol>
+  <symbol id="p-android" viewBox="0 0 24 24"><path d="M6.5 2.5h11v19h-11zM10.5 18.5h3"/></symbol>
+  <symbol id="p-ios" viewBox="0 0 24 24"><path d="M6.5 2.5h11v19h-11zM10 5h4M10.5 18.5h3"/></symbol>
+  <symbol id="p-down" viewBox="0 0 24 24"><path d="M12 3.5v12M7 11l5 5 5-5M4.5 20.5h15"/></symbol>
+</svg>
+
+<script src="release.js"></script>
+<!-- qrcode-generator 1.4.4, Kazuhiko Arase, MIT (лицензия в шапке файла) — локально, без CDN -->
+<script src="../../web/vendor/qrcode/qrcode.js"></script>
+<script>
+(async () => {
+  const R = structuredClone(window.KERN_RELEASE);
+  // ?demo=1 — вид страницы с заполненным выпуском для просмотра и снимков: значения — примеры, помечены в шапке
+  if (new URLSearchParams(location.search).has('demo')) {
+    R.platforms.forEach((p, i) => { p.url ||= '#all'; if (p.file) { p.size ||= ['412 МБ', '438 МБ', '405 МБ', '296 МБ'][i]; p.sha256 ||= '9f2c…e41a'; } });
+    R.notes ||= 'пример строки о новом в выпуске';
+    document.querySelector('.w-top .w-nav').insertAdjacentHTML('afterbegin', '<span class="w-plate">Пример данных</span>');
+  }
+  const dash = v => v ?? '—';
+  const ua = navigator.userAgent, plat = navigator.userAgentData?.platform || navigator.platform || '';
+  const mine = /android/i.test(ua) ? 'android' : /iphone|ipad|ipod/i.test(ua) || (/mac/i.test(plat) && navigator.maxTouchPoints > 1) ? 'ios'
+    : /win/i.test(plat) ? 'windows' : /mac/i.test(plat) ? 'macos' : /linux/i.test(plat) ? 'linux' : 'windows';
+  const ico = id => `<svg><use href="#p-${id}"/></svg>`;
+  // Кнопка платформы: файл есть — «Скачать», магазин — «Открыть в …», ссылки ещё нет — недоступна с пояснением
+  const btn = (p, primary) => {
+    const label = p.store && !p.file ? `Открыть в ${p.store}` : p.id === 'android' ? 'Скачать APK' : `Скачать для ${p.name}`;
+    return p.url
+      ? `<a class="w-btn${primary ? ' w-btn--primary' : ''}" href="${p.url}">${ico('down')}${label}</a>`
+      : `<span class="w-btn w-btn--pending" title="${label}">Ссылка появится с выпуском</span>`;
+  };
+  document.getElementById('ver').textContent = R.version;
+  document.getElementById('footVer').textContent = `Версия ${R.version}`;
+  const me = R.platforms.find(p => p.id === mine);
+  document.getElementById('cta').innerHTML = btn(me, true) + `<a class="w-btn" href="#all">Другие платформы</a>`;
+  document.getElementById('meta').innerHTML = `<span>${me.name}</span><span><b>${me.kind}</b></span>${me.size ? `<span>${me.size}</span>` : ''}${R.notes ? `<span>Новое: <b>${R.notes}</b></span>` : ''}`;
+  const order = [me, ...R.platforms.filter(p => p !== me)];
+  document.getElementById('list').innerHTML = order.map(p => `
+    <article class="w-panel d-item${p === me ? ' is-mine' : ''}">
+      <span class="d-ico">${ico(p.id)}</span>
+      <div>
+        <h3>${p.name}${p === me ? '<span class="w-plate">Твоё устройство</span>' : ''}</h3>
+        <p>${p.requires}</p>
+        <div class="w-rows">
+          ${p.file ? `<div class="w-row"><span>Файл</span><i></i><b>${p.file}</b></div>` : ''}
+          <div class="w-row"><span>${p.file ? 'Размер' : 'Магазин'}</span><i></i><b>${p.file ? dash(p.size) : p.store}</b></div>
+          ${p.file ? `<div class="w-row"><span>SHA-256</span><i></i><b>${dash(p.sha256)}</b></div>` : ''}
+          ${p.store && p.file ? `<div class="w-row"><span>Также</span><i></i><b>${p.store}</b></div>` : ''}
+        </div>
+      </div>
+      ${btn(p, false)}
+    </article>`).join('');
+  // QR — на эту же страницу: на телефоне она сама предложит APK
+  if (window.qrcode) {
+    const qr = qrcode(0, 'M'); qr.addData(location.href.split('#')[0] + '#apk'); qr.make();
+    document.getElementById('qr').innerHTML = qr.createSvgTag({ cellSize: 4, margin: 0, scalable: true }).replace(/fill="#ffffff"/g, 'fill="#d8d5ee"').replace(/fill="#000000"/g, 'fill="#06050a"');
+  }
+})();
+</script>
+</body>
+</html>

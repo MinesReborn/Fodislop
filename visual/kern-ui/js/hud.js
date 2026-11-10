@@ -4,67 +4,108 @@
 // мини-навыки — Legacy MiniSkill (видны 5 с при росте, готовые остаются).
 (() => {
   const $ = id => document.getElementById(id);
+  const token = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
   // Системные кнопки узнаются по русской подписи, снятой до перевода: title меняется вместе с языком
   document.querySelectorAll('.sysbuttons button').forEach(b => { b.dataset.sys = b.title; });
   const group = n => String(Math.trunc(n)).replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
 
   const state = {
     hp: 113, maxHp: 136, money: 14850, creds: 340,
-    basket: { g: 412, r: 96, b: 1204, v: 0, w: 0, c: 57 }, capacity: 1800,
+    basket: { g: 412, r: 96, b: 1204, v: 0, w: 0, c: 57 }, capacity: 1800, geo: [3, 10],
     chat: 0, channel: 'FED', autodig: false, prog: false,
   };
   const CRYSTALS = [['g', 'green'], ['r', 'red'], ['b', 'blue'], ['v', 'violet'], ['w', 'white'], ['c', 'cyan']];
+  // Режим стенда «много денег и груза» (список «Груз и деньги», ?rich=1|2|3): уровень 1 — деньги до 100 млрд (B), 2 — ×1000 (T), 3 — ×1 000 000 (Q); груз с лимитом 10 млрд ×то же
+  const RICH = { money: 99165000000, creds: 1250000, capacity: 10000000000, basket: { g: 9900000000, r: 320000000, b: 4700000000, v: 85000000, w: 12000000, c: 1300000000 } };
+  // Геология по уровням того же списка: счётчик «N/M» растёт до четырёх знаков, полоса — до 20 делений
+  const RICH_GEO = { 1: [86, 120], 2: [940, 1500], 3: [9999, 9999] };
+  let richOn = 0, normal = null, sceneBusy = false;
+  // Геология видна в состоянии «Все» и всегда, когда выбран режим «Груз и деньги»: иначе её смену не увидеть
+  const showGeo = () => { $('geo').hidden = !(sceneBusy || richOn); };
 
-  // SetBasketCrys: до миллиона — с пробелами, дальше K и KK
-  const crys = n => n < 1e6 ? group(n) : n < 1e10 ? group(n / 1e3) + ' K' : group(n / 1e6) + ' KK';
+  // Общее сокращение (js/numbers.js): целиком, пока помещается. Кристаллы — колонка в шестую часть панели (до «9 999»),
+  // кошелёк — ячейки постоянной ширины рядом с «Пополнить» (до «9 999»: две ячейки по шесть знаков в колонку не входят)
+  const cut = n => window.kernCut(n);
+  const cutWallet = n => window.kernCut(n, '', 5);
   // SetBasket: цвет и полосы по порогам 50 / 100 / 115 / 200
-  const cargoTone = p => p < 50 ? ['#9aa3a9', '#7e878d', null] : p < 100 ? ['#79d98a', '#5cc46f', null]
-    : p < 115 ? ['#ffe066', '#e8c845', '#b3801f'] : p < 200 ? ['#ff9d5c', '#f59048', '#b3002a'] : ['#ff6b5e', '#e65959', '#b3002a'];
+  const cargoTone = p => p < 50 ? [token('--cargo-low'), token('--cargo-low-fill'), null] : p < 100 ? [token('--cargo-normal'), token('--cargo-normal-fill'), null]
+    : p < 115 ? [token('--cargo-warn'), token('--cargo-warn-fill'), token('--cargo-warn-line')] : p < 200 ? [token('--cargo-high'), token('--cargo-high-fill'), token('--cargo-danger-line')] : [token('--cargo-danger'), token('--cargo-danger-fill'), token('--cargo-danger-line')];
   // SetHP: цвет числа и полосы по доле
   const hpTone = f => `rgb(${Math.round(Math.sqrt(Math.sqrt(1 - f)) * 255)},${Math.round(Math.sqrt(Math.sqrt(f)) * 255)},${Math.round(f * (1 - f) * 255)})`;
 
+  let hpWas = 1, cargoWas = 0;   // прошлые значения — тревога только при пересечении порога вниз/вверх
   function renderPlayer() {
     const f = Math.max(0, Math.min(1, state.hp / state.maxHp));
-    $('hpFill').style.width = f * 100 + '%';
-    $('hpFill').style.background = hpTone(f);
-    $('hpValue').textContent = state.hp + 'HP';
+    // Точка — 5%: живой робот — хотя бы одна точка, раненый — никогда не все 20
+    const on = f <= 0 ? 0 : f >= 1 ? 20 : Math.min(19, Math.max(1, Math.round(f * 20)));
+    $('hpDots').style.setProperty('--c', hpTone(f));
+    // Движение «Квант» (js/motion.js): точки гаснут и загораются по одной, числа досчитываются, порог 25 % — тревога
+    window.kernQuant($('hpDots'), 20, on);
+    window.kernCount($('hpValue').firstElementChild, state.hp);
     $('hpValue').style.color = hpTone(f);
-    $('money').textContent = '$' + group(state.money);
-    $('creds').textContent = group(state.creds);
+    if (f < .25 && hpWas >= .25) window.kernFlash($('hpValue'));
+    hpWas = f;
+    window.kernCount($('money'), state.money, cutWallet);
+    window.kernCount($('creds'), state.creds, cutWallet);
   }
+  // Включает и выключает режим; обычные значения запоминаются и возвращаются как были
+  window.kernHudRich = level => {
+    if (level === richOn) return;
+    if (!richOn) normal = { money: state.money, creds: state.creds, capacity: state.capacity, basket: state.basket, geo: state.geo };
+    if (level) {
+      const f = 1000 ** (level - 1);
+      Object.assign(state, { money: RICH.money * f, creds: RICH.creds * f, capacity: RICH.capacity * f, basket: Object.fromEntries(Object.entries(RICH.basket).map(([k, v]) => [k, v * f])), geo: RICH_GEO[level] });
+    } else Object.assign(state, normal);
+    richOn = level; renderPlayer(); renderCargo(); showGeo();
+    window.dispatchEvent(new Event('kern-scene'));                // ширина левой колонки — по новым значениям
+  };
   function renderCargo() {
     const values = CRYSTALS.map(([k]) => state.basket[k]);
     const percent = Math.round(Math.max(...values) * 100 / state.capacity);
-    const [text, bar, over] = cargoTone(percent);
-    $('cargoPercent').textContent = percent + '%';
+    const [text, bar] = cargoTone(percent);
+    window.kernCount($('cargoPercent').firstElementChild, percent);
+    // Новый порог груза (100 / 115 / 200 %) — тревога: две вспышки числа и полосы
+    const band = p => p < 100 ? 0 : p < 115 ? 1 : p < 200 ? 2 : 3;
+    if (band(percent) > band(cargoWas)) { window.kernFlash($('cargoPercent')); window.kernFlash($('cargoCells')); }
+    cargoWas = percent;
     $('cargoPercent').style.color = text;
-    $('cargoFill').style.width = Math.min(100, percent) + '%';
-    $('cargoFill').style.background = bar;
-    $('cargoOver').style.width = over ? Math.min(100, percent - 100) + '%' : '0';
-    $('cargoOver').style.background = over || 'transparent';
-    // Между иконкой и числом — заполнение по этому кристаллу (лимит груза у каждого типа свой)
-    $('crystals').innerHTML = CRYSTALS.filter(([k]) => state.basket[k] > 0)
-      .map(([k, f]) => `<li style="color:var(--cry-${k})"><img src="img/crystals/${f}.png" alt=""><i class="share" style="--w:${Math.min(100, state.basket[k] / state.capacity * 100).toFixed(1)}%"></i><span>${crys(state.basket[k])}</span></li>`).join('');
+    // Ячейка — 5%; непустой груз — хотя бы одна ячейка, даже если процент округлился до 0. Перегруз — полная полоса цвета порога
+    const lit = Math.min(20, Math.ceil(Math.max(...values) * 100 / state.capacity / 5));
+    $('cargoCells').style.setProperty('--bar', bar);
+    window.kernQuant($('cargoCells'), 20, lit);
+    // Шесть кристаллов в один ряд: значок, под ним число; пустой — приглушён, ряд не прыгает от состава груза
+    $('crystals').innerHTML = CRYSTALS
+      .map(([k, f]) => `<li class="${state.basket[k] > 0 ? '' : 'is-zero'}" style="color:var(--cry-${k})"><img src="img/crystals/${f}.png" alt=""><span>${cut(state.basket[k] || 0)}</span></li>`).join('');
+    // Геология: ячейка — блок (до 20 ячеек, больше — доля на 20)
+    const [gN, gMax] = state.geo, gCells = Math.min(gMax, 20), gLit = gN ? Math.max(1, Math.round(gN / gMax * gCells)) : 0;
+    $('geoCells').style.gridTemplateColumns = `repeat(${gCells}, 1fr)`;
+    window.kernQuant($('geoCells'), gCells, gLit);
+    $('geoCount').textContent = `${gN}/${gMax}`;
     $('cargo').hidden = values.every(v => v === 0);   // пустая корзина — панели нет
   }
 
   // ── Навыки: начальные слоты игрока (PlayerSkills), цвета SkillButton ──
   const skills = {
-    d: { name: 'Копание', level: 14, exp: .2, color: '#ffff00' },
-    m: { name: 'Добыча', level: 9, exp: .4, color: '#ff6600' },
-    M: { name: 'Передвижение', level: 12, exp: 1, color: '#00ffe6' },
-    l: { name: 'Защита', level: 12, exp: .6, color: '#ff00ff' },
-    A: { name: 'Строительство дорог', level: 8, exp: .3, color: '#aeb8c0' },
-    L: { name: 'Зелёное строительство', level: 15, exp: .7, color: '#5bcc7a' },
-    Y: { name: 'Жёлтое строительство', level: 6, exp: .1, color: '#f2c037' },
-    E: { name: 'Красное строительство', level: 4, exp: .5, color: '#ff5f5f' },
-    F: { name: 'Охлаждение', level: 7, exp: .8, color: '#5a9bff' },
-    t: { name: 'Передвижение по дороге', level: 10, exp: .2, color: '#c99b4f' },
-    p: { name: 'Упаковка', level: 5, exp: .4, color: '#b07cff' },
-    b: { name: 'Упаковка синих кристаллов', level: 3, exp: .6, color: '#6f8cff' },
-    c: { name: 'Упаковка голубых кристаллов', level: 2, exp: .9, color: '#45d3e6' },
-    r: { name: 'Упаковка красных кристаллов', level: 1, exp: .3, color: '#ff7a7a' },
+    d: { name: 'Копание', level: 14, exp: .2, color: token('--skill-dig') },
+    m: { name: 'Добыча', level: 9, exp: .4, color: token('--skill-mining') },
+    M: { name: 'Передвижение', level: 12, exp: 1, color: token('--skill-move') },
+    l: { name: 'Защита', level: 12, exp: .6, color: token('--skill-defense') },
+    A: { name: 'Строительство дорог', level: 8, exp: .3, color: token('--skill-road') },
+    L: { name: 'Зелёное строительство', level: 15, exp: .7, color: token('--skill-green') },
+    Y: { name: 'Жёлтое строительство', level: 6, exp: .1, color: token('--skill-yellow') },
+    E: { name: 'Красное строительство', level: 4, exp: .5, color: token('--skill-red') },
+    F: { name: 'Охлаждение', level: 7, exp: .8, color: token('--skill-cooling') },
+    t: { name: 'Передвижение по дороге', level: 10, exp: .2, color: token('--skill-road-move') },
+    p: { name: 'Упаковка', level: 5, exp: .4, color: token('--skill-pack') },
+    b: { name: 'Упаковка синих кристаллов', level: 3, exp: .6, color: token('--skill-blue-pack') },
+    c: { name: 'Упаковка голубых кристаллов', level: 2, exp: .9, color: token('--skill-cyan-pack') },
+    r: { name: 'Упаковка красных кристаллов', level: 1, exp: .3, color: token('--skill-red-pack') },
   };
+  // Плашка уровня в Legacy красится SkillButton.colors[type] (skillShorts: код → type), а не цветом бренда:
+  // ORANGE (1, .398, 0), YELLOW (1, 1, 0), PINK (1, 0, 1), CYAN (0, 1, .9), GREY (.574, .672, .652), BLUE (.16, .5, 1), GREEN (0, 1, 0)
+  const LEGACY_LEVEL = { orange: '#ff6600', yellow: '#ffff00', pink: '#ff00ff', cyan: '#00ffe6', grey: '#92aba6', blue: '#2980ff', green: '#00ff00' };
+  const LEVEL_OF = { d: 'yellow', m: 'orange', M: 'cyan', l: 'pink', A: 'grey', L: 'grey', Y: 'grey', E: 'grey', F: 'blue', t: 'cyan', p: 'green', b: 'green', c: 'green', r: 'green' };
+  Object.entries(skills).forEach(([code, k]) => { k.levelColor = LEGACY_LEVEL[LEVEL_OF[code]]; });
   window.kernSkills = skills;
   const SLOT_OF = { m: 0, d: 1, M: 2, l: 3 };
   const previewSkills = {
@@ -82,11 +123,12 @@
     const list = $('miniSkills');
     Object.keys(timers).forEach(code => clearTimeout(timers[code]));
     list.replaceChildren();
-    if (allMiniSkills) Object.keys(previewSkills).forEach(code => showMini(code));
+    // В игре одновременно растут не больше 6 мини-навыков
+    if (allMiniSkills) Object.keys(previewSkills).slice(0, 6).forEach(code => showMini(code));
     else showMini('M');
   }
   function showMini(code) {
-    const s = skills[code] || { ...previewSkills[code], exp: .55, color: '#58ced3' };
+    const s = skills[code] || { ...previewSkills[code], exp: .55, color: token('--skill-preview') };
     let el = document.querySelector(`.mini-skill[data-code="${code}"]`);
     if (!el) {
       el = document.createElement('li');
@@ -129,8 +171,7 @@
 
   // ── Чат: 0 — три строки, 1 — колонка, 2 — скрыт (Tab по кругу, как в Legacy) ──
   const chat = {
-    FED: [{ sys: 'Сервер: добро пожаловать.' },
-      { t: '18:42', nick: 'ШАХТЁР-102', c: '#ffd9a8', text: 'кто у респа?' },
+    FED: [{ t: '18:42', nick: 'ШАХТЁР-102', c: '#ffd9a8', text: 'кто у респа?' },
       { t: '18:43', nick: 'ШАХТЁР-774', c: '#c8f0ff', text: 'я, иду вниз' },
       { t: '18:44', nick: 'DVM_LEADER', c: '#e6ccff', text: 'голубые на 1200:840' }],
     DNO: [{ t: '18:20', nick: 'ШАХТЁР-305', c: '#d8ffc8', text: 'кто на дне?' }],
@@ -223,14 +264,15 @@
     state.prog = on;
     $('progRun').classList.toggle('is-running', on);
     $('progRun').title = on ? 'Остановить программу' : 'Запустить программу';
-    $('progRun').innerHTML = `<svg><use href="#i-${on ? 'stop' : 'play'}"/></svg>`;
-    // Подпись «Программатор» не меняется; имя запущенной программы — отдельной плашкой рядом
-    $('progName').textContent = on ? name : ''; $('progName').hidden = !on;
+    // Меняется только значок: подсказка геймпада, вставленная в кнопку, остаётся на месте
+    const use = $('progRun').querySelector('svg use');
+    if (use) use.setAttribute('href', `#i-${on ? 'stop' : 'play'}`); else $('progRun').insertAdjacentHTML('afterbegin', `<svg><use href="#i-${on ? 'stop' : 'play'}"/></svg>`);
+    // Запущенная программа подписывает кнопку своим именем вместо «Программатор» — одна строка, высота не меняется
+    $('progName').textContent = on ? name : ''; $('progName').hidden = !on; $('progLabel').hidden = on;
     document.querySelectorAll('.online em').forEach(em => em.textContent = on ? '(7)' : '(6)');
   }
   window.kernProg = { sync: setProg };
   $('progRun').onclick = () => window.kernProgState(state.prog ? 'stopped' : 'running');
-  $('bonus').onclick = () => { state.money += 500; state.creds += 25; renderPlayer(); };
   $('respawnBtn').onclick = () => { $('respawnDialog').hidden = false; $('respawnOk').focus(); };
   $('respawnDialog').querySelector('[data-close]').onclick = () => { $('respawnDialog').hidden = true; };
   $('respawnOk').onclick = () => {
@@ -307,7 +349,23 @@
     $('invExpand').setAttribute('aria-expanded', String(open));
   };
 
+  // Штрихкод значения (ID игрока, хеш сборки): каждый знак — четыре бита, бит — узкий (1 px) или широкий (3 px) штрих,
+  // по краям опорные штрихи. Декор строится из самих данных: другой ID — другой код
+  window.kernBars = text => '<b class="w"></b><b></b>' + [...text.toLowerCase()].map(ch => {
+    const v = parseInt(ch, 36) % 16;
+    return [8, 4, 2, 1].map(bit => `<b${v & bit ? ' class="w"' : ''}></b>`).join('');
+  }).join('') + '<b></b><b class="w"></b>';
+  if ($('buildBars')) $('buildBars').innerHTML = window.kernBars($('buildHash').textContent);
+
   // ── Клавиши ──
+  // Tab в игре — клавиша чата, а не обход кнопок: браузерный переход фокуса по кнопкам и окнам выключен везде,
+  // кроме перехода между полями ввода (логин → пароль). Фокус-рамка остаётся у навигации геймпадом
+  document.addEventListener('keydown', e => {
+    if (e.key !== 'Tab') return;
+    const fields = [...document.querySelectorAll('#frame input:not([type=checkbox]):not([type=range]), #frame textarea')].filter(f => f.offsetParent);
+    if (fields.includes(e.target) && fields.length > 1) return;
+    e.preventDefault();
+  }, true);
   window.kernHud = { skillChanged: code => document.querySelector(`.mini-skill[data-code="${code}"]`)?.remove() };
   document.addEventListener('keydown', e => {
     if ($('frame').dataset.screen !== 'game' || !$('skillsDialog').hidden || !$('progDialog').hidden) return;
@@ -341,9 +399,11 @@
     const busy = b.dataset.state === 'busy';
     allMiniSkills = busy;
     renderMiniPreview();
-    $('mission').hidden = !busy; $('geo').hidden = !busy; $('states').hidden = !busy;
+    sceneBusy = busy;
+    $('mission').hidden = !busy; showGeo(); $('states').hidden = !busy;
     if (busy !== state.prog) $('progRun').click();
-    state.basket = busy ? { g: 2340, r: 96, b: 1204, v: 12, w: 3, c: 57 } : { g: 412, r: 96, b: 1204, v: 0, w: 0, c: 57 };
+    const basket = busy ? { g: 2340, r: 96, b: 1204, v: 12, w: 3, c: 57 } : { g: 412, r: 96, b: 1204, v: 0, w: 0, c: 57 };
+    if (richOn) normal.basket = basket; else state.basket = basket;                    // в режиме «много» груз не трогаем — выбор запоминается на выход
     renderCargo();
   });
   addEventListener('resize', fit);
@@ -374,6 +434,8 @@
   const INPUT_NAME = { mouse: 'мышь', touch: 'тач', pad: 'геймпад' };
   const renderRes = () => { $('standRes').innerHTML = `${resText} · ввод <b>${INPUT_NAME[input]}</b>`; };
   function setDevice(name) {
+    // Сцена стенда повторяет устройство — раскладка уже его; возвращается только ввод по умолчанию
+    if (frame.dataset.device === name && DEVICES[name]) { const d0 = DEVICES[name]; if (!inputSticky && input !== (d0.input || (d0.form ? 'touch' : 'mouse'))) setInput(d0.input || (d0.form ? 'touch' : 'mouse'), true); return; }
     const d = DEVICES[name] || DEVICES.d1080, size = sizeOf(d.w, d.h);
     compact = size === 's' || size === 'm';
 
@@ -401,30 +463,30 @@
     const touchNav = document.querySelector('.touch-sys'), pauseSys = $('pauseSys');
     sysOrig.list ||= [...document.querySelector('.sysbuttons').children];
     if (compact) {
-      touchNav.prepend($('bonus'));
-      const game = sysOrig.list.filter(b => ['Почта', 'Консоль', 'Мои здания', 'Вернуться на респаун'].includes(b.dataset?.sys));
+      const game = sysOrig.list.filter(b => ['Почта', 'Консоль', 'Мои здания', 'Сбросить точку возрождения'].includes(b.dataset?.sys));
       touchNav.append(...game);
       pauseSys.append(...sysOrig.list.filter(b => b.tagName === 'BUTTON' && !game.includes(b)));
     } else {
       document.querySelector('.sysbuttons').append(...sysOrig.list);
-      document.querySelector('.sysbar').prepend($('bonus'));     // бонусы — первыми в ряду системных кнопок
     }
     // Кнопка «Меню»: в компактной раскладке паузы нет, в ☰ она — «Настройки»
     const sysMenu = $('sysMenu'), as = compact ? ['Настройки', '#i-settings'] : ['Меню', '#i-menu'];
     sysMenu.title = as[0]; sysMenu.querySelector('use').setAttribute('href', as[1]);   // перевод подхватит новую подпись сам
     const ml = sysMenu.querySelector('.control-label'); if (ml) ml.textContent = as[0];
-    // В узком блоке у миникарты подписи короче
-    const short = { 'Мои здания': 'Здания', 'Вернуться на респаун': 'Респаун' };
-    sysOrig.list.forEach(b => { const l = b.querySelector?.('.control-label'), k = b.dataset?.sys; if (l && short[k]) l.textContent = compact ? short[k] : k === 'Вернуться на респаун' ? 'На респаун' : k; });
-    [$('bonus'), $('miniSkills'), ...sysOrig.list].forEach(el => el.toggleAttribute('data-relocated', compact));
-    // ПК: миникарта — под рядом кнопок, инвентарь — в правый нижний угол, рост навыков — под строками состояния.
+    // Подпись под иконкой — короткая: кнопка шириной 72px, полное название остаётся в подсказке title
+    const short = { 'Мои здания': 'Здания', 'Сбросить точку возрождения': 'Респаун' };
+    sysOrig.list.forEach(b => { const l = b.querySelector?.('.control-label'), k = b.dataset?.sys; if (l && short[k]) l.textContent = short[k]; });
+    [$('miniSkills'), ...sysOrig.list].forEach(el => el.toggleAttribute('data-relocated', compact));
+    // ПК: миникарта — под рядом кнопок, миссия — под картой, инвентарь — в правый нижний угол, рост навыков — под строками состояния.
     // На пальце места прежние: телефонная раскладка задана своими правилами
-    const mmBox = document.querySelector('.minimap'), inv = $('inventory'), skillsBox = $('miniSkills');
+    const mmBox = document.querySelector('.minimap'), inv = $('inventory'), skillsBox = $('miniSkills'), missionBox = $('mission');
     if (compact) {
       document.querySelector('.col-bottom').append(mmBox);
+      document.querySelector('.player-row').append(missionBox);   // на пальце миссия — в полосе чата, место задано раскладкой
       $('itemHint').after(skillsBox);
     } else {
       document.querySelector('.sysbar').after(mmBox);
+      mmBox.after(missionBox);                                    // ПК: миссия — под картой, на её ширине
       $('states').after(skillsBox);
     }
     $('hud').append(inv);                                       // место инвентаря задаёт раскладка: ПК — правый нижний угол, палец — над стиком
@@ -461,6 +523,9 @@
     placeByInput(); renderRes();
     frame.dispatchEvent(new CustomEvent('kern-input', { detail: { input, family: input === 'pad' && kind !== 'pad' ? kind : null } }));
   }
+  // Проверки стенда переключают устройство на месте, без перезагрузки страницы (tools/*-check.html)
+  window.kernStand = { device: setDevice };
+  addEventListener('kern-scene', () => { fitColumn(); fit(); });
   window.kernInput = { set: setInput, get input() { return input; }, get compact() { return compact; }, get sticky() { return inputSticky; } };
   $('standInput').onchange = e => setInput(e.target.value);
   $('standDevice').onchange = e => setDevice(e.target.value === 'desktop' ? lastMonitor : e.target.value);
@@ -469,12 +534,15 @@
   $('statusBar').append(document.querySelector('.diag'), $('assetLoad'));
   // Панели игрока и груза — одной ширины: колонка, а если строка с ником или «Груз N%» длиннее — по ней.
   // Строки не переносятся и не режутся; полоса правее колонки на телефоне сдвигается следом
-  const heads = [document.querySelector('.player-head'), document.querySelector('.cargo-head')];
+  const heads = [document.querySelector('.player-head'), document.querySelector('.wallet'), document.querySelector('.cargo-head')];
   function fitColumn() {
     const need = heads.map(row => {
       const cs = getComputedStyle(row), kids = [...row.children].filter(c => c.offsetParent);
       const box = getComputedStyle(row.parentElement);
-      return kids.reduce((w, c) => w + c.getBoundingClientRect().width, 0) / (frame.getBoundingClientRect().width / frame.offsetWidth || 1)
+      // Кошелёк — суммы по содержимому и клавиша «Пополнить»: ширина ячейки суммы — по самой сумме (dd), клавиша — своя
+      const wallet = row.classList.contains('wallet'), sc = frame.getBoundingClientRect().width / frame.offsetWidth || 1;
+      const widths = kids.map(c => (wallet && c.querySelector('dd') ? c.querySelector('dd') : c).getBoundingClientRect().width / sc);
+      return widths.reduce((w, x) => w + x, 0)
         + parseFloat(cs.columnGap || 0) * (kids.length - 1) + parseFloat(box.paddingLeft) + parseFloat(box.paddingRight) + 2;
     });
     const col = parseFloat(getComputedStyle(frame).getPropertyValue('--col')) || 0;
@@ -482,21 +550,26 @@
   }
   const fitObs = new ResizeObserver(fitColumn);
   heads.forEach(row => [...row.children].forEach(c => fitObs.observe(c)));
+  document.querySelectorAll('.wallet dd').forEach(d => fitObs.observe(d));        // половины кошелька не меняют ширину от суммы — следим за самой суммой
 
   // Подписи остаются видимыми и на сенсорном экране, где нет наведения.
   document.querySelectorAll('.sysbuttons button, .menu-rail button').forEach(button => {
     const label = document.createElement('span');
     label.className = 'control-label';
-    label.textContent = button.id === 'respawnBtn' ? 'На респаун'
-      : button.id === 'railHealth' ? 'Проверка файлов'
-      : button.title === 'Выход из игры' ? 'Выход' : button.title;
+    label.textContent = { 'Мои здания': 'Здания', 'Сбросить точку возрождения': 'Респаун', 'Выход из игры': 'Выход' }[button.title] ?? button.title;
     button.append(label);
   });
-  const bonusLabel = document.createElement('span');
-  bonusLabel.className = 'control-label';
-  bonusLabel.textContent = 'Бонусы';
-  $('bonus').append(bonusLabel);
-
+  // ТОЛЬКО СТЕНД, НЕ ИГРОВАЯ ФУНКЦИЯ: клик по плашке усиления листает набор иконок i-fx-*, чтобы просмотреть все глифы на месте.
+  // В игре иконку усилению задаёт сервер (по имени усиления), игрок её не переключает.
+  const FX_ICONS = ['ore', 'yield', 'bit', 'xp', 'core', 'skill', 'time', 'signal', 'surge'];
+  $('states').querySelectorAll('li').forEach(li => {
+    const use = li.querySelector('use');
+    const show = () => { li.title = `i-fx-${FX_ICONS[+li.dataset.fx]} — только стенд: клик листает набор иконок`; use.setAttribute('href', `#i-fx-${FX_ICONS[+li.dataset.fx]}`); };
+    li.dataset.fx = Math.max(0, FX_ICONS.indexOf(use.getAttribute('href').replace('#i-fx-', '')));
+    li.style.cursor = 'pointer';
+    li.addEventListener('click', () => { li.dataset.fx = (+li.dataset.fx + 1) % FX_ICONS.length; show(); });
+    show();
+  });
   // Ресурсы догружаются фоном после входа: «N / M», тонкая полоса; по завершении строка пропадает
   let assetTimer = 0;
   window.kernAssets = (total = 148, freezeAt = 0) => {
@@ -566,7 +639,7 @@
   // ── Клан — по знаку клана ──
   const MEMBERS = [['DVM_LEADER', 'Глава', 92, 1], ['ШАХТЁР-102', 'Заместитель', 61, 1], ['ШАХТЁР-774', 'Участник', 47, 1], ['ГЛУБИНА', 'Участник', 55, 1],
     ['ROCKBOT', 'Участник', 38, 1], ['KOPATEL_9', 'Участник', 44, 1], ['ЖЕЛЕЗО', 'Участник', 29, 1], ['SANDMAN', 'Участник', 51, 0], ['МИНЁР', 'Новичок', 12, 0],
-    ['BLUE_HUNTER', 'Участник', 33, 0], ['ДРОН-7', 'Участник', 40, 0], ['ORE_KING', 'Участник', 66, 0]];
+    ['BLUE_HUNTER', 'Участник', 33, 0], ['КРОТ-7', 'Участник', 40, 0], ['ORE_KING', 'Участник', 66, 0]];
   const BANK = [['+ $120 000', 'ШАХТЁР-102 · взнос', 'сегодня 18:40'], ['− $45 000', 'Постройка: Рынок', 'сегодня 14:02'], ['+ $80 500', 'Налог с добычи', 'вчера'], ['+ ₢ 2 000', 'DVM_LEADER · взнос', 'вчера'], ['− $210 000', 'Постройка: Пушка', '24.10']];
   $('clanMembers').innerHTML = MEMBERS.map(([n, r, l, on]) => `<li class="${on ? 'is-online' : ''}"><i></i>${nickLink(n, 'var(--bone)')}<em class="${r === 'Участник' || r === 'Новичок' ? '' : 'role'}">${r}</em><em>ур.${l}</em></li>`).join('');
   $('clanBank').innerHTML = BANK.map(([v, w, t]) => `<li><i></i><b>${w}</b><em class="${v[0] === '+' ? 'plus' : 'minus'}">${v}</em><em>${t}</em></li>`).join('');
@@ -582,7 +655,7 @@
     $('clanBoard').innerHTML = BOARD.map(p => `<li class="${p.pin ? 'is-pin' : ''}"><header>${nickLink(p.who, 'var(--bone)')}<em class="role">${p.role}</em><time>${p.time}</time>${p.pin ? '<span class="pin">Закреплено</span>' : ''}</header><p>${esc(p.text)}</p></li>`).join('');
   }
   function renderRequests() {
-    $('clanRequests').innerHTML = REQUESTS.map(([n, l, msg], i) => `<li class="req"><i></i>${nickLink(n, 'var(--bone)')}<em>ур.${l}</em><span class="req-act"><button type="button" class="btn btn--primary" data-accept="${i}">Принять</button><button type="button" class="btn" data-decline="${i}">Отклонить</button></span>${msg ? `<small>${esc(msg)}</small>` : ''}</li>`).join('')
+    $('clanRequests').innerHTML = REQUESTS.map(([n, l, msg], i) => `<li class="req"><i></i>${nickLink(n, 'var(--bone)')}<em>ур.${l}</em><span class="req-act"><button type="button" class="btn" data-accept="${i}">Принять</button><button type="button" class="btn" data-decline="${i}">Отклонить</button></span>${msg ? `<small>${esc(msg)}</small>` : ''}</li>`).join('')
       || '<li class="clan-empty">Новых заявок нет</li>';
     $('reqBadge').textContent = REQUESTS.length || '';
   }
@@ -626,7 +699,7 @@
   const MAIL = [
     { from: 'Сервер', title: 'Награда за неделю', time: 'сегодня 09:00', unread: true, text: 'Спасибо, что играете! За активность на этой неделе вам начислена награда.', gift: ['img/items/upgradeBooster.png', 'Прокачка x3 · 1 шт.'] },
     { from: 'DVM_LEADER', title: 'Сбор у Рынка', time: 'вчера 21:14', unread: true, text: 'В субботу в 20:00 собираемся у клановского Рынка на 1200:840. Берите синие кристаллы — будем строить пушку.' },
-    { from: 'Сервер', title: 'Обновление 0.9.0', time: '24.10', text: 'Вышло обновление 0.9.0: поезда на рельсах и переработанные клановые войны. Подробности — в Discord.' },
+    { from: 'Сервер', title: 'Обновление 0.9.0', time: '24.10', text: 'Вышло обновление 0.9.0: клановые ворота и новые команды программатора. Подробности — в Discord.' },
     { from: 'ШАХТЁР-102', title: 'Перевод', time: '22.10', text: 'Держи на ремонт, вернёшь когда сможешь.', gift: ['img/crystals/green.png', '$25 000'], taken: true },
   ];
   let mailSel = 0;
@@ -664,10 +737,20 @@
   $('touchGeo').onclick = () => document.querySelector('.inv-slots li[data-i="0"]').click();   // геопак — первый предмет
 
   // Параметры адреса для снимков: ?aspect=1.6&state=busy&chat=1
-  const q = new URLSearchParams(location.search);
-  // Стенд — после загрузки всех скриптов: картинки из кэша грузятся раньше, чем выполнятся prog.js и остальные
-  const parsed = new Promise(r => document.readyState === 'loading' ? addEventListener('DOMContentLoaded', r) : r());
-  Promise.all([window.kernWorld.ready, parsed]).then(() => {
+  // Сцена стенда (js/scene.js): обработчик HUD — после окон мира, как раньше по времени. Сброс — исходное состояние стенда
+  window.kernScene.onReset(() => {
+    inputSticky = false;
+    if (state.chat !== 0) setChat(0);
+    $('buildFan').hidden = true;
+    const calm = document.querySelector('[data-state="calm"]'); if (calm && !calm.classList.contains('is-on')) calm.click();
+    if (clanRole !== 'member') setClanRole('member');
+    if ($('clanTabs').querySelector('[data-tab="members"]').getAttribute('aria-checked') !== 'true') setClanTab('members');
+    if (!$('chatList').hidden) showChatList(false);
+    const fed = document.querySelector('.chat-tab[data-tag="FED"]'); if (fed && !fed.classList.contains('is-on')) fed.click();
+    if ($('inventory').classList.contains('is-open')) $('invExpand').click();
+    document.querySelectorAll('.inv-cell.is-on').forEach(c => c.classList.remove('is-on'));
+  });
+  window.kernScene.on(2, q => {
     setDevice(q.get('device') || 'd1080');
     if (q.get('input')) setInput(q.get('input'));
     renderPlayer(); renderCargo(); renderChat(); showMini('M');

@@ -2,9 +2,11 @@
 
 using System;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 using System.Threading;
 using System.Threading.Tasks;
+using System.Collections.Generic;
 using Cysharp.Threading.Tasks;
 using Kern.AssetPipeline;
 using Kern.Core.Interfaces;
@@ -128,19 +130,21 @@ public class TextureStoragePreloadTests
 
         public StubRuntimeAssetPaths(string rootDir) => _rootDir = rootDir;
 
-        public string BundledTexturesRoot => _rootDir;
-        public string PersistentTexturesRoot => _rootDir;
-
         public UniTask EnsureReadyAsync() => UniTask.CompletedTask;
 
-        public string? FindBundledTextureFile(string relativePath) => FindTextureFile(relativePath);
+        public IReadOnlyList<string> GetEmbeddedTextureFilenames() => Directory
+            .EnumerateFiles(_rootDir, "*", SearchOption.AllDirectories)
+            .Select(path => Path.GetRelativePath(_rootDir, path).Replace('\\', '/'))
+            .ToArray();
 
-        public string? FindTextureFile(string relativePath)
+        public IReadOnlyList<string> GetDummyWorldTextureFilenames() => Array.Empty<string>();
+
+        public byte[]? GetTextureBytes(string relativePath)
         {
             string candidate = Path.Combine(_rootDir, relativePath.Replace('/', Path.DirectorySeparatorChar));
             if (File.Exists(candidate))
             {
-                return candidate;
+                return File.ReadAllBytes(candidate);
             }
 
             if (string.IsNullOrEmpty(Path.GetExtension(candidate)))
@@ -148,11 +152,17 @@ public class TextureStoragePreloadTests
                 string withPng = candidate + ".png";
                 if (File.Exists(withPng))
                 {
-                    return withPng;
+                    return File.ReadAllBytes(withPng);
                 }
             }
 
             return null;
         }
+
+        public UniTask<IReadOnlyList<string>> GetAudioBankFilenamesAsync() =>
+            UniTask.FromResult<IReadOnlyList<string>>(Array.Empty<string>());
+
+        public UniTask<byte[]?> GetAudioBankBytesAsync(string relativePath) =>
+            UniTask.FromResult<byte[]?>(null);
     }
 }

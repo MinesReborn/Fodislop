@@ -1,0 +1,27 @@
+{
+    "name": "Kern.Dummy",
+    "rootNamespace": "Kern.Networking.Dummy",
+    "references": [
+        "UniTask",
+        "Kern.Contracts",
+        "Kern.Core",
+        "Kern.Networking",
+        "Kern.World",
+        "Kern.Persistence",
+        "Kern.AssetPipeline",
+        "Kern.Diagnostics",
+        "VContainer",
+        "MinesServer.Data",
+        "MinesServer.Networking",
+        "MinesServer.Networking.Connection"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

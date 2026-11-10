@@ -1,115 +1,76 @@
-# PIPELINE
+# Render Pipeline
 
-`F` — размер поля освещения = клетки региона × scale (scale выбирает `SelectStablePixelsPerCell` по лимиту текстуры, лимиту атласа и бюджету лучей).
-`A` — поле геометрии AO = клетки региона × максимальный scale, разрешённый лимитом текстуры.
-Регион ≈ 128×96 клеток. `S` — разрешение экрана.
+This is a compact map of the current world-rendering path. For ownership,
+invalidation and review gates of the Terrain–Lighting boundary, see
+[`LIGHTING_ARCHITECTURE.md`](LIGHTING_ARCHITECTURE.md) and the normative
+[`TERRAIN_LIGHTING_STANDARD.md`](TERRAIN_LIGHTING_STANDARD.md). Source code owns
+exact bindings and dispatch details.
 
-## Освещение
+## Lighting fields
 
-```
-меш террейна ──[LightingMaterialField, MRT]──┬──► MaterialField  (F, RGBA32, без мипов)
-                                             └──► StaticGlow (F, ARGBHalf)
+The render region is shared in world coordinates, but Terrain and Lighting own
+separate caches. `TerrainRenderer` commits/presents terrain and publishes a
+fresh snapshot through `ITerrainLightingExchange`; `LightingEngine` consumes
+that snapshot later in the frame. See the architecture document for publication
+and acknowledgement ordering.
 
-меш террейна ──[LightingAmbientOcclusionField, red only]──► AmbientOcclusionField (A, R8)
+```text
+Terrain mesh + atlas
+    ├── LightingMaterialField ──► MaterialField (ARGB32, no mipmaps)
+    │                              └──► geometry cache / solid mask
+    ├── LightingMaterialField ──► StaticGlowField (ARGBHalf)
+    └── LightingAmbientOcclusionField ──► AO field (R8, 32 texels/cell)
 
-                      ┌── MaterialField
-StaticGlow ──────┴──[SolveCascade]──► RadianceAtlas (uint3 × N)
-                                              │
-                                              ▼
-                                       [ResolveDirect]
-                                              │
-                                              ▼
-                                    StaticDirect (F, ARGBHalf)
+MaterialField + StaticGlowField
+    └──► static radiance cascades ──► ResolveDirect ──► StaticDirect (ARGBHalf)
 
-DynamicLights ───────┴──[TraceDynamicPolar → SolveDynamicLighting]
-                                              │
-                                              ▼
-                                       [ComposeDynamicLighting]
-                                              │
-                                              ▼
-                                       Direct (F, ARGBHalf)
+MaterialField + dynamic source data
+    └──► dynamic polar transport ──► DynamicDirect (ARGBHalf)
 
-Direct ─────────┐
-StaticDirect ───┼──[SolveDiffuseBounce]──► Bounce (F/2, ARGBHalf)
-MaterialField ──┘
+StaticDirect + DynamicDirect + material/albedo
+    ├──► diffuse bounce
+    └──► composite ──► published world light texture (ARGBHalf)
 
-Direct ─────────┐
-StaticDirect ───┼──[CompositeLighting]──► Lightmap (F, ARGBHalf)
-Bounce ─────────┘                              │
-                                               ▼
-                                      global _WorldLightTexture
+Terrain fragments sample the published light and AO fields for world presentation.
 ```
 
-## Террейн (фрагмент, пасс Universal2D)
+`FieldPixelsPerCell` controls the material/transport raster used by DDA and
+cascade probes. `LightPixelsPerCell` controls direct-light receivers and the
+published lightmap; it must be a power of two no greater than
+`FieldPixelsPerCell`. Defaults are 2 and 2. Quality overrides are explicit;
+zoom does not select field density. AO remains 32 texels per cell. A region that
+exceeds allocation limits fails explicitly; the pipeline does not silently
+lower resolution. See `LightingConfigHolder` and `LightingQualityTuningController`
+for current validation and limits.
 
-```
-_WorldLightTexture ──[если DebugView≠0]──► выход, шаги ниже не выполняются
+The cascade radiance atlas is stored in GPU buffers, not a `RenderTexture`.
+Dynamic-light polar and distance resources have their own formats and allocation
+rules; consult their resource owners rather than inferring formats from this
+overview.
 
-BaseMap (атлас) ──┐
-subAtlasRect ─────┼──[выборка тайла]──► texColor
-tileSizeUV ───────┤
-animData ─────────┘
-                       │
-                       ▼
-                   [анимация цвета]──► finalRGB ─────────────┐
-                                                             │
-маска соседства ──[силуэт: круг + углы]──► finalAlpha       │
-                                                             │
-_WorldLightTexture ──► lightColor ────────────────────────────┤
-AmbientOcclusionField ──[8 radial taps + mean + sqrt]──► AO ─┤
-                                           │                 │
-                                           ▼                 ▼
-                     finalRGB × lightColor × AO ÷ finalAlpha (AO только фону)
-                                          │
-                                          ▼
-                                     цвет пикселя
-```
+## Terrain fragment and display path
 
-## Экран
+The Terrain shader samples atlas/material data, resolves the cell silhouette and
+animation/decal inputs, then applies world lighting and contact AO according to
+the active material flags. Specialized debug views have distinct shader paths;
+the lighting AO view is value 9. Do not infer that every nonzero lighting debug
+view bypasses the same set of fragment stages.
 
-```
-кадр мира ──[WorldBloom]──► добавление bloom ──[URP: exposure + tonemapping]──►
-DisplayFinal (LUT, виньетка, Eigengrau, зерно, искажение) ──► финальный вывод URP ──► экран
+```text
+Terrain mesh + atlas + world lighting/AO
+    └──► Terrain color ──► world camera ──► WorldBloom
+        ──► URP exposure/tonemapping ──► DisplayFinal ──► display output
 ```
 
-`DisplayFinal` — единственный kernel в `PostProcess.compute`; bloom выполняется
-отдельным мировым проходом. URP владеет exposure и tonemapping, а display pass
-обрабатывает уже display-linear изображение. Конкретный HDR output transform
-зависит от конфигурации URP и дисплея.
+`DisplayFinal` is the display-processing kernel in `PostProcess.compute`;
+bloom is a separate world pass. URP owns exposure and tonemapping. The actual
+output transform depends on the active URP/display configuration; follow the
+HDR/color contract when changing it.
 
-## Таблица стадий
+## Verification boundary
 
-| #  | Стадия              | Читает                          | Пишет           | Размер | Когда           |
-|----|---------------------|---------------------------------|-----------------|--------|-----------------|
-| 1  | Поле материалов     | меш террейна + атлас + анимация цвета   | Material + Emis | F      | геометрия/регион/текстуры|
-| 2  | Поле AO             | меш террейна + атлас            | AO occupancy    | A      | геометрия/регион/текстуры|
-| 3  | Геометрические кэши | Material                        | SolidMask/Taps  | F      | геометрия/регион|
-| 4  | Каскады (стат.)     | Material, StaticGlow        | RadianceAtlas   | N зап. | мир изменился   |
-| 5  | Resolve (стат.)     | RadianceAtlas                   | StaticDirect    | F      | мир изменился   |
-| 6  | Полярное динамич.   | Material, DynamicLights         | Direct          | F      | источник изменился|
-| 7  | Диффузный отскок    | Direct, StaticDirect, Material  | Bounce          | F/2    | свет изменился  |
-| 8  | Сведение            | Direct, StaticDirect, Bounce    | Lightmap        | F      | свет изменился  |
-| 9  | Выборка тайла       | BaseMap, атрибуты вершины       | texColor        | S      | каждый пиксель  |
-| 10 | Анимация цвета      | texColor, animData              | finalRGB        | S      | каждый пиксель  |
-| 11 | Силуэт              | displaced cell coverage         | finalAlpha      | S      | каждый пиксель  |
-| 12 | AO вокруг блоков    | AO occupancy (только фон)       | множитель       | S      | каждый пиксель  |
-| 13 | Освещение           | Lightmap, finalRGB, occlusion   | цвет пикселя    | S      | каждый пиксель  |
-| 14 | Постобработка       | кадр                            | экран           | S      | каждый кадр     |
-\* Нет динамических источников → динамический direct очищается, остальные стадии используют кэш статического света.
-
-## Ветвления
-
-| Условие                       | Эффект                                                  |
-|-------------------------------|---------------------------------------------------------|
-| `_WorldLightDebugView == 9`   | AO поле выводится по displaced foreground coverage |
-| `_WorldLightDebugView != 0 && != 9` | Выводится тексель Lightmap без стадий 10-14 |
-| `!rebuildFields`              | Стадии 1-2 пропущены, используются прошлые текстуры     |
-| Лимит текстуры превышен       | `scale` понижается, вплоть до 1                         |
-
-## Отсутствует
-
-| Что                                | Статус                                     |
-|------------------------------------|--------------------------------------------|
-| Нормали поверхности                | Снесены полностью: объём даёт AO вокруг блоков |
-| Свечение из атласа террейна         | Поступает в поле `StaticGlow`; видимый фрагмент также добавляет эмиссию по текстуре и флагам свечения |
-| Композитный kernel `CompositeFinal` | В текущем `PostProcess.compute` отсутствует; kernel называется `DisplayFinal` |
+Standalone tests and source checks can validate data contracts and orchestration,
+but do not prove Unity assembly/DI behavior, production frame ordering, shader
+bindings, GPU resource lifetime, or rendered output. Those claims require the
+authorized Unity production path. Current Terrain–Lighting review status and
+known unverified runtime gates are tracked in `LIGHTING_ARCHITECTURE.md`.

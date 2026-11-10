@@ -27,9 +27,9 @@ namespace Kern.World
         private static readonly AllocationLedger.Entry s_allocationEntry =
             AllocationLedger.Register("Поверхность — LateUpdate");
 
-        private const string TransitObjectName = "SurfaceTransit";
-        private const string PerspectiveObjectName = "SurfacePerspective";
-        private const string HorizonObjectName = "SurfaceHorizon";
+        internal const string TransitObjectName = "SurfaceTransit";
+        internal const string PerspectiveObjectName = "SurfacePerspective";
+        internal const string HorizonObjectName = "SurfaceHorizon";
 
         [Header("Local Assets")]
         [SerializeField]
@@ -75,11 +75,13 @@ namespace Kern.World
         private int _lastLightingMeshWorldWidth = int.MinValue;
         private int _lastLightingMeshWorldHeight = int.MinValue;
         private bool _hasLightingMeshes;
+        private bool _hasPublishedView;
         private bool _initialized;
         private bool _registered;
 
         public ulong LightingGeometryRevision => _lightingGeometryRevision;
         public bool IsInitialized => _initialized;
+        public bool IsReadyForGameplay => _initialized && _hasPublishedView;
 
         public void ApplyClientConfig()
         {
@@ -219,6 +221,7 @@ namespace Kern.World
 
         private void OnWorldInitialized()
         {
+            _hasPublishedView = false;
             _hasLightingMeshes = false;
             _lastWorldWidth = 0;
             _lastWorldHeight = 0;
@@ -274,6 +277,7 @@ namespace Kern.World
                 -0.02f);
 
             ApplyWorldSize(_mapManager.WorldWidth, _mapManager.WorldHeight);
+            _hasPublishedView = true;
         }
 
         protected void OnDisable()

@@ -2,6 +2,7 @@
 
 using System;
 using Kern.Core.Localization;
+using Kern.UI.Screens;
 using UnityEngine;
 using UnityEngine.UIElements;
 
@@ -10,23 +11,15 @@ namespace Kern.UI.Menu;
 public sealed class MenuNavigationPresenter
 {
     private Button? _playButton;
-    private Button? _serverSelectButton;
-    private Button? _userPillButton;
     private Button? _cancelDescentButton;
+    private Button? _retryDescentButton;
 
-    private VisualElement? _routeOrbit;
-    private VisualElement? _routeDescent;
-    private VisualElement? _routeSurface;
-
-    private Button? _sideChronicleButton;
     private Button? _sideSettingsButton;
-    private Button? _sideRepairButton;
     private Button? _sideDiscordButton;
     private Button? _sideTelegramButton;
     private Button? _sideVKButton;
     private Button? _sideExitButton;
 
-    private Button? _newsTickerButton;
     private Button? _footerVersionButton;
 
     public void Bind(
@@ -34,41 +27,25 @@ public sealed class MenuNavigationPresenter
         MenuModalManager modalManager,
         Action onPlayClicked,
         Action onCancelDescent,
+        Action onRetryDescent,
         ILocalizationService? loc)
     {
-        _routeOrbit = tree.Q<VisualElement>("MainMenuRouteOrbit");
-        _routeDescent = tree.Q<VisualElement>("MainMenuRouteDescent");
-        _routeSurface = tree.Q<VisualElement>("MainMenuRouteSurface");
-
         _playButton = tree.Q<Button>("PlayButton");
-        _serverSelectButton = tree.Q<Button>("ServerSelectButton");
-        _userPillButton = tree.Q<Button>("UserPillButton");
         _cancelDescentButton = tree.Q<Button>("CancelDescentButton");
+        _retryDescentButton = tree.Q<Button>("RetryDescentButton");
 
-        _sideChronicleButton = tree.Q<Button>("SideChronicleButton");
         _sideSettingsButton = tree.Q<Button>("SideSettingsButton");
-        _sideRepairButton = tree.Q<Button>("SideRepairButton");
         _sideDiscordButton = tree.Q<Button>("SideDiscordButton");
         _sideTelegramButton = tree.Q<Button>("SideTelegramButton");
         _sideVKButton = tree.Q<Button>("SideVkButton");
         _sideExitButton = tree.Q<Button>("SideExitButton");
 
-        _newsTickerButton = tree.Q<Button>("NewsTickerButton");
         _footerVersionButton = tree.Q<Button>("FooterVersionButton");
+        ApplyBuildStamp(tree);
 
         if (_playButton != null)
         {
             _playButton.clicked += onPlayClicked;
-        }
-
-        if (_serverSelectButton != null)
-        {
-            _serverSelectButton.clicked += modalManager.OpenServerBrowser;
-        }
-
-        if (_userPillButton != null)
-        {
-            _userPillButton.clicked += modalManager.OpenProfile;
         }
 
         if (_cancelDescentButton != null)
@@ -76,19 +53,14 @@ public sealed class MenuNavigationPresenter
             _cancelDescentButton.clicked += onCancelDescent;
         }
 
-        if (_sideChronicleButton != null)
+        if (_retryDescentButton != null)
         {
-            _sideChronicleButton.clicked += modalManager.OpenChronicle;
+            _retryDescentButton.clicked += onRetryDescent;
         }
 
         if (_sideSettingsButton != null)
         {
             _sideSettingsButton.clicked += modalManager.OpenSettings;
-        }
-
-        if (_sideRepairButton != null)
-        {
-            _sideRepairButton.clicked += modalManager.OpenRepair;
         }
 
         if (_sideDiscordButton != null)
@@ -111,26 +83,9 @@ public sealed class MenuNavigationPresenter
             _sideExitButton.clicked += QuitGame;
         }
 
-        if (_newsTickerButton != null)
-        {
-            _newsTickerButton.clicked += modalManager.OpenChronicle;
-        }
+        // Строка «Новое» в макете ничего не открывает: окна хроники в нём нет
 
         ApplyLocalization(loc);
-    }
-
-    public void SetDescentRouteActive()
-    {
-        _routeOrbit?.RemoveFromClassList("mm-route-item--active");
-        _routeDescent?.AddToClassList("mm-route-item--active");
-        _routeSurface?.RemoveFromClassList("mm-route-item--active");
-    }
-
-    /// <summary>Возврат к исходному маршруту после отмены спуска: снова активна орбита.</summary>
-    public void ResetDescentRoute()
-    {
-        _routeDescent?.RemoveFromClassList("mm-route-item--active");
-        _routeOrbit?.AddToClassList("mm-route-item--active");
     }
 
     public void ApplyLocalization(ILocalizationService? loc)
@@ -140,48 +95,19 @@ public sealed class MenuNavigationPresenter
             return;
         }
 
-        Label? playLabel = _playButton?.Q<Label>(null, "mm-btn-primary-text");
-        if (playLabel != null)
-        {
-            playLabel.text = loc.Get("menu.play");
-        }
-
-        Label? serverLabel = _serverSelectButton?.Q<Label>();
-        if (serverLabel != null)
-        {
-            serverLabel.text = loc.Get("menu.server_select");
-        }
-
         if (_cancelDescentButton != null)
         {
             _cancelDescentButton.text = loc.Get("menu.cancel_descent");
         }
 
-        Label? orbitLabel = _routeOrbit?.Q<Label>(null, "mm-route-text");
-        if (orbitLabel != null)
+        if (_retryDescentButton != null)
         {
-            orbitLabel.text = loc.Get("menu.orbit");
-        }
-
-        Label? descentLabel = _routeDescent?.Q<Label>(null, "mm-route-text");
-        if (descentLabel != null)
-        {
-            descentLabel.text = loc.Get("menu.descent");
-        }
-
-        if (_sideChronicleButton != null)
-        {
-            _sideChronicleButton.tooltip = loc.Get("menu.chronicle");
+            _retryDescentButton.text = loc.Get("menu.retry_descent");
         }
 
         if (_sideSettingsButton != null)
         {
             _sideSettingsButton.tooltip = loc.Get("menu.settings");
-        }
-
-        if (_sideRepairButton != null)
-        {
-            _sideRepairButton.tooltip = loc.Get("menu.repair");
         }
 
         if (_sideExitButton != null)
@@ -204,6 +130,35 @@ public sealed class MenuNavigationPresenter
             : Debug.isDebugBuild
                 ? loc.Get("mainmenu.version_dev", Application.version)
                 : loc.Get("mainmenu.version", Application.version);
+    }
+
+    // «Сборка» подвала: первые 8 знаков GUID сборки и его штрихкод. В редакторе GUID нулевой — сборки нет, пункт скрыт
+    private static void ApplyBuildStamp(VisualElement tree)
+    {
+        VisualElement? stamp = tree.Q<VisualElement>("FooterBuild");
+        if (stamp == null)
+        {
+            return;
+        }
+
+        string guid = Application.buildGUID ?? string.Empty;
+        bool known = guid.Length >= 8 && guid.Trim('0').Length > 0;
+        stamp.style.display = known ? DisplayStyle.Flex : DisplayStyle.None;
+        if (!known)
+        {
+            return;
+        }
+
+        string hash = guid[..8];
+        if (tree.Q<Label>("FooterBuildHash") is Label label)
+        {
+            label.text = hash;
+        }
+
+        if (tree.Q<VisualElement>("FooterBuildBars") is VisualElement bars)
+        {
+            KernBarcode.Fill(bars, hash);
+        }
     }
 
     private static void QuitGame()

@@ -1,23 +1,30 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements">
-    <ui:VisualElement name="ChatPanel" class="gchat-panel">
-        <ui:Label name="ChatHeader" class="gchat-header" text="chat.channel.global" />
-        <ui:VisualElement name="ChatChannels" class="gchat-channel-tabs">
-            <ui:Button name="GlobalChannelButton" class="gchat-channel-button" text="chat.channel.chats" />
+    <!-- Глобальный чат — макет visual/kern-ui (ПК: css/hud.css .chat-peek, .chat-column; events.css .chat-list).
+         Три режима по Tab: 0 — три последние строки справа от левой колонки, 1 — окно на их месте,
+         2 — скрыт. В шапке окна — название текущего канала; каналы — списком по кнопке (ChatListPacket),
+         непрочитанное считает клиент (ChatEventGateway). -->
+    <ui:Button name="ChatPeek" class="chat-peek" tooltip="chat.peek_tooltip" picking-mode="Position">
+        <ui:Label name="ChatPeekTag" class="chat-peek-tag caps" text="FED" picking-mode="Ignore" />
+        <ui:VisualElement name="ChatPeekLines" class="chat-peek-lines" picking-mode="Ignore" />
+    </ui:Button>
+
+    <ui:VisualElement name="ChatPanel" class="chat-column">
+        <ui:VisualElement class="chat-head">
+            <ui:Label name="ChatHeader" class="chat-title" text="" />
+            <ui:Button name="ChatListButton" class="icon-btn chat-head-btn" tooltip="chat.list.title" picking-mode="Position">
+                <ui:VisualElement class="ico ico--list" picking-mode="Ignore" />
+                <ui:Label name="ChatListBadge" class="badge is-hidden" text="" picking-mode="Ignore" />
+            </ui:Button>
+            <ui:Button name="ChatCloseButton" class="icon-btn chat-head-btn" tooltip="chat.collapse" picking-mode="Position">
+                <ui:VisualElement class="ico ico--collapse" picking-mode="Ignore" />
+            </ui:Button>
         </ui:VisualElement>
-        <ui:Label name="ChatMuteStatus" class="gchat-mute-status" style="display: none;" />
-        <ui:ScrollView name="ChatScroll" class="gchat-scroll" horizontal-scroller-visibility="Hidden" vertical-scroller-visibility="Auto" />
-        <ui:VisualElement name="BottomRow" class="gchat-bottom-row">
-            <ui:TextField name="ChatInput" class="gchat-input" />
-            <ui:Button name="SendButton" class="gchat-send-button" text="&gt;" />
-            <ui:Button name="ColorButton" class="gchat-color-button" />
-            <ui:Button name="EmojiButton" class="gchat-emoji-button" />
+        <ui:Label name="ChatMuteStatus" class="chat-sys" style="display: none;" />
+        <ui:ScrollView name="ChatScroll" class="chat-log" horizontal-scroller-visibility="Hidden" vertical-scroller-visibility="Auto" />
+        <ui:VisualElement class="chat-form">
+            <ui:TextField name="ChatInput" class="chat-input" placeholder-text="chat.input_placeholder" />
         </ui:VisualElement>
-        <ui:VisualElement name="ColorGrid" class="gchat-color-grid" style="display: none;" />
-        <ui:VisualElement name="EmojiGrid" class="gchat-emoji-grid" style="display: none;" />
-        <ui:VisualElement name="ChatListPopup" class="gchat-chats-popup" style="display: none;">
-            <ui:Label name="ChatListHeader" class="gchat-chats-header" text="chat.list.title" />
-            <ui:ScrollView name="ChatListScroll" class="gchat-chats-scroll" horizontal-scroller-visibility="Hidden" vertical-scroller-visibility="Auto" />
-            <ui:Button name="ChatListCloseButton" class="gchat-chats-close" text="chat.list.close" />
-        </ui:VisualElement>
+        <!-- Все каналы: метка, название, последнее сообщение, непрочитанное -->
+        <ui:ScrollView name="ChatListScroll" class="chat-list" horizontal-scroller-visibility="Hidden" vertical-scroller-visibility="Auto" style="display: none;" />
     </ui:VisualElement>
 </ui:UXML>

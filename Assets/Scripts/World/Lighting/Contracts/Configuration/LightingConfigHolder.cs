@@ -51,7 +51,7 @@ public static class LightingConfigHolder
     // Общую экспозицию применяет штатный URP Volume перед tonemapping.
     public const float AmbientIntensity = 0.20f;
     public const float GlowScale = 12.0f;
-    public const float DynamicLightIntensity = 1.0f;
+    public const float DynamicLightIntensity = 0.5f;
     public static readonly Color AmbientColor = Color.white;
     public static bool DynamicLightEnabled => (EnabledFeatures & LightingFeatureFlags.DynamicLights) != 0;
     public static readonly Color DynamicLightColor = Color.white;

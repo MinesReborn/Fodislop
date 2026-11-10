@@ -172,6 +172,11 @@ internal sealed class DynamicLightTileCache
     // A new atlas holds no traced light, so every tile is invalidated.
     public void EnsureLayout(int requiredTileWidth, int requiredTileHeight, int lightCount, int polarAngles, int polarRadii)
     {
+        if (!SystemInfo.supports2DArrayTextures)
+        {
+            throw new InvalidOperationException("Dynamic lighting requires 2D texture-array support.");
+        }
+
         // A single light retains its result in DirectTexture itself. Keep a
         // one-texel UAV binding for the shared kernel, without a duplicate
         // full-field radiance allocation or any writes to that binding.
@@ -186,9 +191,26 @@ internal sealed class DynamicLightTileCache
         int tileHeight = singleLightDirect ? 1 : replaceLayout
             ? RoundUpToQuantum(requiredTileHeight)
             : Math.Max(_tileHeight, RoundUpToQuantum(requiredTileHeight));
-        int capacity = singleLightDirect ? 1 : replaceLayout
+        int polarSlicesPerLight = LightingComputeBinder.DynamicEmitterPointCount;
+        int maximumLightCapacity = SystemInfo.maxTextureArraySlices / polarSlicesPerLight;
+        if (maximumLightCapacity < 1)
+        {
+            throw new InvalidOperationException(
+                $"Dynamic transport requires {polarSlicesPerLight} array layers per light; " +
+                $"maximum is {SystemInfo.maxTextureArraySlices}.");
+        }
+
+        int requestedCapacity = singleLightDirect ? 1 : replaceLayout
             ? Mathf.NextPowerOfTwo(Math.Max(1, lightCount))
             : Math.Max(Capacity, Mathf.NextPowerOfTwo(Math.Max(1, lightCount)));
+        int capacity = Math.Min(requestedCapacity, maximumLightCapacity);
+        if (lightCount > capacity)
+        {
+            throw new InvalidOperationException(
+                $"Dynamic transport supports at most {maximumLightCapacity} lights with " +
+                $"{polarSlicesPerLight} array layers per light on this device; " +
+                $"{lightCount} visible lights were requested.");
+        }
         if (Tiles != null &&
             Tiles.format == tileFormat &&
             tileWidth == _tileWidth &&
@@ -207,7 +229,7 @@ internal sealed class DynamicLightTileCache
                 $"Dynamic light layer {tileWidth}x{tileHeight} for {capacity} dynamic lights exceeds the " +
                 $"maximum texture size {SystemInfo.maxTextureSize}.");
         }
-        if (!SystemInfo.supports2DArrayTextures || capacity > SystemInfo.maxTextureArraySlices)
+        if (capacity > SystemInfo.maxTextureArraySlices)
         {
             throw new InvalidOperationException(
                 $"Dynamic radiance requires {capacity} array layers; maximum is {SystemInfo.maxTextureArraySlices}.");

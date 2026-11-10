@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using Kern.World;
+using Kern.Core.Interfaces;
 using UnityEngine;
 
 using Kern.AssetPipeline.Loading;
@@ -47,6 +48,39 @@ internal sealed class MinimapTextureRenderer : IDisposable
 
     public Vector2Int ServerCellToPixel(int serverX, int serverY, int playerX, int playerY) =>
         MapProjection.ServerCellToMinimapPixel(serverX, serverY, playerX, playerY, _uiSize);
+
+    public bool TryRender(
+        RenderTexture? texture,
+        bool isPresentationStable,
+        int playerX,
+        int playerY,
+        int worldWidth,
+        int worldHeight,
+        MapCellSampler cellSampler,
+        IClickPathWalker? pathWalker,
+        IReadOnlyList<Vector2Int>? fallbackPath,
+        Action? markDirty,
+        bool drawPlayerMarker = true)
+    {
+        if (!isPresentationStable)
+        {
+            return false;
+        }
+
+        IReadOnlyList<Vector2Int>? path = pathWalker?.Path ?? fallbackPath;
+        int pathStartIndex = pathWalker?.PathIndex ?? 0;
+        bool hasLoadedCells = Render(
+            texture,
+            playerX,
+            playerY,
+            worldWidth,
+            worldHeight,
+            cellSampler,
+            drawPlayerMarker ? path : null,
+            pathStartIndex);
+        markDirty?.Invoke();
+        return hasLoadedCells;
+    }
 
     public bool Render(
         RenderTexture? texture,

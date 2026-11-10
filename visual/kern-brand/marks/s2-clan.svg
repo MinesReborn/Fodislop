@@ -1,4 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" stroke="#d8d5ee" stroke-width="3" stroke-linecap="square" stroke-linejoin="miter">
-  <!-- 2 · Клан: три робота-узла связаны, свой — оранжевый -->
-  <path d="M32 14L14 46h36z" stroke-width="2"/><rect x="25" y="7" width="14" height="14" fill="#111018"/><rect x="7" y="39" width="14" height="14" fill="#111018"/><rect x="43" y="39" width="14" height="14" fill="#ff5a1f" stroke="#ff5a1f"/>
-</svg>

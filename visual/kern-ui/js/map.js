@@ -2,6 +2,7 @@
 // Открывается миникартой; на ПК — ещё клавишей M. Колесо и кнопки ± — масштаб, «К себе» — центр на роботе.
 (() => {
   const $ = id => document.getElementById(id);
+  const token = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
   const dlg = $('mapDialog'), view = $('mapView'), canvas = $('mapCanvas'), pinsEl = $('mapPins');
   const ZOOMS = [2, 3, 4, 6, 8, 12, 16];
   let zi = 4, cx = 0, cy = 0;                         // масштаб — пикселей на клетку; центр вида — в клетках
@@ -27,28 +28,29 @@
   function setMark(m) {
     mark = m;
     window.kernWorld.marks = window.kernWorld.marks.filter(x => x.kind !== 'mark');
-    if (m) window.kernWorld.marks.push({ kind: 'mark', x: m.x, y: m.y, color: '#45d3e6', name: 'Метка' });
+    if (m) window.kernWorld.marks.push({ kind: 'mark', x: m.x, y: m.y, color: token('--mark-own'), name: 'Метка' });
     window.kernWorld.draw(); renderPlaces(); if (!dlg.hidden) draw();
   }
   window.kernMark = setMark;
 
   function draw() {
-    const w = window.kernWorld, map = w.map, H = map.length, W = map[0].length, z = ZOOMS[zi];
+    const w = window.kernWorld, map = w.map, H = map.length, W = map[0].length, z = ZOOMS[zi], M = window.kernMapModes;
     const vw = view.clientWidth, vh = view.clientHeight, dpr = devicePixelRatio || 1;
     canvas.width = Math.round(vw * dpr); canvas.height = Math.round(vh * dpr);
     canvas.style.width = vw + 'px'; canvas.style.height = vh + 'px';
     const ctx = canvas.getContext('2d');
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
-    ctx.fillStyle = '#05070a'; ctx.fillRect(0, 0, vw, vh);
+    ctx.fillStyle = token('--map-background'); ctx.fillRect(0, 0, vw, vh);
     const x0 = Math.floor(cx - vw / 2 / z), y0 = Math.floor(cy - vh / 2 / z);
     const ox = vw / 2 - (cx - x0) * z, oy = vh / 2 - (cy - y0) * z;
     for (let y = 0; y <= vh / z + 1; y++) for (let x = 0; x <= vw / z + 1; x++) {
       const t = map[y0 + y]?.[x0 + x]; if (!t) continue;
-      ctx.fillStyle = w.TYPES[t].mm; ctx.fillRect(Math.floor(ox + x * z), Math.floor(oy + y * z), Math.ceil(z), Math.ceil(z));
+      const c = M ? M.color(t, x0 + x, y0 + y) : w.TYPES[t].mm; if (!c) continue;   // null — чанк не приходил
+      ctx.fillStyle = c; ctx.fillRect(Math.floor(ox + x * z), Math.floor(oy + y * z), Math.ceil(z), Math.ceil(z));
     }
     // Сетка по 10 клеток — с крупного масштаба
     if (z >= 6) {
-      ctx.strokeStyle = 'rgba(228,232,234,.08)'; ctx.lineWidth = 1;
+      ctx.strokeStyle = token('--map-grid'); ctx.lineWidth = 1;
       for (let x = x0 - x0 % 10; x < x0 + vw / z + 1; x += 10) { const px = Math.round(ox + (x - x0) * z) + .5; ctx.beginPath(); ctx.moveTo(px, 0); ctx.lineTo(px, vh); ctx.stroke(); }
       for (let y = y0 - y0 % 10; y < y0 + vh / z + 1; y += 10) { const py = Math.round(oy + (y - y0) * z) + .5; ctx.beginPath(); ctx.moveTo(0, py); ctx.lineTo(vw, py); ctx.stroke(); }
     }
@@ -95,7 +97,7 @@
   view.addEventListener('wheel', e => { e.preventDefault(); zoom(e.deltaY < 0 ? 1 : -1, e); }, { passive: false });
   $('mapZoomIn').onclick = () => zoom(1); $('mapZoomOut').onclick = () => zoom(-1);
   $('mapHome').onclick = () => { home(); draw(); };
-  $('mapFilters').onchange = e => { shown[e.target.dataset.kind] = e.target.checked; draw(); };
+  $('mapFilters').onchange = e => { if (!e.target.dataset.kind) return; shown[e.target.dataset.kind] = e.target.checked; draw(); };
   function renderPlaces() {
     $('mapPlaces').innerHTML = PLACES().filter(p => p.kind !== 'me').map((p, i) =>
       `<li><button type="button" data-i="${i}"><i class="pin-dot pin-dot--${p.kind}"></i><b>${p.name}</b><small>${gx(p.x)}:${gy(p.y)}</small></button>${p.kind === 'mark' ? '<button type="button" class="icon-btn" data-unmark title="Убрать метку"><svg><use href="#i-close"/></svg></button>' : ''}</li>`).join('')
@@ -106,6 +108,7 @@
   const open = () => { dlg.hidden = false; home(); renderPlaces(); $('mapCoords').textContent = `${gx(window.kernWorld.PX)}:${gy(window.kernWorld.PY)}`; requestAnimationFrame(draw); };
   const close = () => { dlg.hidden = true; };
   window.openMap = open;
+  window.kernMapRedraw = () => { if (!dlg.hidden) draw(); };
   document.querySelector('.minimap').addEventListener('click', open);
   dlg.querySelector('[data-close]').onclick = close;
   addEventListener('resize', () => { if (!dlg.hidden) draw(); });
@@ -116,7 +119,9 @@
     else if ((e.key === 'm' || e.key === 'M' || e.key === 'ь' || e.key === 'Ь') && document.getElementById('frame').dataset.screen === 'game') dlg.hidden ? open() : close();
   });
   // ?map=1 — снимок: без плавного появления (в безголовом браузере кадры анимации не идут)
-  const qm = new URLSearchParams(location.search);
-  if (qm.get('mark')) window.kernWorld.ready.then(() => setMark({ x: window.kernWorld.PX + 70, y: window.kernWorld.PY + 25 }));
-  if (qm.get('map')) window.kernWorld.ready.then(() => { dlg.style.transition = 'none'; open(); draw(); });
+  window.kernScene.onReset(() => { close(); setMark(null); });
+  window.kernScene.on(1, q => {
+    if (q.get('mark')) setMark({ x: window.kernWorld.PX + 70, y: window.kernWorld.PY + 25 });
+    if (q.get('map')) { dlg.style.transition = 'none'; open(); draw(); }
+  });
 })();

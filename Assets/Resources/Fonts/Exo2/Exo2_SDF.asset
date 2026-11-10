@@ -21598,7 +21598,7 @@ MonoBehaviour:
   m_RegularStyleWeight: 0
   m_RegularStyleSpacing: 0
   m_BoldStyleWeight: 0.75
-  m_BoldStyleSpacing: 7
+  m_BoldStyleSpacing: 0
   m_ItalicStyleSlant: 35
   m_TabMultiple: 10
 --- !u!21 &2310725330118571996

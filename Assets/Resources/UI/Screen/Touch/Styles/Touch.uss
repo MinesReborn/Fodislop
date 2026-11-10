@@ -19,8 +19,8 @@
 
 :root {
     --touch-target: 44px;
-    --touch-gap: 4px;
-    --touch-edge: 6px;
+    --touch-gap: var(--space-2);
+    --touch-edge: var(--space-3);
     --touch-pad: 120px;
     --touch-minimap: 104px;
 }
@@ -36,9 +36,9 @@
 
 /* Мелкий текст на телефоне держит Apple-минимум читаемости (11 pt). */
 .pointer--touch {
-    --size-micro: 10px;
+    --size-micro: var(--space-5);
     --size-2xs: 11px;
-    --size-xs: 12px;
+    --size-xs: var(--space-6);
     --size-sm: 13px;
 }
 
@@ -74,12 +74,6 @@
 
 .pointer--touch .hud-mobile-right-dock {
     display: flex;
-}
-
-/* Перетаскивание панели — мышиная возможность: пальцем панель
-   таскалась бы вместо стика. */
-.pointer--touch .hud-drag-handle {
-    display: none;
 }
 
 /* ─── Левый верхний угол: панель игрока ────────────────────────── */
@@ -133,15 +127,6 @@
     display: none;
 }
 
-.pointer--touch .hud-bonus-button {
-    top: var(--touch-edge);
-    left: auto;
-    right: 124px;
-    width: auto;
-    min-width: 72px;
-    height: var(--touch-target);
-}
-
 .pointer--touch .hud-status-panel {
     top: 56px;
     left: auto;
@@ -149,7 +134,6 @@
     width: 160px;
 }
 
-.form--tablet .hud-bonus-button,
 .form--tablet .hud-status-panel {
     right: 156px;
 }
@@ -200,7 +184,7 @@
     padding: 0 var(--space-4);
     background-color: var(--surface-shelf-dense);
     border-color: var(--accent-cyan-deep);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-radius: var(--radius-md);
     color: var(--text-primary);
     font-size: var(--size-sm);
@@ -229,8 +213,8 @@
 
 .pointer--touch .hud-mobile-move-pad {
     position: absolute;
-    left: 12px;
-    bottom: 12px;
+    left: var(--space-6);
+    bottom: var(--space-6);
     width: var(--touch-pad);
     height: var(--touch-pad);
 }
@@ -371,8 +355,8 @@
 /* Раскрытый список — окно по центру: группы по четыре предмета идут
    строками и переносятся по ширине окна, лишнее листается пальцем. */
 .pointer--touch .inv-hotbar.inv-hotbar--popup {
-    left: 50%;
-    top: 50%;
+    left: var(--radius-pill);
+    top: var(--radius-pill);
     bottom: auto;
     right: auto;
     translate: -50% -50%;
@@ -380,7 +364,7 @@
     padding: var(--space-3);
     background-color: var(--surface-panel);
     border-color: var(--border-subtle);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-radius: var(--radius-md);
     align-items: center;
 }
@@ -472,12 +456,11 @@
    Две разные нехватки места, у каждой своя раскладка:
      form--narrow — внешний экран флипа (~390×380 dp): мало ширины;
      form--short  — окно в сплите (~900×200 dp): мало высоты.
-   Обоим не хватает места на задание, бонус, навыки и строки статуса —
+   Обоим не хватает места на задание, навыки и строки статуса —
    они уходят; управление дроном, чат, меню и программатор остаются. */
 
 .form--micro .hud-mission-panel,
 .form--micro .hud-status-panel,
-.form--micro .hud-bonus-button,
 .form--micro .hud-basket,
 .form--micro .hud-basket-container,
 .form--micro .hud-panel .hud-separator,
@@ -886,7 +869,7 @@
     padding: 0 var(--space-6) 0 0;
     margin: 0 var(--space-6) 0 0;
     border-bottom-width: 0;
-    border-right-width: 1px;
+    border-right-width: var(--border-width-thin);
     border-right-color: var(--border-subtle);
 }
 
@@ -1079,7 +1062,7 @@
     padding: 0 0 var(--space-3) 0;
     margin: 0 0 var(--space-3) 0;
     border-right-width: 0;
-    border-bottom-width: 1px;
+    border-bottom-width: var(--border-width-thin);
     border-bottom-color: var(--border-subtle);
 }
 
@@ -1184,7 +1167,7 @@
 .pointer--touch .prog-cell {
     width: var(--touch-target);
     height: var(--touch-target);
-    margin: 2px;
+    margin: var(--space-1);
 }
 
 /* Список программ и диалог создания — во всю высоту, с прокруткой. */
@@ -1236,7 +1219,7 @@
 .prog-touch-tool {
     background-color: var(--surface-shelf-dense);
     border-color: var(--accent-cyan-deep);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-radius: var(--radius-sm);
     color: var(--text-primary);
     -unity-font-style: bold;

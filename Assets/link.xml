@@ -10,8 +10,5 @@
   <assembly fullname="MinesServer.Utils" preserve="all"/>
   <assembly fullname="MinesServer.Networking" preserve="all"/>
   <assembly fullname="MinesServer.Networking.Connection" preserve="all"/>
-  <assembly fullname="MinesServer.Networking.Connection.Client" preserve="all"/>
   <assembly fullname="FMODUnity" preserve="all"/>
-  <assembly fullname="Effekseer" preserve="all"/>
-  <assembly fullname="Effekseer.URP" preserve="all"/>
 </linker>

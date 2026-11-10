@@ -16,10 +16,6 @@ namespace Kern.UI.Map;
 /// </summary>
 internal sealed class WorldMapMipPyramid
 {
-    private const long MaxCacheBytes = 64L * 1024L * 1024L;
-
-    // Managed level data plus the readable texture and its weight plane.
-    private const int BytesPerMipTexel = sizeof(uint) + sizeof(float) + (2 * sizeof(uint));
 
     private readonly Color32[][] _levels;
     private readonly int[] _levelWidths;
@@ -123,12 +119,12 @@ internal sealed class WorldMapMipPyramid
             levelCount++;
         }
 
-        long cacheBytes = totalPixels * BytesPerMipTexel;
-        if (cacheBytes > MaxCacheBytes)
+        long cacheBytes = totalPixels * WorldMapMipSizing.BytesPerMipTexel;
+        if (cacheBytes > WorldMapMipSizing.MaxCacheBytes)
         {
             throw new InvalidOperationException(
                 $"World map mip cache needs {cacheBytes / (1024f * 1024f):F1} MiB; " +
-                $"the per-session limit is {MaxCacheBytes / (1024f * 1024f):F0} MiB.");
+                $"the per-session limit is {WorldMapMipSizing.MaxCacheBytes / (1024f * 1024f):F0} MiB.");
         }
 
         _levels = new Color32[levelCount][];
@@ -174,54 +170,6 @@ internal sealed class WorldMapMipPyramid
         }
     }
 
-    /// <summary>
-    /// Finest power-of-two block divisor of <paramref name="chunkSize"/> whose
-    /// full pyramid fits the per-session budget. Falls back to the storage chunk
-    /// size when nothing smaller fits.
-    /// </summary>
-    public static int ChooseBlockSize(int worldWidth, int worldHeight, int chunkSize)
-    {
-        if (worldWidth <= 0 || worldHeight <= 0 || chunkSize <= 0)
-        {
-            return Math.Max(1, chunkSize);
-        }
-
-        for (int block = 1; block < chunkSize; block <<= 1)
-        {
-            if (chunkSize % block != 0)
-            {
-                break;
-            }
-
-            if (FitsCacheBudget(worldWidth, worldHeight, block))
-            {
-                return block;
-            }
-        }
-
-        return chunkSize;
-    }
-
-    private static bool FitsCacheBudget(int worldWidth, int worldHeight, int blockSize)
-    {
-        int width = (worldWidth + blockSize - 1) / blockSize;
-        int height = (worldHeight + blockSize - 1) / blockSize;
-        long totalPixels = 0;
-        while (true)
-        {
-            totalPixels += (long)width * height;
-            if (width == 1 && height == 1)
-            {
-                break;
-            }
-
-            width = Math.Max(1, width / 2);
-            height = Math.Max(1, height / 2);
-        }
-
-        return totalPixels * BytesPerMipTexel <= MaxCacheBytes;
-    }
-
     public int WidthChunks => (_worldWidth + _chunkSize - 1) / _chunkSize;
 
     public int HeightChunks => (_worldHeight + _chunkSize - 1) / _chunkSize;
@@ -262,9 +210,9 @@ internal sealed class WorldMapMipPyramid
         int chunkY = chunkIndex % HeightChunks;
         int validWidth = GetValidChunkWidth(chunkX);
         int validHeight = GetValidChunkHeight(chunkY);
-        double red = DecodeSrgbChannel(color.r);
-        double green = DecodeSrgbChannel(color.g);
-        double blue = DecodeSrgbChannel(color.b);
+        double red = WorldMapMipColors.DecodeSrgbChannel(color.r);
+        double green = WorldMapMipColors.DecodeSrgbChannel(color.g);
+        double blue = WorldMapMipColors.DecodeSrgbChannel(color.b);
         double alpha = color.a;
 
         // Split the run into per-block segments analytically: a run is a constant
@@ -346,9 +294,9 @@ internal sealed class WorldMapMipPyramid
                 AccumulateBlock(
                     localX,
                     localY,
-                    DecodeSrgbChannel(color.r),
-                    DecodeSrgbChannel(color.g),
-                    DecodeSrgbChannel(color.b),
+                    WorldMapMipColors.DecodeSrgbChannel(color.r),
+                    WorldMapMipColors.DecodeSrgbChannel(color.g),
+                    WorldMapMipColors.DecodeSrgbChannel(color.b),
                     color.a);
             }
         }
@@ -409,7 +357,7 @@ internal sealed class WorldMapMipPyramid
                 int blockX = blockX0 + blockXi;
                 int blockY = blockY0 + blockYi;
                 int levelZeroIndex = blockY * _levelWidths[0] + blockX;
-                _levels[0][levelZeroIndex] = CreateAverage(
+                _levels[0][levelZeroIndex] = WorldMapMipColors.CreateAverage(
                     _blockRed[blockIndex],
                     _blockGreen[blockIndex],
                     _blockBlue[blockIndex],
@@ -458,7 +406,8 @@ internal sealed class WorldMapMipPyramid
                 for (int parentX = minParentX; parentX <= maxParentX; parentX++)
                 {
                     int parentIndex = parentY * parentWidth + parentX;
-                    _levels[level][parentIndex] = AverageChildren(level - 1, parentX, parentY, out double weight);
+                    _levels[level][parentIndex] = WorldMapMipResampling.AverageChildren(
+                        _levels, _levelWidths, _levelHeights, _levelWeights, level - 1, parentX, parentY, out double weight);
                     _levelWeights[level][parentIndex] = (float)weight;
                 }
             }
@@ -482,46 +431,7 @@ internal sealed class WorldMapMipPyramid
     private Color32 GetColor(CellType cellType) =>
         cellType == CellType.Unloaded ? _unloadedColor : _cellColorTable[(byte)cellType];
 
-    private Color32 AverageChildren(int childLevel, int parentX, int parentY, out double totalWeight)
-    {
-        Color32[] children = _levels[childLevel];
-        int childWidth = _levelWidths[childLevel];
-        int childHeight = _levelHeights[childLevel];
-        int parentWidth = _levelWidths[childLevel + 1];
-        int parentHeight = _levelHeights[childLevel + 1];
-        int firstChildX = parentX * childWidth / parentWidth;
-        int endChildX = ((parentX + 1) * childWidth + parentWidth - 1) / parentWidth;
-        int firstChildY = parentY * childHeight / parentHeight;
-        int endChildY = ((parentY + 1) * childHeight + parentHeight - 1) / parentHeight;
-        double red = 0;
-        double green = 0;
-        double blue = 0;
-        double alpha = 0;
-        totalWeight = 0;
 
-        for (int childY = firstChildY; childY < endChildY; childY++)
-        {
-            int overlapY = Math.Min((childY + 1) * parentHeight, (parentY + 1) * childHeight) -
-                           Math.Max(childY * parentHeight, parentY * childHeight);
-
-            for (int childX = firstChildX; childX < endChildX; childX++)
-            {
-                int overlapX = Math.Min((childX + 1) * parentWidth, (parentX + 1) * childWidth) -
-                               Math.Max(childX * parentWidth, parentX * childWidth);
-                int childIndex = childY * childWidth + childX;
-                double weight = _levelWeights[childLevel][childIndex] * overlapX * overlapY /
-                                ((double)parentWidth * parentHeight);
-                Color32 color = children[childIndex];
-                red += DecodeSrgbChannel(color.r) * weight;
-                green += DecodeSrgbChannel(color.g) * weight;
-                blue += DecodeSrgbChannel(color.b) * weight;
-                alpha += color.a * weight;
-                totalWeight += weight;
-            }
-        }
-
-        return CreateAverage(red, green, blue, alpha, totalWeight);
-    }
 
     private double CalculateParentWeight(int childLevel, int parentX, int parentY)
     {
@@ -552,29 +462,6 @@ internal sealed class WorldMapMipPyramid
 
         return totalWeight;
     }
-
-    private static Color32 CreateAverage(double red, double green, double blue, double alpha, double count)
-    {
-        if (count <= 0)
-        {
-            throw new ArgumentOutOfRangeException(nameof(count));
-        }
-
-        return new Color32(
-            EncodeSrgbChannel(red / count),
-            EncodeSrgbChannel(green / count),
-            EncodeSrgbChannel(blue / count),
-            (byte)(alpha / count));
-    }
-
-    private static double DecodeSrgbChannel(byte channel) =>
-        Mathf.GammaToLinearSpace(channel / 255f);
-
-    private static byte EncodeSrgbChannel(double linearChannel) =>
-        (byte)Mathf.Clamp(
-            Mathf.RoundToInt(Mathf.LinearToGammaSpace((float)linearChannel) * 255f),
-            0,
-            255);
 
     private int GetValidChunkWidth(int chunkX) =>
         Math.Min(_chunkSize, _worldWidth - (chunkX * _chunkSize));

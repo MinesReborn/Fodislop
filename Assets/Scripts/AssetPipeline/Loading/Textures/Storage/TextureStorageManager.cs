@@ -8,7 +8,6 @@ using System.Linq;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using Kern.Core.Interfaces;
-using Kern.World;
 using UnityEngine;
 using VContainer;
 
@@ -22,6 +21,7 @@ namespace Kern.AssetPipeline.Loading
         // Декодирование и копия в RGBA32 идут на главном потоке: маркер
         // нужен, чтобы провис кадра на приезде текстур был виден в FrameStall.
         private static readonly Unity.Profiling.ProfilerMarker s_decodeMarker = new("Kern.Textures.Decode");
+        private static readonly string[] s_supportedExtensions = [".png"];
 
         private int _lastDecodeFrame = -1;
 
@@ -31,67 +31,68 @@ namespace Kern.AssetPipeline.Loading
         private bool _enableDebugLogging = false;
 
         private readonly ConcurrentDictionary<string, Texture2D> _textureCache =
-            new(StringComparer.OrdinalIgnoreCase);
-        private readonly ConcurrentDictionary<string, string> _resolvedPathsCache =
-            new(StringComparer.OrdinalIgnoreCase);
+            new(StringComparer.Ordinal);
         private readonly ConcurrentDictionary<string, byte[]> _rawBytesCache =
-            new(StringComparer.OrdinalIgnoreCase);
+            new(StringComparer.Ordinal);
 
-        private string? _textureFolderPath;
-        private bool _folderInitialized;
-
-        private void StoreInRawBytesCache(string normalizedFilename, byte[] bytes, string? fullPath = null)
+        private void StoreInRawBytesCache(string filename, byte[] bytes)
         {
-            _rawBytesCache[normalizedFilename] = bytes;
+            _rawBytesCache[filename] = bytes;
 
-            string ext = Path.GetExtension(normalizedFilename);
+            string ext = Path.GetExtension(filename);
             if (!string.IsNullOrEmpty(ext))
             {
-                string withoutExt = normalizedFilename.Substring(0, normalizedFilename.Length - ext.Length);
+                string withoutExt = filename.Substring(0, filename.Length - ext.Length);
                 _rawBytesCache.TryAdd(withoutExt, bytes);
             }
-            else if (!string.IsNullOrEmpty(fullPath))
+            else
             {
-                string fullExt = Path.GetExtension(fullPath);
-                if (!string.IsNullOrEmpty(fullExt))
+                foreach (string extension in s_supportedExtensions)
                 {
-                    string withExt = normalizedFilename + fullExt;
-                    _rawBytesCache.TryAdd(withExt, bytes);
+                    string withExtension = filename + extension;
+                    if (_runtimeAssetPaths.GetTextureBytes(withExtension) != null)
+                    {
+                        _rawBytesCache.TryAdd(withExtension, bytes);
+                        break;
+                    }
                 }
             }
         }
 
-        private void StoreInTextureCache(string normalizedFilename, Texture2D texture)
+        private void StoreInTextureCache(string filename, Texture2D texture)
         {
-            _textureCache[normalizedFilename] = texture;
+            _textureCache[filename] = texture;
 
-            string ext = Path.GetExtension(normalizedFilename);
+            string ext = Path.GetExtension(filename);
             if (!string.IsNullOrEmpty(ext))
             {
-                string withoutExt = normalizedFilename.Substring(0, normalizedFilename.Length - ext.Length);
+                string withoutExt = filename.Substring(0, filename.Length - ext.Length);
                 _textureCache.TryAdd(withoutExt, texture);
             }
-            else if (_resolvedPathsCache.TryGetValue(normalizedFilename, out string? fullPath) && !string.IsNullOrEmpty(fullPath))
+            else
             {
-                string fullExt = Path.GetExtension(fullPath);
-                if (!string.IsNullOrEmpty(fullExt))
+                foreach (string extension in s_supportedExtensions)
                 {
-                    string withExt = normalizedFilename + fullExt;
-                    _textureCache.TryAdd(withExt, texture);
+                    string withExtension = filename + extension;
+                    if (_runtimeAssetPaths.GetTextureBytes(withExtension) != null)
+                    {
+                        _textureCache.TryAdd(withExtension, texture);
+                        break;
+                    }
                 }
             }
         }
 
-        /// <param name="filename">The texture filename (e.g. "cells/Rock.png", "clan/4.png").</param>
+        /// <param name="filename">The published texture path (e.g. "Visual/Cells/Rock.png", "Visual/Clan/4.png").</param>
         /// <returns>Loaded Texture2D.</returns>
         public async UniTask<Texture2D?> GetTextureAsync(
             string filename,
             CancellationToken cancellationToken = default)
         {
-            string normalizedFilename = NormalizeRelativeTexturePath(filename);
+            string validatedFilename = ValidateRelativeTexturePath(filename);
 
             // Return cached texture if available
-            if (_textureCache.TryGetValue(normalizedFilename, out var cachedTexture) &&
+            if (_textureCache.TryGetValue(validatedFilename, out var cachedTexture) &&
                 cachedTexture != null)
             {
                 return cachedTexture;
@@ -99,20 +100,20 @@ namespace Kern.AssetPipeline.Loading
 
             // Try to load from disk
             var rawData = await LoadTextureFromStorage(
-                normalizedFilename,
+                validatedFilename,
                 cancellationToken);
 
             if (rawData == null)
             {
                 throw new FileNotFoundException(
-                    $"Required texture '{normalizedFilename}' was not found in texture storage.",
-                    normalizedFilename);
+                    $"Required texture '{validatedFilename}' was not found in texture storage.",
+                    validatedFilename);
             }
 
             if (rawData.Length == 0)
             {
                 throw new InvalidDataException(
-                    $"Texture '{normalizedFilename}' is empty.");
+                    $"Texture '{validatedFilename}' is empty.");
             }
 
             await UniTask.SwitchToMainThread(cancellationToken);
@@ -130,25 +131,25 @@ namespace Kern.AssetPipeline.Loading
             Texture2D texture;
             using (s_decodeMarker.Auto())
             {
-                texture = DecodeTexture(normalizedFilename, rawData);
+                texture = DecodeTexture(validatedFilename, rawData);
             }
 
             Kern.Diagnostics.Frames.FrameEventLog.Record(
-                $"декодирована {normalizedFilename} {texture.width}×{texture.height}");
+                $"декодирована {validatedFilename} {texture.width}×{texture.height}");
 
             bool cacheOwnsTexture = false;
             try
             {
-                texture.name = normalizedFilename;
+                texture.name = validatedFilename;
                 RuntimeTextureFactory.ApplySampling(
                     texture,
                     FilterMode.Point,
                     TextureWrapMode.Clamp);
                 Texture2D storedTexture = _textureCache.GetOrAdd(
-                    normalizedFilename,
+                    validatedFilename,
                     texture);
                 cacheOwnsTexture = ReferenceEquals(storedTexture, texture);
-                StoreInTextureCache(normalizedFilename, storedTexture);
+                StoreInTextureCache(validatedFilename, storedTexture);
                 return storedTexture;
             }
             finally
@@ -162,6 +163,12 @@ namespace Kern.AssetPipeline.Loading
 
         private static Texture2D DecodeTexture(string filename, byte[] data)
         {
+            if (!IsSupportedEncodedImage(filename))
+            {
+                throw new NotSupportedException(
+                    $"Texture storage cannot decode '{Path.GetExtension(filename)}' as a raster image: '{filename}'.");
+            }
+
             bool makeNoLongerReadable = RuntimeTextureFactory.SupportsTexture2DGPUCopy;
             return RuntimeTextureFactory.DecodeEncodedImageToRGBA32NoMip(
                 data,
@@ -187,85 +194,35 @@ namespace Kern.AssetPipeline.Loading
 
         public event Action<string>? OnTextureLoaded;
 
-        private async UniTask<byte[]?> LoadTextureFromStorage(
+        private UniTask<byte[]?> LoadTextureFromStorage(
             string filename,
             CancellationToken cancellationToken = default)
         {
-            string normalizedFilename = NormalizeRelativeTexturePath(filename);
+            string validatedFilename = ValidateRelativeTexturePath(filename);
+            cancellationToken.ThrowIfCancellationRequested();
 
-            if (_rawBytesCache.TryGetValue(normalizedFilename, out byte[]? cachedBytes))
+            if (_rawBytesCache.TryGetValue(validatedFilename, out byte[]? cachedBytes))
             {
-                return cachedBytes;
+                return UniTask.FromResult<byte[]?>(cachedBytes);
             }
 
-            if (!_folderInitialized)
-            {
-                InitializeTextureFolderPath();
-            }
-
-            if (!_resolvedPathsCache.TryGetValue(normalizedFilename, out var fullPath))
-            {
-                fullPath = ResolveTextureFullPath(normalizedFilename);
-                if (!string.IsNullOrEmpty(fullPath))
-                {
-                    _resolvedPathsCache.TryAdd(normalizedFilename, fullPath);
-                }
-            }
-
-            if (string.IsNullOrEmpty(fullPath) || !File.Exists(fullPath))
+            byte[]? bytes = _runtimeAssetPaths.GetTextureBytes(validatedFilename);
+            if (bytes == null || bytes.Length == 0)
             {
                 if (_enableDebugLogging)
                 {
                     Debug.LogWarning(
-                        $"[TextureStorageManager] File not found for: {normalizedFilename}");
+                        $"[TextureStorageManager] File not found for: {validatedFilename}");
                 }
 
-                return null;
+                return UniTask.FromResult<byte[]?>(null);
             }
 
-            using var fileStream = new FileStream(
-                fullPath,
-                FileMode.Open,
-                FileAccess.Read,
-                FileShare.Read,
-                4096,
-                true);
-
-            if (fileStream.Length > int.MaxValue)
-            {
-                throw new InvalidDataException(
-                    $"Texture '{filename}' exceeds the supported size.");
-            }
-
-            var buffer = new byte[(int)fileStream.Length];
-            int offset = 0;
-            while (offset < buffer.Length)
-            {
-                int bytesRead = await fileStream.ReadAsync(
-                    buffer,
-                    offset,
-                    buffer.Length - offset,
-                    cancellationToken);
-                if (bytesRead == 0)
-                {
-                    throw new EndOfStreamException(
-                        $"Texture '{normalizedFilename}' ended after {offset} of {buffer.Length} bytes.");
-                }
-
-                offset += bytesRead;
-            }
-
-            StoreInRawBytesCache(normalizedFilename, buffer, fullPath);
-            return buffer;
+            StoreInRawBytesCache(validatedFilename, bytes);
+            return UniTask.FromResult<byte[]?>(bytes);
         }
 
-        private string? ResolveTextureFullPath(string filename)
-        {
-            string normalizedFilename = NormalizeRelativeTexturePath(filename);
-            return _runtimeAssetPaths?.FindTextureFile(normalizedFilename);
-        }
-
-        private static string NormalizeRelativeTexturePath(string filename)
+        private static string ValidateRelativeTexturePath(string filename)
         {
             if (string.IsNullOrWhiteSpace(filename))
             {
@@ -281,8 +238,14 @@ namespace Kern.AssetPipeline.Loading
                     nameof(filename));
             }
 
-            string normalized = filename.Replace('\\', '/');
-            string[] segments = normalized.Split('/');
+            if (filename.Contains('\\'))
+            {
+                throw new ArgumentException(
+                    $"Texture filename must use forward slashes: '{filename}'.",
+                    nameof(filename));
+            }
+
+            string[] segments = filename.Split('/');
             if (segments.Length == 0 ||
                 segments.Any(segment =>
                     string.IsNullOrWhiteSpace(segment) ||
@@ -294,24 +257,7 @@ namespace Kern.AssetPipeline.Loading
                     nameof(filename));
             }
 
-            return string.Join("/", segments);
-        }
-
-        private void InitializeTextureFolderPath()
-        {
-            if (_folderInitialized || _runtimeAssetPaths == null)
-            {
-                return;
-            }
-
-            string persistentPath = _runtimeAssetPaths.PersistentTexturesRoot;
-            _textureFolderPath = persistentPath;
-            if (_enableDebugLogging)
-            {
-                Debug.Log($"[TextureStorageManager] Initialized texture folder: {persistentPath}");
-            }
-
-            _folderInitialized = true;
+            return filename;
         }
 
         public void ClearCache()
@@ -320,7 +266,6 @@ namespace Kern.AssetPipeline.Loading
             // this service is rebuilt after a domain reload. Clearing ownership
             // must not invalidate those live Unity objects.
             _textureCache.Clear();
-            _resolvedPathsCache.Clear();
             _rawBytesCache.Clear();
 
             if (_enableDebugLogging)
@@ -341,28 +286,29 @@ namespace Kern.AssetPipeline.Loading
                 return false;
             }
 
-            string normalizedFilename;
+            string validatedFilename;
             try
             {
-                normalizedFilename = NormalizeRelativeTexturePath(filename);
+                validatedFilename = ValidateRelativeTexturePath(filename);
             }
             catch
             {
                 return false;
             }
 
-            if (_rawBytesCache.ContainsKey(normalizedFilename) || _textureCache.ContainsKey(normalizedFilename))
+            if (_rawBytesCache.ContainsKey(validatedFilename) || _textureCache.ContainsKey(validatedFilename))
             {
                 return true;
             }
 
-            if (!_folderInitialized)
+            byte[]? bytes = _runtimeAssetPaths.GetTextureBytes(validatedFilename);
+            if (bytes is { Length: > 0 })
             {
-                InitializeTextureFolderPath();
+                StoreInRawBytesCache(validatedFilename, bytes);
+                return true;
             }
 
-            var path = ResolveTextureFullPath(normalizedFilename);
-            return !string.IsNullOrEmpty(path) && File.Exists(path);
+            return false;
         }
 
         public async UniTask PreloadTexturesAsync(
@@ -372,11 +318,6 @@ namespace Kern.AssetPipeline.Loading
             if (filenames == null || filenames.Count == 0)
             {
                 return;
-            }
-
-            if (!_folderInitialized)
-            {
-                InitializeTextureFolderPath();
             }
 
             var toDecode = new List<(string Name, byte[] Data)>();
@@ -396,11 +337,18 @@ namespace Kern.AssetPipeline.Loading
                 string normalized;
                 try
                 {
-                    normalized = NormalizeRelativeTexturePath(filename);
+                    normalized = ValidateRelativeTexturePath(filename);
                 }
                 catch
                 {
                     continue;
+                }
+
+                if (!IsSupportedEncodedImage(normalized))
+                {
+                    throw new InvalidDataException(
+                        $"Unrendered texture '{normalized}' has unsupported format " +
+                        $"'{Path.GetExtension(normalized)}'; expected PNG.");
                 }
 
                 if (_rawBytesCache.TryGetValue(normalized, out byte[]? cachedBytes))
@@ -465,9 +413,16 @@ namespace Kern.AssetPipeline.Loading
             }
         }
 
+        private static bool IsSupportedEncodedImage(string filename)
+        {
+            string extension = Path.GetExtension(filename);
+            return string.IsNullOrEmpty(extension) ||
+                s_supportedExtensions.Contains(extension, StringComparer.OrdinalIgnoreCase);
+        }
+
         public string GetCacheStats()
         {
-            return $"Texture Cache: {_textureCache.Count} textures, {_rawBytesCache.Count} raw entries, Folder: {_textureFolderPath}";
+            return $"Texture Cache: {_textureCache.Count} textures, {_rawBytesCache.Count} raw entries";
         }
     }
 }

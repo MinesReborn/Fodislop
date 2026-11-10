@@ -36,14 +36,23 @@
 
 ## Чек-лист релиза
 
-В текущем клиенте `ClientProtocolVersion.ClientVersion = 1`, а `PlayerSettings.bundleVersion = 1.0`.
+В текущем клиенте `ClientProtocolVersion.ClientVersion = 7`, а
+`PlayerSettings.bundleVersion = 1.0` (`ProjectSettings/ProjectSettings.asset`).
 Это независимые значения: код не связывает протокольную версию с номером сборки.
 Перед выпуском сверяйте протокольную версию с сервером и задавайте номер сборки
 отдельно согласно правилам выбранного канала.
 
 Сборщик Windows записывает `Build/Windows/Kern.exe`; параметры backend и
-распространения в этом скрипте не задаются. Серверный минимум и URL обновления
-нужно менять по инструкции серверного проекта, после проверки совместимости.
+распространения в этом скрипте не задаются. Для Windows и macOS Unity вызывает
+`ProductionServerEndpointValidator` перед сборкой: Development-сборки пропускаются,
+а остальные отклоняются, если `DefaultUseDummyConnection` включён или compile-time
+host/port не проходит проверку публичного endpoint. Валидатор проверяет константы
+`ClientConfigurationDefaults`, не сохранённый конфиг пользователя, и не охватывает
+Linux, Android или iOS. Это локальный pre-build gate, а не проверка доступности
+сервера или server-side minimum version.
+
+Серверный минимум и URL обновления нужно менять по инструкции серверного проекта,
+после проверки совместимости.
 
 ## Почему апдейтер снесли
 

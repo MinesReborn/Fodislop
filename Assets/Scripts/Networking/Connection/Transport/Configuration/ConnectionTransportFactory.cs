@@ -7,17 +7,15 @@ using Kern.Core.Interfaces;
 using MinesServer.Networking.Connection;
 using UnityEngine;
 
-using Kern.Networking.Offline;
-
 namespace Kern.Networking.Connection;
 
 public sealed class ConnectionTransportFactory
 {
     private readonly IClientConfigManager _clientConfigManager;
-    private readonly DummyConnection _dummyConnection;
+    private readonly IDummyConnection _dummyConnection;
     public ConnectionTransportFactory(
     IClientConfigManager clientConfigManager,
-    DummyConnection dummyConnection)
+    IDummyConnection dummyConnection)
     {
         _clientConfigManager = clientConfigManager;
         _dummyConnection = dummyConnection;
@@ -38,7 +36,7 @@ public sealed class ConnectionTransportFactory
             ConnectionTransportKind.Dummy)
         {
             Debug.Log(
-                "[Connection] Transport: DummyConnection (offline stub). Set UseDummyConnection=false in client config for the real server.");
+                "[Connection] Transport: DummyConnection (dummy stub). Set UseDummyConnection=false in client config for the real server.");
             return _dummyConnection;
         }
 

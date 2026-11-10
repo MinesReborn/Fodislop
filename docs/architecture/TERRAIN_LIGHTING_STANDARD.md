@@ -563,7 +563,7 @@ order. The runtime scan has no `TerrainRenderer → LightingEngine` references.
 ### Gate D — remove transitional wiring and lock the boundary
 
 Delete the old direct injection/call paths and update dependency documentation.
-Add a rule to `tools/Kern.ArchitectureLinter` that rejects every forbidden
+Add a rule to `tools/architecture/Kern.ArchitectureLinter` that rejects every forbidden
 cross-domain dependency in the source/assembly boundary, including aliases and
 fully qualified references; register that rule in the default linter run.
 
@@ -588,7 +588,7 @@ points; terrain surface shader globals are owned by the shared
 `Kern.World.Common.Rendering` namespace. `ILightingGeometryContributor` and its
 material/glow and ambient-occlusion contexts live in the neutral contract.
 
-Migration evidence as of 2026-09-24:
+Historical migration status as of 2026-09-24 (not a current-tree verification):
 
 - Gate A contract/exchange source tests pass, including contract assembly
   boundaries, singleton binding cardinality/identity, sequence and generation
@@ -608,28 +608,36 @@ Migration evidence as of 2026-09-24:
   cover nested UXML localization references and the relocated Bootstrap scope
   allow paths. The selected boundary rule reports zero production violations.
   The full architecture linter checked 54 rules and exited 0 with 0 errors and
-  15 warnings. Its exact output and classification are recorded in
-  `docs/architecture/evidence/terrain-lighting-architecture-linter-2026-09-24.txt`
-  and `docs/architecture/evidence/terrain-lighting-linter-classification-2026-09-24.md`;
-  the initial 209 findings are retained in
-  `docs/architecture/evidence/terrain-lighting-architecture-linter-initial-2026-09-24.txt`.
+  15 warnings on that snapshot. The original notes named separate output,
+  classification and initial-findings files under
+  `docs/architecture/evidence/`; those files are absent from the current checkout,
+  so the results cannot be independently checked against those artifacts here.
   The localization rule now recursively scans nested UXML files, resolving 202
   false dead-key findings without deleting locale keys. Bootstrap pattern rules
   recognize the existing composition roots at their relocated `Scopes` paths.
-  Gate D is accepted. Remaining warnings are itemized in the classification
-  evidence; Unity production-path proof remains pending for Gate C.
+  Gate D was accepted for that snapshot. Unity production-path proof remained
+  pending for Gate C.
 
-Commands and results: `dotnet test
-tools/Kern.WorldLightingExchangeTests/Kern.WorldLightingExchangeTests.csproj
+Commands and historical results from 2026-09-24: `dotnet test
+tools/tests/Kern.WorldLightingExchangeTests/Kern.WorldLightingExchangeTests.csproj
 --no-restore` passed 21/21; `dotnet test
-tools/Kern.ArchitectureLinter.Tests/Kern.ArchitectureLinter.Tests.csproj
+tools/architecture/Kern.ArchitectureLinter.Tests/Kern.ArchitectureLinter.Tests.csproj
 --no-restore` passed 10/10; the selected boundary rule and scoped source scans
 passed with zero cross-domain references. `dotnet run --project
-tools/Kern.ArchitectureLinter/Kern.ArchitectureLinter.csproj --
+tools/architecture/Kern.ArchitectureLinter/Kern.ArchitectureLinter.csproj --
 --project-root .` discovered 54 rules and exited 0 with 15 warnings.
 `dotnet build Kern.Runtime.csproj --no-restore` did not reach C# compilation:
 it failed on `CS0006` because generated Unity 6000.5 source-generator/analyzer
-DLLs are absent. No Unity operation was run.
+DLLs were absent. No Unity operation was run.
+
+Current source-check snapshot, 2026-11-08: the standalone
+`Kern.WorldLightingExchangeTests` suite passed 54 tests, and manual scans found
+no Terrain-to-concrete-`LightingEngine` references. `scripts/run-ci.sh` stopped
+at source lint with 5 localization-key errors and 25 warnings. This is not a
+repeat of the historical full-linter result above. Unity compile, PlayMode,
+frame-order, teleport presentation, GPU output rectangle and Terrain binding
+remain unverified. See `.agents/project-context.md` for the broader local check
+snapshot. These source checks do not satisfy the production-path gates.
 
 The first migration is incomplete until every applicable gate above is
 accepted. New code MUST NOT restore or expand a cross-domain dependency.

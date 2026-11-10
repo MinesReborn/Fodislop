@@ -5,7 +5,6 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using Cysharp.Threading.Tasks;
 using Kern.Core;
-using Kern.World;
 using UnityEngine;
 
 namespace Kern.AssetPipeline.Cache;

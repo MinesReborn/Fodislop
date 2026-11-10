@@ -39,7 +39,7 @@
       $('calibScene').style.filter = `brightness(${(0.55 + v / 400 * 0.6).toFixed(3)})`;
     }
     const pct = (v - st.min) / (st.max - st.min) * 100;
-    range.style.setProperty('--fill', pct + '%');
+    range.style.setProperty('--f', pct / 100);   // доля хода — заливка дорожки ползунка (micro.css)
   }
   function show() {
     const key = order[at], st = STEPS[key];
@@ -80,6 +80,6 @@
   $('onbCalib').onclick = () => window.openCalibration($('onbHdr').checked);
 
   // ?calib=hdr|sdr&calibstep=N — снимки
-  const q = new URLSearchParams(location.search);
-  if (q.get('calib')) window.openCalibration(q.get('calib') !== 'sdr', Number(q.get('calibstep')) || 0);
+  window.kernScene.on(0, q => { if (q.get('calib')) window.openCalibration(q.get('calib') !== 'sdr', Number(q.get('calibstep')) || 0); });
+  window.kernScene.onReset(() => { $('calib').hidden = true; });
 })();

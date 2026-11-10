@@ -1,7 +1,7 @@
 Shader "Kern/World Entity"
 {
     // Sprite shader for everything rendered through WorldEntityBatchRenderer
-    // (robots, buildings, tentacles, pooled VFX, chat bubbles). Identical in
+    // (robots, buildings, tentacles, pooled visual effects, chat bubbles). Identical in
     // look and blending to Sprites/Default, plus one addition: the fragment
     // samples the global _WorldLightTexture radiance field at its world
     // position and multiplies, so world entities finally receive the same
@@ -202,6 +202,15 @@ Shader "Kern/World Entity"
 
             float _SpriteAlphaCull;
             float _GlowFieldThreshold;
+            // Доля альбедо, уходящая в glow-поле: полное альбедо, умноженное
+            // транспортом на GlowScale, пересвечивало здания и всё вокруг.
+            float _EntityGlowEmission;
+
+            // Прямоугольники спрайтов в атласе. COLOR вершины здесь несёт
+            // индекс спрайта (R — младшие 8 бит, G — старшие), а не тинт:
+            // светящиеся спрайты не тонируются, а отдельный поток вершин
+            // сломал бы записанную warmup-коллекцию.
+            StructuredBuffer<float4> _EntityGlowRects;
 
             #if defined(KERN_GPU_INSTANCING)
             struct EntityGpuInstance
@@ -243,13 +252,35 @@ Shader "Kern/World Entity"
                 // тут считалась бы в текселях поля, а не экрана, и ширина
                 // смешивания означала бы другое. Поле и так читается с
                 // интерполяцией, а текстура остаётся точечной намеренно.
-                half4 color = SAMPLE_TEXTURE2D_LOD(_MainTex, sampler_PointClamp, input.uv, 0) *
-                    input.color * _Color;
-                float strength = step(_GlowFieldThreshold, color.a) * color.a;
+                //
+                // Поле переноса — два текселя на клетку, поэтому по-пиксельная
+                // выборка спрайта превращала здание в мозаику из окон, стен и
+                // надписей. Здание, как и блок, светит ровным средним тоном
+                // своих непрозрачных пикселей.
+                half4 center = SAMPLE_TEXTURE2D_LOD(_MainTex, sampler_PointClamp, input.uv, 0);
+                uint spriteIndex = (uint)(input.color.r * 255.0 + 0.5) |
+                    ((uint)(input.color.g * 255.0 + 0.5) << 8);
+                float4 glowRect = _EntityGlowRects[spriteIndex];
+                float3 sumColor = 0.0;
+                float sumAlpha = 0.0;
+                [unroll] for (int y = 0; y < 8; y++)
+                {
+                    [unroll] for (int x = 0; x < 8; x++)
+                    {
+                        float2 t = (float2(x, y) + 0.5) * (1.0 / 8.0);
+                        float2 atlasUv = lerp(glowRect.xy, glowRect.zw, t);
+                        half4 sampleColor = SAMPLE_TEXTURE2D_LOD(_MainTex, sampler_PointClamp, atlasUv, 0);
+                        sumColor += sampleColor.rgb * sampleColor.a;
+                        sumAlpha += sampleColor.a;
+                    }
+                }
+
+                float3 averageColor = (sumAlpha > 0.0 ? sumColor / sumAlpha : center.rgb) * _Color.rgb;
+                float strength = step(_GlowFieldThreshold, center.a * _Color.a) * center.a * _Color.a;
 
                 LightingFieldOutput output;
                 output.material = half4(0.0, 0.0, 0.0, 0.0);
-                output.glow = half4(color.rgb * strength, strength);
+                output.glow = half4(averageColor * strength * _EntityGlowEmission, strength);
                 return output;
             }
             ENDHLSL

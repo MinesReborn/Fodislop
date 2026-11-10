@@ -11,6 +11,7 @@ using VContainer;
 using VContainer.Unity;
 
 using Kern.Diagnostics.Scenes;
+using Kern.UI.Gateway;
 using Kern.UI.Menu;
 using Kern.UI.Screens;
 using Kern.Core;
@@ -25,14 +26,6 @@ namespace Kern.Bootstrap.Scenes
         private UIDocument _document = null!;
         [SerializeField]
         private MainMenu _controller = null!;
-        [SerializeField]
-        private MenuStarfield _starfield = null!;
-        [SerializeField]
-        private MenuSceneryController _scenery = null!;
-
-        public MenuStarfield Starfield => _starfield;
-
-        public MenuSceneryController Scenery => _scenery;
 
         protected override void Configure(IContainerBuilder builder)
         {
@@ -46,10 +39,6 @@ namespace Kern.Bootstrap.Scenes
             ValidateReference(_controller, nameof(_controller));
             ValidateReferenceScene(_document, nameof(_document));
             ValidateReferenceScene(_controller, nameof(_controller));
-            ValidateReference(_starfield, nameof(_starfield));
-            ValidateReference(_scenery, nameof(_scenery));
-            ValidateReferenceScene(_starfield, nameof(_starfield));
-            ValidateReferenceScene(_scenery, nameof(_scenery));
             if (_document.panelSettings == null)
             {
                 throw new SceneContractException(
@@ -71,6 +60,10 @@ namespace Kern.Bootstrap.Scenes
             // зарегистрированы на постоянном Bootstrap-scope: пакеты приходят
             // в фазе гейтвея, до существования этой области. MainMenu наследует
             // IPlayerStats от родителя.
+            // Вход и онбординг — слой поверх меню (MenuGate), отдельной сцены ворот нет.
+            builder.Register<MenuGate>(Lifetime.Singleton);
+            // Окно настроек меню меняет разрешение, синхронизацию и HDR; применение настроек дисплея при старте — за игрой и Bootstrap
+            builder.Register<Kern.Rendering.Display.DisplayManager>(Lifetime.Singleton);
             builder.RegisterEntryPoint<MainMenuBootstrap>();
         }
 

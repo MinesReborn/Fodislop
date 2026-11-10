@@ -1,0 +1,9 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+  <!-- Поле иконки без знака: базальт и точечная сетка по клетке мира. Фон адаптивной иконки Android и подложка форм, на которые знак кладётся отдельно -->
+  <defs>
+    <radialGradient id="bg" cx=".5" cy=".42" r=".75"><stop offset="0" stop-color="#1a1825"/><stop offset="1" stop-color="#0a090f"/></radialGradient>
+    <pattern id="dots" width="32" height="32" patternUnits="userSpaceOnUse" x="16" y="16"><circle cx="0" cy="0" r="1.6" fill="#d8d5ee" fill-opacity=".09"/></pattern>
+  </defs>
+  <rect width="1024" height="1024" fill="url(#bg)"/>
+  <rect width="1024" height="1024" fill="url(#dots)"/>
+</svg>

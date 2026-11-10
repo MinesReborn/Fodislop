@@ -1,7 +1,6 @@
 #nullable enable
 
 using System;
-using System.Collections.Generic;
 using Kern.Core;
 using Kern.Core.Localization;
 using MinesServer.Data;
@@ -36,7 +35,6 @@ internal sealed class ProgrammatorPalette
     private readonly VisualElement _root;
     private readonly VisualElement _content;
     private readonly Tooltip _tooltip;
-    private readonly List<(VisualElement Glyph, ProgAction Action)> _icons = new();
 
     public event Action<ProgAction>? OnOperatorClicked;
 
@@ -218,8 +216,6 @@ internal sealed class ProgrammatorPalette
             item.Add(label);
         }
 
-        _icons.Add((glyph, action));
-
         item.RegisterCallback<PointerDownEvent>(_ => OnOperatorClicked?.Invoke(action));
         item.RegisterCallback<PointerEnterEvent>(evt =>
         {
@@ -229,18 +225,6 @@ internal sealed class ProgrammatorPalette
         item.RegisterCallback<PointerLeaveEvent>(_ => _tooltip.Hide());
 
         return item;
-    }
-
-    // Серверная версия иконки догрузилась — перевыставляем все глифы.
-    public void RefreshServerIcons()
-    {
-        foreach ((VisualElement glyph, ProgAction action) in _icons)
-        {
-            if (_textures.GetGlyph(action) is { } icon)
-            {
-                ApplyIcon(glyph, icon);
-            }
-        }
     }
 
     private static void ApplyIcon(VisualElement glyph, ProgGlyph icon)

@@ -22,11 +22,15 @@
   });
 
   // Ползунки: число рядом
-  dlg.querySelectorAll('.range input').forEach(r => r.oninput = () => { r.nextElementSibling.textContent = r.value + '%'; });
+  // --f — доля хода для заливки дорожки (micro.css, ползунок)
+  const fill = r => r.style.setProperty('--f', (r.value - r.min) / (r.max - r.min));
+  dlg.querySelectorAll('.range input').forEach(r => { fill(r); r.oninput = () => { r.nextElementSibling.textContent = r.value + '%'; fill(r); }; });
 
   // Переназначение клавиш: нажать на клавишу — «Нажмите клавишу…», Esc — отмена
   let listening = null;
-  const keyName = e => e.code === 'Space' ? 'Space' : e.key.length === 1 ? e.key.toUpperCase() : e.key;
+  const ARROWS = { ArrowUp: '↑', ArrowDown: '↓', ArrowLeft: '←', ArrowRight: '→' };
+  const SIDES = { ShiftLeft: 'Left Shift', ShiftRight: 'Right Shift', AltLeft: 'Left Alt', AltRight: 'Right Alt', ControlLeft: 'Left Ctrl', ControlRight: 'Right Ctrl' };
+  const keyName = e => e.code === 'Space' ? 'Space' : ARROWS[e.key] || SIDES[e.code] || (e.key.length === 1 ? e.key.toUpperCase() : e.key);
   function stopListen() { if (listening) { listening.textContent = listening.dataset.key; listening.classList.remove('is-listening'); listening = null; } }
   dlg.querySelectorAll('button.keycap:not(.padcap)').forEach(k => k.onclick = () => {
     stopListen(); listening = k; k.textContent = 'Нажмите клавишу…'; k.classList.add('is-listening');
@@ -39,7 +43,7 @@
       stopListen();
     } else if (e.key === 'Escape') close();
   }, true);
-  const DEFAULTS = ['Space', 'E', 'G', 'V', 'Y', 'H', 'F', 'J'];
+  const DEFAULTS = ['W', '↑', 'S', '↓', 'A', '←', 'D', '→', 'Left Shift', 'Right Shift', 'Left Alt', 'Space', 'E', 'G', 'V', 'Y', 'H', 'F', 'J'];
   $('keysReset').onclick = () => { stopListen(); dlg.querySelectorAll('button.keycap:not(.padcap)').forEach((k, i) => { k.dataset.key = k.textContent = DEFAULTS[i]; }); };
 
   // «Управление»: клавиатура или геймпад
@@ -51,6 +55,5 @@
   // Входы: шестерёнка HUD (на пальце — в ☰), «Настройки» в паузе и в меню
   document.querySelectorAll('[title="Настройки"]').forEach(b => b.addEventListener('click', () => open()));
 
-  const q = new URLSearchParams(location.search).get('settings');
-  if (q) open(q === '1' ? 'graphics' : q);
+  window.kernScene.on(0, p => { const q = p.get('settings'); if (q) open(q === '1' ? 'graphics' : q); });
 })();

@@ -7,6 +7,8 @@
   const later = (fn, ms) => { const t = setTimeout(() => { timers.delete(t); fn(); }, ms); timers.add(t); return t; };
   const clearAll = () => { timers.forEach(clearTimeout); timers.clear(); };
   const hold = Number(new URLSearchParams(location.search).get('hold')) || 0;
+  // ?still=1 — снимок стенда: без переходов (в безголовом браузере анимация появления не доигрывается, окна выходят полупрозрачными)
+  if (new URLSearchParams(location.search).get('still')) document.head.insertAdjacentHTML('beforeend', '<style>*, *::before, *::after { transition: none !important; animation: none !important; }</style>');
 
   function show(screen) {
     clearAll();
@@ -111,7 +113,9 @@
   $('onbNext').onclick = () => step === 2 ? finish() : (step++, renderStep());
   $('onbPrev').onclick = () => { if (step > 0) { step--; renderStep(); } };
   $('onbSkip').onclick = finish;
-  $('onbVolume').oninput = e => { $('onbVolumeOut').textContent = e.target.value + '%'; };
+  const onbFill = r => r.style.setProperty('--f', (r.value - r.min) / (r.max - r.min));   // доля хода — заливка дорожки (micro.css)
+  onbFill($('onbVolume'));
+  $('onbVolume').oninput = e => { $('onbVolumeOut').textContent = e.target.value + '%'; onbFill(e.target); };
 
   // ── Меню: обновление вместо спуска, выбор сервера ──
   let outdated = false;
@@ -144,76 +148,96 @@
     $('updFill').style.width = '0'; tick();
   };
 
-  // Проверка доступности файлов, на которые ссылается клиентский интерфейс.
-  const healthDialog = $('healthDialog');
-  $('railHealth').onclick = () => { healthDialog.hidden = false; };
-  healthDialog.querySelectorAll('[data-close]').forEach(button => {
-    button.onclick = () => { healthDialog.hidden = true; };
-  });
-  $('healthCheck').onclick = async () => {
-    const urls = [...new Set([...document.images]
-      .map(image => image.currentSrc || image.src)
-      .filter(url => url && new URL(url, document.baseURI).origin === location.origin))];
-    const total = urls.length;
-    let checked = 0, missing = 0;
-    $('healthCheck').disabled = true;
-    $('healthProgress').hidden = false;
-    $('healthStatus').textContent = 'Проверка файлов…';
-    $('healthStatus').className = '';
-    $('healthCount').textContent = `0 / ${total}`;
-    $('healthFill').style.width = '0%';
-
-    for (let index = 0; index < urls.length; index += 8) {
-      const batch = urls.slice(index, index + 8);
-      const results = await Promise.all(batch.map(async url => {
-        try {
-          const response = await fetch(url, { method: 'HEAD', cache: 'no-store' });
-          return response.ok;
-        } catch {
-          return false;
-        }
-      }));
-      checked += results.length;
-      missing += results.filter(ok => !ok).length;
-      $('healthCount').textContent = `${checked} / ${total}`;
-      $('healthFill').style.width = `${total === 0 ? 0 : checked / total * 100}%`;
-    }
-
-    const healthy = total > 0 && missing === 0;
-    $('healthStatus').textContent = healthy
-      ? 'Все ресурсы доступны'
-      : total === 0 ? 'Ресурсы для проверки не найдены' : `Не найдены ресурсы: ${missing}`;
-    $('healthStatus').classList.add(healthy ? 'is-healthy' : 'has-errors');
-    $('healthCheck').disabled = false;
-    $('healthCheck').textContent = 'Проверить ещё раз';
-  };
   $('descendBtn').onclick = () => show('descent');
 
-  // ── Спуск: пять фаз MenuLoaderProgress, затем игра ──
-  const PHASES = ['Подключение к серверу', 'Загрузка ресурсов', 'Получение позиции', 'Построение мира', 'Загрузка текстур'];
+  // ── Спуск: фазы экрана, как в клиенте (WorldLoadPhase), затем игра ──
+  // Реальные этапы идут вперемешку: сцена игры и системы, соединение и вход параллельно проверке света и интерфейсу,
+  // после ответа мира — ресурсы, данные робота и мир одновременно. Экран показывает первый ещё не готовый и не
+  // откатывается: фаза готова, когда готовы она и все до неё. `ready` — мс от нажатия. Текстуры ячеек и свет входят
+  // в готовность рельефа (TerrainReadiness), поэтому отдельной фазы «Загрузка текстур» нет.
+  // ?cached=1 — ресурсы уже на диске и совпали по MD5: скачивания нет, вес не показывается, фаза проходит за проверку
+  const warmCache = !!new URLSearchParams(location.search).get('cached');
+  const STEPS = [
+    { label: 'Подключение к серверу', detail: 'Устанавливаем соединение с сервером.', ready: 2400 },   // сцена, системы, соединение, вход, ответ мира
+    { label: 'Загрузка ресурсов', detail: 'Подготавливаем игровые ресурсы.', ready: warmCache ? 2700 : 3600 },  // скачивание ассетов мира (из кэша — только проверка)
+    { label: 'Получение позиции', detail: 'Получаем место появления вашего робота.', ready: 3800 },   // позиция, статы и вид робота
+    { label: 'Построение мира', detail: 'Подготавливаем участок шахты вокруг вас.', ready: 4800 },    // рельеф, текстуры ячеек, поверхность, свет
+  ];
   // Советы на спуске: меняются каждые несколько секунд
   const TIPS = ['<b>Синие кристаллы</b> встречаются глубже зелёных и стоят дороже.', 'Груз больше 100% замедляет робота — <b>сдайте кристаллы</b> на Рынке.',
     '<b>Автокопание</b> копает перед роботом, пока вы заняты другим.', 'Дорога ускоряет передвижение — навык <b>Передвижение по дороге</b> ускоряет ещё сильнее.',
     'Опоры держат свод: без них <b>песок осыпается</b>.', 'Программатор повторяет действия робота — запишите маршрут и <b>запустите программу</b>.'];
-  const PHASE_DETAILS = ['Устанавливаем соединение с сервером.', 'Подготавливаем игровые ресурсы.', 'Получаем место появления вашего робота.', 'Подготавливаем участок шахты вокруг вас.', 'Загружаем изображения блоков и предметов.'];
+  const ASSET_FILES = 64;                                           // файлов в манифесте для показа проверки кэша
+  const ASSET_MB = warmCache ? 0 : 48.4;                                            // вес ресурсов мира для показа; 0 — размеры манифеста неизвестны
+  const WAIT = [1, 2, 4, 8, 16, 30];                                // паузы переподключения, с
+  // ?descent=error — ошибка на фазе «Получение позиции»; retry — связь потеряна при подключении; slow — не приходят данные робота
+  const descentMode = new URLSearchParams(location.search).get('descent') || '';
+  const BAD = 'Не удалось войти в шахту. Проверьте соединение и попробуйте снова.';
+  const STUCK = { retry: 0, error: 2, slow: 2 }[descentMode];       // фаза, на которой вход встаёт
   function runDescent() {
-    let i = 0, p = 0;
-    const items = [...document.querySelectorAll('#descentPhases li')];
+    const list = $('descentPhases');
+    list.innerHTML = STEPS.map(st => `<li>${st.label}</li>`).join('');
+    const items = [...list.children];
+    const eff = STEPS.map((_, k) => Math.max(...STEPS.slice(0, k + 1).map(st => st.ready)));   // готовность с учётом предыдущих
+    const retry = $('descentRetry');
+    const t0 = performance.now();
+    let frozen = false, failed = -1;
+    retry.hidden = true;
+    const note = (text, bad) => { $('descentExplain').textContent = text; $('descentExplain').classList.toggle('is-bad', !!bad); };
+    const paint = t => {
+      let done = eff.filter(e => t >= e).length;
+      if (STUCK !== undefined) done = Math.min(done, STUCK);
+      const cur = Math.min(done, STEPS.length - 1);
+      items.forEach((li, k) => {
+        li.classList.toggle('is-done', k < done);
+        li.classList.toggle('is-on', k === done && k !== failed);
+        li.classList.toggle('is-fail', k === failed);
+      });
+      $('descentFill').style.width = (done / STEPS.length * 100) + '%';
+      // Фаза «Загрузка ресурсов»: сперва проверка кэша (проверено файлов из скольких), затем — если есть что качать — вес
+      // скачанного из скольких. Всё в кэше: только проверка на всю фазу, без веса
+      let mb = '';
+      if (cur === 1) {
+        const q = Math.min(1, Math.max(0, (t - eff[0]) / (eff[1] - eff[0])));
+        const checkShare = ASSET_MB ? .25 : 1;
+        if (q < checkShare) mb = `Проверка ресурсов: ${Math.round(q / checkShare * ASSET_FILES)} из ${ASSET_FILES}`;
+        else if (ASSET_MB) mb = `${((q - checkShare) / (1 - checkShare) * ASSET_MB).toFixed(1)} из ${ASSET_MB.toFixed(1)} МБ`;
+      }
+      $('descentPhase').textContent = mb ? `${STEPS[cur].label} · ${mb}` : STEPS[cur].label;
+      $('descentCount').textContent = `${cur + 1} / ${STEPS.length}`;
+      return { done, cur };
+    };
+    // Потеря связи при подключении: клиент ждёт 1, 2, 4, 8, 16, 30 с и пробует снова; после шестой неудачи — ошибка
+    const reconnect = n => {
+      let left = WAIT[n - 1];
+      const count = () => {
+        if (left > 0) { note(`Связь потеряна. Повторная попытка ${n} через ${left} с.`, true); left--; later(count, 1000); return; }
+        note(`Повторная попытка ${n}…`, true);
+        later(() => {
+          if (n < WAIT.length) reconnect(n + 1);
+          else { failed = 0; paint(performance.now() - t0); note(BAD, true); retry.hidden = false; }
+        }, 1500);
+      };
+      count();
+    };
     const tick = () => {
-      p = Math.min(100, p + 2);
-      i = Math.min(4, Math.floor(p / 20));
-      $('descentFill').style.width = p + '%';
-      $('descentPhase').textContent = PHASES[i];
-      $('descentExplain').textContent = PHASE_DETAILS[i];
-      $('descentCount').textContent = `${i + 1} / 5`;
-      items.forEach((li, k) => { li.classList.toggle('is-done', k < i || p === 100); li.classList.toggle('is-on', k === i && p < 100); });
-      if (hold && p >= hold) return;                              // ?hold=N — снимок на N %
-      if (p < 100) later(tick, 70); else later(() => show('game'), 500);
+      const t = performance.now() - t0;
+      const { done, cur } = paint(t);
+      if (!frozen) {
+        if (descentMode === 'retry' && t >= 1200) { frozen = true; reconnect(1); return; }
+        if (descentMode === 'error' && t >= eff[1] + 400) { frozen = true; failed = 2; paint(t); note(BAD, true); retry.hidden = false; return; }
+        if (descentMode === 'slow' && t >= eff[STEPS.length - 1]) { frozen = true; note('Ждём данные робота.'); return; }
+      }
+      if (hold && t >= hold / 100 * eff[STEPS.length - 1]) return;  // ?hold=N — снимок на N % времени
+      note(STEPS[cur].detail);
+      if (done === STEPS.length) { later(() => show('game'), 500); return; }
+      later(tick, 60);
     };
     $('descentFill').style.width = '0';
     let tip = Math.floor(Math.random() * TIPS.length);
     const nextTip = () => { $('descentTip').innerHTML = TIPS[tip++ % TIPS.length]; };
     nextTip(); clearInterval(runDescent.tips); runDescent.tips = setInterval(nextTip, 4000);
+    retry.onclick = () => { clearAll(); runDescent(); };
     tick();
   }
   $('descentCancel').onclick = () => show('menu');
@@ -237,19 +261,20 @@
   let selected = -1, extraSlots = 0;
   // Робот со слотами — одна отрисовка для окна UP и профиля
   function paintRobot(robot, amount, sel, onPick, slotMap = slots, set = skills) {
-    const cs = getComputedStyle(robot);
-    const s = parseFloat(cs.getPropertyValue('--s')), pad = parseFloat(cs.getPropertyValue('--pad'));
     robot.querySelectorAll('.slot').forEach(n => n.remove());
     for (let i = amount - 1; i >= 0; i--) {                     // как PopupManager: первый рисуется поверх
       const b = document.createElement('button');
       b.type = 'button';
       b.className = 'slot';
-      b.style.left = `${pad + SLOT_POS[2 * i] * s}px`;
-      b.style.top = `${pad + SLOT_POS[2 * i + 1] * s}px`;
+      // Позиция — от --s и --pad самого робота, а не числом на момент отрисовки: раскладка (телефон, профиль) меняет масштаб
+      // после отрисовки, и слоты, посчитанные по десктопному --s, уезжали за робота на колонку описания
+      b.style.left = `calc(var(--pad) + ${SLOT_POS[2 * i]}px * var(--s))`;
+      b.style.top = `calc(var(--pad) + ${SLOT_POS[2 * i + 1]}px * var(--s))`;
       const code = slotMap[i];
       if (code) {
         const k = set[code];
         b.style.setProperty('--c', k.color);
+        b.style.setProperty('--lvl', k.levelColor || k.color);
         b.title = k.name;
         b.innerHTML = `<i class="sk sk-${code}"></i><span class="lvl">${k.level}</span>` + (k.exp >= 1 ? '<span class="ready" title="Готово к улучшению"></span>' : '');
       } else { b.classList.add('is-empty'); b.title = 'Пустой слот'; }
@@ -311,11 +336,12 @@
   function renderProfile() {
     const p = playerOf(profileNick), own = profileNick === ME, closed = p.hidden && !own, setup = own && profileView === 'settings';
     $('profileTitle').textContent = own ? 'Профиль' : 'Профиль игрока';
+    $('profileHeadTag').textContent = '#' + p.id;
     const head = `<div class="profile-card">
         <div class="profile-robot"><img src="img/bee.png" alt=""></div>
         <div class="profile-who">
           <p class="profile-nick"><img src="img/clan.png" alt="" width="16" height="16">${profileNick}</p>
-          <p class="profile-meta"><button type="button" class="pid" id="profileCopy" title="Скопировать ID"><span>#${p.id}</span></button><span>Клан <b>${p.clan}</b></span>${closed ? '' : `<span>В игре с ${p.since}</span>`}</p>
+          <p class="profile-meta"><button type="button" class="pid" id="profileCopy" title="Скопировать ID"><span>#${p.id}</span></button><i class="idcode" aria-hidden="true">${window.kernBars(String(p.id))}</i><span>Клан <b>${p.clan}</b></span>${closed ? '' : `<span>В игре с ${p.since}</span>`}</p>
           <div class="profile-level"><span>Уровень <b>${p.level}</b></span>${closed ? '' : `<div class="meter"><i style="width:${p.pct}%"></i></div><small>${p.pct}%</small>`}</div>
         </div>
         <div class="profile-actions">${own
@@ -325,7 +351,7 @@
       </div>`;
     // Настройки профиля — данные сервера, а не настройки клиента: живут в самом профиле
     if (setup) {
-      $('profileBody').innerHTML = head + `<section class="profile-sec"><h3>Настройки профиля</h3>
+      $('profileBody').innerHTML = head + `<section class="profile-sec"><h3><b class="sec-plate">Настройки профиля</b></h3>
         <label class="field"><span><b>Скрыть профиль</b><small>Другие игроки увидят только ник, клан, ID и уровень</small></span><input type="checkbox" class="switch" id="profileHide"${p.hidden ? ' checked' : ''}></label></section>`;
       $('profileHide').onchange = e => { p.hidden = e.target.checked; };
     } else if (closed) {
@@ -333,11 +359,16 @@
     } else {
       const done = p.ach.filter(v => v >= 1).length;
       $('profileBody').innerHTML = head + `
-        <section class="profile-sec"><h3>Навыки <span id="profileSkillsInfo"></span></h3>
-          <div class="profile-skills"><div class="robot robot--profile" id="profileRobot"><div class="robot-art"></div></div><aside class="skill-info" id="profileSkill"></aside></div></section>
-        <section class="profile-sec"><h3>Статистика</h3>
-          <dl class="profile-stats">${STAT_NAMES.map((n, i) => `<div><dt>${n}</dt><dd>${p.stats[i]}</dd></div>`).join('')}</dl></section>
-        <section class="profile-sec"><h3>Достижения <span>${done} из ${ACH.length}</span></h3>
+        <div class="profile-grid">
+          <section class="profile-sec profile-sec--skills"><h3><b class="sec-plate">Навыки</b><span id="profileSkillsInfo"></span></h3>
+            <div class="profile-skills"><div class="robot robot--profile" id="profileRobot"><svg class="robot-art" aria-hidden="true"><use href="#robot-up"/></svg></div></div></section>
+          <div class="profile-side">
+            <aside class="skill-info" id="profileSkill"></aside>
+            <section class="profile-sec"><h3><b class="sec-plate">Статистика</b></h3>
+              <dl class="profile-stats">${STAT_NAMES.map((n, i) => `<div><dt>${n}</dt><dd>${p.stats[i]}</dd></div>`).join('')}</dl></section>
+          </div>
+        </div>
+        <section class="profile-sec"><h3><b class="sec-plate">Достижения</b><span>${done} из ${ACH.length}</span></h3>
           <ul class="profile-ach">${ACH.map(([img, name, what], i) => { const v = p.ach[i] || 0;
             return `<li class="${v >= 1 ? 'is-done' : ''}" title="${what}"><img src="${img}" alt=""><b>${name}</b><small>${what}</small>${v >= 1 ? '' : `<div class="meter"><i style="width:${Math.round(v * 100)}%"></i></div>`}</li>`; }).join('')}</ul></section>`;
       renderProfileSkills(p);
@@ -359,21 +390,25 @@
   window.openSkills = (slot = -1) => { selected = slot; renderSkills(); $('skillsDialog').hidden = false; };
   $('openSkills').onclick = () => { show('game'); window.openSkills(-1); };
   $('skillsDialog').querySelector('[data-close]').onclick = () => { $('skillsDialog').hidden = true; };
-  document.addEventListener('keydown', e => { if (e.key === 'Escape') { $('skillsDialog').hidden = true; $('updateDialog').hidden = true; healthDialog.hidden = true; } });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') { $('skillsDialog').hidden = true; $('updateDialog').hidden = true; } });
 
   // Адрес: ?screen=menu&update=1&updwin=1&skills=2&onbstep=1
-  const q = new URLSearchParams(location.search);
   renderStep();
-  if (q.get('update') === '1') setOutdated(true);
-  if (q.get('onbstep')) { step = Number(q.get('onbstep')); renderStep(); }
-  if (q.get('auth') === 'register') $('authTabs').querySelector('[data-tab=register]').click();
-  if (q.get('forgot')) $('authForgot').click();                     // ?forgot=1 — снимок подсказки о пароле
-  if (q.get('autherr')) ($('regForm').classList.contains('is-off') ? $('authForm') : $('regForm')).requestSubmit(); // ?autherr=1 — снимок ошибок полей
-  show(q.get('screen') || 'game');
-  if (q.get('skills')) window.kernWorld.ready.then(() => window.openSkills(Number(q.get('skills'))));
-  if (q.get('updwin')) openUpdate();
-  if (q.get('health')) {
-    healthDialog.hidden = false;
-    if (q.get('health') === 'run') $('healthCheck').click();
-  }
+  // Сцена стенда (js/scene.js): экраны — при разборе страницы, окно навыков — когда мир готов
+  window.kernScene.onReset(() => {
+    setOutdated(false); step = 0; renderStep();
+    $('authTabs').querySelector('[data-tab=login]').click();
+    ['authForm', 'regForm'].forEach(id => $(id).reset());
+    [...$('authForm').elements, ...$('regForm').elements].filter(f => f.closest('.fld')?.querySelector('.fld-err')).forEach(f => fieldError(f, ''));
+  });
+  window.kernScene.on(0, q => {
+    if (q.get('update') === '1') setOutdated(true);
+    if (q.get('onbstep')) { step = Number(q.get('onbstep')); renderStep(); }
+    if (q.get('auth') === 'register') $('authTabs').querySelector('[data-tab=register]').click();
+    if (q.get('forgot')) $('authForgot').click();                     // ?forgot=1 — снимок подсказки о пароле
+    if (q.get('autherr')) ($('regForm').classList.contains('is-off') ? $('authForm') : $('regForm')).requestSubmit(); // ?autherr=1 — снимок ошибок полей
+    show(q.get('screen') || 'game');
+    if (q.get('updwin')) openUpdate();
+  });
+  window.kernScene.on(1, q => { if (q.get('skills')) window.openSkills(Number(q.get('skills'))); });
 })();

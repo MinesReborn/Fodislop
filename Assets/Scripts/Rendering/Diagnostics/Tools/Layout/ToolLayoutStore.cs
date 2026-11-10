@@ -3,6 +3,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using Kern.Diagnostics.Artifacts;
 using UnityEngine;
 
 namespace Kern.Rendering.Diagnostics.Tools;
@@ -31,7 +32,11 @@ public static class ToolLayoutStore
         }
     }
 
-    public static string Path => System.IO.Path.Combine(Application.persistentDataPath, FileName);
+    public static string Path => System.IO.Path.Combine(
+        DiagnosticArtifactPaths.SettingsDirectory,
+        FileName);
+
+    private static string LegacyPath => System.IO.Path.Combine(DiagnosticArtifactPaths.RootDirectory, FileName);
 
     public static void Load(ToolWindow window)
     {
@@ -105,6 +110,7 @@ public static class ToolLayoutStore
         string temporaryPath = Path + ".tmp";
         try
         {
+            Directory.CreateDirectory(DiagnosticArtifactPaths.SettingsDirectory);
             File.WriteAllText(temporaryPath, JsonUtility.ToJson(payload, prettyPrint: true));
             File.Copy(temporaryPath, Path, overwrite: true);
             File.Delete(temporaryPath);
@@ -128,12 +134,13 @@ public static class ToolLayoutStore
         s_loaded = true;
         try
         {
-            if (!File.Exists(Path))
+            string sourcePath = File.Exists(Path) ? Path : LegacyPath;
+            if (!File.Exists(sourcePath))
             {
                 return;
             }
 
-            var payload = JsonUtility.FromJson<LayoutFile>(File.ReadAllText(Path));
+            var payload = JsonUtility.FromJson<LayoutFile>(File.ReadAllText(sourcePath));
             if (payload?.Windows == null)
             {
                 return;

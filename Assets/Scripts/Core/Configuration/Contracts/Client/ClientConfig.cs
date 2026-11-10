@@ -12,7 +12,7 @@ public class ClientConfig
     // 34: две ступени качества (Классика/Стандарт) вместо шести, без Custom.
     // 35: EffectSettings.BloomVariant.
     // 36: перебиндиваемые клавиши InterfaceSettings.Key* (вкладка «Управление»).
-    // 37: InterfaceSettings.KeyAggression (агрессия перебиндивается).
+    // 37: reserved schema version.
     // 38: DisplaySettings.HDRSwitchPending для подтверждения смены режима дисплея.
     // 39: DisplaySettings.PeakBrightnessFromDisplay — пик с дисплея до ручной настройки.
     // 40: TerrainSettings EnableReliefRim → EnableRim, *Emission* → *Glow*,
@@ -26,11 +26,16 @@ public class ClientConfig
     // 45: объединение веток схемы: ApiPort и сохранённая геометрия чата.
     // Поля аддитивные; существующие значения сохраняются.
     // 46: TerrainSettings.DepthPixels и DepthDarkening для стенок тоннелей.
-    // 47: EffectSettings.FisheyeScale — сохраняемая сила рыбьего глаза.
+    // 47: EffectSettings.FisheyeScale — сила рыбьего глаза (эффект позже удалён, поле убрано).
     // 48: независимый масштаб текста и полные клавиатурные привязки.
-    // 49: отдельные тумблеры рыбьего глаза и глубины, изначально выключены.
+    // 49: отдельные тумблеры рыбьего глаза и глубины, изначально выключены (рыбий глаз позже удалён).
     // Схемы 31–48 мигрируются штатным загрузчиком с созданием backup.
-    public const int CurrentSchemaVersion = 49;
+    // 50: replace the old default slow-movement Ctrl binding.
+    // 51: move the default slow-movement binding to LeftAlt.
+    // 52: помощь в движении (обход препятствий), изначально включена.
+    // 53: режим для дальтоников (EffectSettings.ColorVision), изначально выключен.
+    // 54: уровень чёрного и яркость SDR (DisplaySettings.BlackLevel, Brightness), изначально нейтральные.
+    public const int CurrentSchemaVersion = 54;
 
     public int SchemaVersion;
     public AudioSettings Audio = new();

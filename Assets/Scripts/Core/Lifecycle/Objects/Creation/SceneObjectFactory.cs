@@ -12,7 +12,7 @@ public sealed class SceneObjectFactory : ISceneObjectFactory
     private readonly Transform _runtimeRoot;
     private readonly Transform _robotsRoot;
     private readonly Transform _buildingsRoot;
-    private readonly Transform _vfxRoot;
+    private readonly Transform _visualEffectRoot;
     private readonly Transform _floatingUIRoot;
     private readonly Transform _audioEventsRoot;
     private readonly IObjectResolver _resolver;
@@ -21,7 +21,7 @@ public sealed class SceneObjectFactory : ISceneObjectFactory
         Transform runtimeRoot,
         Transform robotsRoot,
         Transform buildingsRoot,
-        Transform vfxRoot,
+        Transform visualEffectRoot,
         Transform floatingUIRoot,
         Transform audioEventsRoot,
         IObjectResolver resolver)
@@ -29,7 +29,7 @@ public sealed class SceneObjectFactory : ISceneObjectFactory
         _runtimeRoot = runtimeRoot;
         _robotsRoot = robotsRoot;
         _buildingsRoot = buildingsRoot;
-        _vfxRoot = vfxRoot;
+        _visualEffectRoot = visualEffectRoot;
         _floatingUIRoot = floatingUIRoot;
         _audioEventsRoot = audioEventsRoot;
         _resolver = resolver;
@@ -39,7 +39,7 @@ public sealed class SceneObjectFactory : ISceneObjectFactory
     {
         RuntimeOwner.Robots => _robotsRoot,
         RuntimeOwner.Buildings => _buildingsRoot,
-        RuntimeOwner.VFX => _vfxRoot,
+        RuntimeOwner.VisualEffects => _visualEffectRoot,
         RuntimeOwner.FloatingUI => _floatingUIRoot,
         RuntimeOwner.AudioEvents => _audioEventsRoot,
         _ => _runtimeRoot,

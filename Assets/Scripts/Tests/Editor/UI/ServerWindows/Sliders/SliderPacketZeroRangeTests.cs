@@ -35,8 +35,23 @@ public class SliderPacketZeroRangeTests
 
         public bool IsKnownMissing(string filename) => false;
 
+        public event System.Action<System.Collections.Generic.IReadOnlyCollection<string>>? AssetsChanged
+        {
+            add { }
+            remove { }
+        }
+
+        public void ReplaceAssets(System.Collections.Generic.IReadOnlyCollection<string> filenames) { }
+
         public UniTask<byte[]?> GetAssetBytesAsync(
             string filename,
+            CancellationToken cancellationToken = default,
+            int timeoutSeconds = AssetStreamingLimits.AssetRequestTimeoutSeconds) =>
+            UniTask.FromResult<byte[]?>(null);
+
+        public UniTask<byte[]?> GetAssetBytesAsync(
+            string filename,
+            string expectedETag,
             CancellationToken cancellationToken = default,
             int timeoutSeconds = AssetStreamingLimits.AssetRequestTimeoutSeconds) =>
             UniTask.FromResult<byte[]?>(null);

@@ -7,8 +7,6 @@ public static class ShaderNames
     public const string Terrain = "Universal Render Pipeline/Custom/Terrain";
     public const string WorldSurface = "Kern/World Surface";
     public const string WorldEntity = "Kern/World Entity";
-    public const string Starfield = "Kern/UI/Starfield";
-    public const string MenuLineUnlit = "Kern/UI/MenuLineUnlit";
     public const string UnpremultiplyAlpha = "Kern/UI/UnpremultiplyAlpha";
     public const string MissionVirtualRing = "Kern/UI/MissionVirtualRing";
 }

@@ -1,3 +1,3 @@
 #nullable enable
 
-global using Audio = global::MinesServer.Data.SFX;
+global using AudioEvent = global::MinesServer.Data.AudioEventType;

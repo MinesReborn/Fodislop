@@ -1,0 +1,183 @@
+<!doctype html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Kern — образцы компонентов</title>
+<!-- Образцы настоящих компонентов макета: те же файлы стилей, что у index.html, та же разметка и классы.
+     Дизайн-код (kern-brand/book/pages/design-code.html) показывает их через iframe — перерисовки нет.
+     ?c=panel|btn|keycap|input|toggle|meters|tabs|net — один образец; без параметра — все. -->
+<link rel="stylesheet" href="css/reset.css">
+<link rel="stylesheet" href="css/tokens.css">
+<link rel="stylesheet" href="css/stand.css">
+<link rel="stylesheet" href="css/hud.css">
+<link rel="stylesheet" href="css/screens.css">
+<link rel="stylesheet" href="css/touch.css">
+<link rel="stylesheet" href="css/pad.css">
+<link rel="stylesheet" href="css/prog.css">
+<link rel="stylesheet" href="css/events.css">
+<link rel="stylesheet" href="css/micro.css">
+<link rel="stylesheet" href="css/srvgui.css">
+<link rel="stylesheet" href="css/systems.css">
+<link rel="stylesheet" href="css/motion.css">
+<script src="js/motion.js"></script>
+<style>
+  /* Только раскладка листа образцов: кадр стенда без своей геометрии */
+  html, body { margin: 0; background: var(--void); min-height: 0; overflow: hidden; }
+  .frame.specimen { position: static; width: auto; height: auto; transform: none; background: transparent; overflow: visible; }
+  .hud.specimen-hud { position: static; pointer-events: auto; }
+  .spec { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; padding: 20px; }
+  .spec[hidden] { display: none; }
+  .spec.col { flex-direction: column; align-items: stretch; width: 280px; }
+  /* Один образец (?c=) — по центру окна: так он стоит во врезке дизайн-кода */
+  html.one.measure .spec { min-height: 0; }
+  .motion-demo { flex-direction: column; }
+  .md-stage { position: relative; display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 14px; min-width: 320px; min-height: 190px; justify-content: center; }
+  .md-layer { position: absolute; inset: 0; }
+  .md-btns { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; }
+  html.one .spec { min-height: 100vh; box-sizing: border-box; justify-content: center; align-content: center; padding: 12px; gap: var(--sp-4); }
+  html.one .spec.col { width: auto; align-items: center; }
+  html.one .spec.col > * { width: 280px; }
+</style>
+</head>
+<body>
+<div class="frame specimen" id="frame" data-screen="game">
+<!-- Компоненты HUD — внутри настоящего .hud: от него кнопки наследуют шрифт (:where(.hud button)) и полупрозрачность панелей -->
+<div class="hud specimen-hud">
+  <section class="spec" data-c="panel"><article class="panel" style="width:220px;height:120px"></article></section>
+
+  <section class="spec" data-c="btn">
+    <button type="button" class="btn btn--primary">Играть</button>
+    <button type="button" class="btn">Настройки</button>
+    <button type="button" class="btn btn--ghost">Отмена</button>
+    <button type="button" class="btn" disabled>Купить</button>
+  </section>
+
+  <section class="spec" data-c="keycap">
+    <button type="button" class="keycap" data-key="E">E</button>
+    <button type="button" class="keycap" data-key="Space">Space</button>
+    <span class="keycap is-fixed">W A S D</span>
+  </section>
+
+  <section class="spec col" data-c="input">
+    <input class="input" placeholder="Новая программа">
+    <input class="input" value="ШАХТЁР-774">
+  </section>
+
+  <section class="spec col" data-c="toggle">
+    <button type="button" class="toggle" aria-pressed="false"><span class="dot"></span><span class="lbl">Автокопание</span><kbd>E</kbd></button>
+    <button type="button" class="toggle" aria-pressed="true"><span class="dot"></span><span class="lbl">Автокопание</span><kbd>E</kbd></button>
+  </section>
+
+  <section class="spec col" data-c="meters">
+    <div class="meter meter--wide"><i style="width:62%"></i></div>
+    <article class="panel cargo" style="width:280px">
+      <header class="cargo-head"><span>Груз</span><strong id="cargoPct"><b>68</b><sup>%</sup></strong></header>
+      <div class="cargo-cells" id="cargoCells"></div>
+      <div class="cargo-scale"><span>0</span><span>50</span><span>100</span></div>
+    </article>
+    <div style="display:flex;width:280px"><div class="hp-dots" id="hpDots"></div></div>
+  </section>
+
+  <section class="spec col" data-c="tabs">
+    <div class="clan-tabs seg" role="tablist">
+      <button type="button" role="tab" aria-checked="true">Участники</button>
+      <button type="button" role="tab" aria-checked="false">Объявления</button>
+      <button type="button" role="tab" aria-checked="false">Казна</button>
+    </div>
+    <!-- Строки листа — разметка окна клана (hud.js: MEMBERS → #clanMembers) -->
+    <ul class="clan-list">
+      <li class="is-online"><i></i><b class="nick-link" style="color:var(--bone)">DVM_LEADER</b><em class="role">Глава</em><em>ур.92</em></li>
+      <li class="is-online"><i></i><b class="nick-link" style="color:var(--bone)">ШАХТЁР-102</b><em class="role">Заместитель</em><em>ур.61</em></li>
+      <li><i></i><b class="nick-link" style="color:var(--bone)">КРОТ-7</b><em>Участник</em><em>ур.40</em></li>
+    </ul>
+  </section>
+
+</div>
+
+  <!-- Движение «Квант» (css/motion.css, js/motion.js): кнопки проигрывают каждое правило -->
+  <section class="spec motion-demo" data-c="motion">
+    <div class="md-stage">
+      <article class="panel cargo" style="width:280px">
+        <header class="cargo-head"><span>Груз</span><strong id="mdPct"><b>40</b><sup>%</sup></strong></header>
+        <div class="cargo-cells" id="mdCells"></div>
+        <div class="cargo-scale"><span>0</span><span>50</span><span>100</span></div>
+      </article>
+      <div style="display:flex;width:280px"><div class="hp-dots" id="mdHp"></div></div>
+      <div class="dialog-layer md-layer" id="mdLayer" hidden>
+        <section class="panel dialog" style="width:240px">
+          <div class="src-rail"><span>Сервер</span><i></i></div>
+          <h2>Окно</h2><p>Линия рамки разворачивается в окно, затем проявляется текст.</p>
+          <div class="dialog-actions"><button type="button" class="btn btn--primary" id="mdClose">Понятно</button></div>
+        </section>
+      </div>
+    </div>
+    <div class="md-btns">
+      <button type="button" class="btn" data-md="up">Груз +35 %</button>
+      <button type="button" class="btn" data-md="down">Груз −35 %</button>
+      <button type="button" class="btn" data-md="hit">Удар −6</button>
+      <button type="button" class="btn" data-md="win">Окно</button>
+    </div>
+  </section>
+
+  <!-- Окно сервера — слой диалогов, вне HUD, как в игре -->
+  <section class="spec" data-c="net">
+    <section class="panel dialog srv-modal" style="position:static;width:360px">
+      <div class="src-rail"><span>Сервер</span><i></i></div>
+      <h2>Неделя добычи</h2>
+      <p>До воскресенья добыча всех кристаллов увеличена вдвое. Удачи в шахте!</p>
+      <div class="dialog-actions"><button type="button" class="btn btn--primary">Отлично</button></div>
+    </section>
+  </section>
+</div>
+<script>
+// Ячейки груза и точки прочности — той же разметкой и теми же цветами, что ставит hud.js (груз 68 % — порог «обычный», прочность 85 %)
+const token = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const hpTone = f => `rgb(${Math.round(Math.sqrt(Math.sqrt(1 - f)) * 255)},${Math.round(Math.sqrt(Math.sqrt(f)) * 255)},${Math.round(f * (1 - f) * 255)})`;
+document.getElementById('cargoCells').style.setProperty('--bar', token('--cargo-normal-fill'));
+document.getElementById('cargoPct').style.color = token('--cargo-normal');
+document.getElementById('hpDots').style.setProperty('--c', hpTone(.85));
+document.getElementById('cargoCells').innerHTML = Array.from({ length: 20 }, (_, i) => `<i${i < 14 ? ' class="on"' : ''}></i>`).join('');
+document.getElementById('hpDots').innerHTML = Array.from({ length: 20 }, (_, i) => `<i${i < 17 ? ' class="on"' : ''}></i>`).join('');
+// Образец движения: те же помощники, что у HUD (js/motion.js)
+{
+  let pct = 40, hp = 17;
+  const tone = p => token(p < 50 ? '--cargo-low-fill' : p < 100 ? '--cargo-normal-fill' : p < 115 ? '--cargo-warn-fill' : p < 200 ? '--cargo-high-fill' : '--cargo-danger-fill');
+  const toneText = p => token(p < 50 ? '--cargo-low' : p < 100 ? '--cargo-normal' : p < 115 ? '--cargo-warn' : p < 200 ? '--cargo-high' : '--cargo-danger');
+  const band = p => p < 100 ? 0 : p < 115 ? 1 : p < 200 ? 2 : 3;
+  const cargo = was => {
+    document.getElementById('mdCells').style.setProperty('--bar', tone(pct));
+    document.getElementById('mdPct').style.color = toneText(pct);
+    kernQuant(document.getElementById('mdCells'), 20, Math.min(20, Math.ceil(pct / 5)));
+    kernCount(document.getElementById('mdPct').firstElementChild, pct);
+    if (was !== undefined && band(pct) > band(was)) { kernFlash(document.getElementById('mdPct')); kernFlash(document.getElementById('mdCells')); }
+  };
+  const life = was => {
+    const f = hp / 20; document.getElementById('mdHp').style.setProperty('--c', hpTone(f));
+    kernQuant(document.getElementById('mdHp'), 20, hp);
+    if (was !== undefined && f < .25 && was / 20 >= .25) kernFlash(document.getElementById('mdHp'));
+  };
+  cargo(); life();
+  const layer = document.getElementById('mdLayer');
+  document.querySelector('.md-btns').onclick = e => {
+    const k = e.target.closest('[data-md]')?.dataset.md; if (!k) return;
+    if (k === 'up') { const w = pct; pct = Math.min(230, pct + 35); cargo(w); }
+    if (k === 'down') { const w = pct; pct = Math.max(0, pct - 35); cargo(w); }
+    if (k === 'hit') { const w = hp; hp = hp > 6 ? hp - 6 : 20; life(w); }
+    if (k === 'win') { layer.classList.add('is-entering'); layer.hidden = false; requestAnimationFrame(() => requestAnimationFrame(() => layer.classList.remove('is-entering'))); }
+  };
+  document.getElementById('mdClose').onclick = () => { layer.hidden = true; };
+}
+const c = new URLSearchParams(location.search).get('c');
+if (c) document.documentElement.classList.add('one');
+// Высота образца — странице, которая его встроила (бренд-книга, дизайн-код): врезка растёт под содержимое, а не режет его.
+// postMessage работает и из файла, где родитель не может прочитать документ врезки
+const report = () => { const s = document.querySelector(`.spec[data-c="${c}"]`); if (c && s && parent !== window) {
+  document.documentElement.classList.add('measure');
+  const h = Math.ceil(s.scrollHeight); document.documentElement.classList.remove('measure');
+  parent.postMessage({ kernSpecimen: c, height: h }, '*'); } };
+document.fonts.ready.then(report); addEventListener('resize', report);
+if (c) document.querySelectorAll('.spec').forEach(s => { s.hidden = s.dataset.c !== c; });
+</script>
+</body>
+</html>

@@ -89,7 +89,7 @@ internal static class DebugOverlayTextFormatter
                     {
                         var config = mapManager.GetCellConfig(cellType);
                         BlockDefinition block = BlockRegistry.Get(cellType);
-                        bool passable = config.Properties.HasFlag(CellConfigProperties.Passable);
+                        bool passable = config.DrawLayer != CellRenderLayer.Foreground;
 
                         sb.Append("\n<b>Клетка под курсором  ·  ")
                           .Append(cell.x).Append(", ").Append(cell.y).Append("</b>\n")
@@ -121,21 +121,39 @@ internal static class DebugOverlayTextFormatter
             sb,
             gameplayCamera?.Camera);
 
-        sb.Append("Editor=").Append(Application.isEditor).Append("\n\n");
-
         long totalMemMb = Profiler.GetMonoUsedSizeLong() / (1024 * 1024);
         long totalAllocMb = Profiler.GetMonoHeapSizeLong() / (1024 * 1024);
         long totalReservedMb = Profiler.GetTotalReservedMemoryLong() / (1024 * 1024);
-        float gcAllocKb = telemetry.GcAllocPerFrameBytes / 1024f;
-        float gcAllocPerSecMb = telemetry.GcAllocTotalPerSecondBytes / (1024f * 1024f);
+        IFrameAllocationTelemetry? allocationTelemetry = telemetry as IFrameAllocationTelemetry;
+        IFrameTelemetryProducerStamp? producerStamp = telemetry as IFrameTelemetryProducerStamp;
+        int producerFrameAge = producerStamp is { ProducerLifecycleValid: true }
+            ? Time.frameCount - producerStamp.ProducerFrameId
+            : int.MaxValue;
+        bool hasCurrentFrameSnapshot = producerStamp is { ProducerLifecycleValid: true } &&
+            producerStamp.ProducerFrameId >= 0 && producerFrameAge is >= 0 and <= 1;
 
         sb.Append("<b>Память</b>\n")
           .Append("Mono: ").Append((totalMemMb * 100) / Math.Max(1, totalAllocMb)).Append("%  ·  ")
           .Append(totalMemMb).Append(" / ").Append(totalAllocMb).Append(" МБ")
           .Append("  ·  резерв ").Append(totalReservedMb).Append(" МБ\n")
-          .Append("Аллокации: ").Append(gcAllocKb.ToString("F1")).Append(" КБ/кадр  ·  ")
-          .Append(gcAllocPerSecMb.ToString("F2")).Append(" МБ/с  ·  GC ")
-          .Append(telemetry.GcCollectionCount).Append("\n\n");
+          .Append("Аллокации: ")
+          .Append(allocationTelemetry?.HasGcAllocationSample == true
+              ? $"{allocationTelemetry.GcAllocPerFrameBytes / 1024f:F1} КБ/кадр  ·  {(allocationTelemetry.HasGcAllocationRateSample ? $"{allocationTelemetry.GcAllocTotalPerSecondBytes / (1024f * 1024f):F2}" : "—")} МБ/с"
+              : "нет данных")
+          .Append("  ·  GC ")
+          .Append(allocationTelemetry is null ? "—" : allocationTelemetry.GcCollectionCount.ToString()).Append("\n\n");
+
+        sb.Append("Снимок покадровой телеметрии: ");
+        if (hasCurrentFrameSnapshot)
+        {
+            sb.Append("кадр ").Append(producerStamp!.ProducerFrameId)
+              .Append("  ·  возраст ").Append(producerFrameAge).Append(" кадр.");
+        }
+        else
+        {
+            sb.Append("нет актуального снимка");
+        }
+        sb.Append("\n\n");
 
         sb.Append("<b>Террейн</b>\n")
           .Append("Окно: ").Append(StreamingPlanLabel(telemetry.StreamingPlanKind))
@@ -145,9 +163,9 @@ internal static class DebugOverlayTextFormatter
           .Append(telemetry.StreamingWindowHeight)
           .Append("  Δ").Append(telemetry.StreamingDeltaX).Append(",")
           .Append(telemetry.StreamingDeltaY).Append("\n")
-          .Append("Меш: ").Append(telemetry.TerrainMeshTimeMs.ToString("F2")).Append(" мс\n")
-          .Append("Кэш: ").Append(telemetry.TerrainCacheTimeMs.ToString("F2")).Append(" мс  ·  GPU: ")
-          .Append(telemetry.TerrainGPUUploadTimeMs.ToString("F2")).Append(" мс\n")
+          .Append("Меш: ").Append(hasCurrentFrameSnapshot ? $"{telemetry.TerrainMeshTimeMs:F2} мс" : "нет данных").Append("\n")
+          .Append("Кэш: ").Append(hasCurrentFrameSnapshot ? $"{telemetry.TerrainCacheTimeMs:F2} мс" : "нет данных").Append("  ·  GPU: ")
+          .Append(hasCurrentFrameSnapshot ? $"{telemetry.TerrainGPUUploadTimeMs:F2} мс" : "нет данных").Append("\n")
           .Append("Фон: ").Append(telemetry.TerrainWorkerBuildMs.ToString("F2")).Append(" мс  ·  до показа: ")
           .Append(telemetry.TerrainBuildLatencyMs.ToString("F1")).Append(" мс  ·  правка: ")
           .Append(telemetry.TerrainEditDisplayLatencyMs.ToString("F1")).Append(" мс  ·  ")
@@ -163,9 +181,9 @@ internal static class DebugOverlayTextFormatter
         sb.Append("<b>Radiance Cascades</b>\n")
           .Append("Решения: ").Append(solvesPerSecond.ToString("F1")).Append("/с  ·  источники: ")
           .Append(lighting != null ? lighting.UploadedDynamicLightCount : 0).Append("\n")
-          .Append("Подготовка: ").Append(telemetry.LightingBuildCommandsTimeMs.ToString("F2"))
-          .Append(" мс  ·  выполнение: ")
-          .Append(telemetry.LightingExecuteCommandsTimeMs.ToString("F2")).Append(" мс\n")
+          .Append("Подготовка: ").Append(hasCurrentFrameSnapshot ? $"{telemetry.LightingBuildCommandsTimeMs:F2}" : "нет данных")
+          .Append(hasCurrentFrameSnapshot ? " мс  ·  выполнение: " : "  ·  выполнение: ")
+          .Append(hasCurrentFrameSnapshot ? $"{telemetry.LightingExecuteCommandsTimeMs:F2} мс" : "нет данных").Append("\n")
           .Append("Статические: ").Append(telemetry.LightingStaticSolveCount)
           .Append("  ·  динамические: ").Append(telemetry.LightingDynamicSolveCount)
           .Append("  ·  инвалид.: ").Append(telemetry.LightingRegionInvalidationCount).Append("\n")

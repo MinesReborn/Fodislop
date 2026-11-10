@@ -70,18 +70,20 @@ public sealed class PlayerHUDStatusPanel
         {
             if (_statusLineElements.TryGetValue(kvp.Key, out var existing))
             {
-                if (existing is Label label)
-                {
-                    ApplyStatusLabel(label, kvp.Key, kvp.Value);
-                    label.style.color = kvp.Value.Color;
-                }
+                ApplyStatusRow(existing, kvp.Key, kvp.Value);
             }
             else
             {
-                var row = new Label();
-                row.AddToClassList("hud-status-line");
-                row.style.color = kvp.Value.Color;
-                ApplyStatusLabel(row, kvp.Key, kvp.Value);
+                // Строка состояния (макет: .states li): название цветом сервера, справа — остаток времени
+                var row = new VisualElement { pickingMode = PickingMode.Position };
+                row.AddToClassList("state");
+                var name = new Label { pickingMode = PickingMode.Ignore };
+                name.AddToClassList("state__name");
+                var time = new Label { pickingMode = PickingMode.Ignore };
+                time.AddToClassList("state__time");
+                row.Add(name);
+                row.Add(time);
+                ApplyStatusRow(row, kvp.Key, kvp.Value);
                 _statusPanel.Add(row);
 
                 if (kvp.Value.Expiry > 0)
@@ -99,10 +101,7 @@ public sealed class PlayerHUDStatusPanel
                             return;
                         }
 
-                        if (row is Label scheduledLabel)
-                        {
-                            ApplyStatusLabel(scheduledLabel, kvp.Key, entry);
-                        }
+                        ApplyStatusRow(row, kvp.Key, entry);
                     }).Every(1000);
                     _statusSchedules[kvp.Key] = schedule;
                 }
@@ -112,49 +111,36 @@ public sealed class PlayerHUDStatusPanel
         }
     }
 
-    private void ApplyStatusLabel(Label label, string key, StatusLineEntry entry)
+    private void ApplyStatusRow(VisualElement row, string key, StatusLineEntry entry)
     {
-        string next = ComposeStatusText(entry);
+        var name = (Label)row[0];
+        var time = (Label)row[1];
+        name.style.color = entry.Color;
+        string title = entry.Text is { Length: > 0 } ? entry.Text[0] : string.Empty;
+        string right = entry.Expiry > 0
+            ? FormatTime(Math.Max(0, entry.Expiry - DateTimeOffset.UtcNow.ToUnixTimeSeconds()))
+            : entry.Text is { Length: > 1 } ? entry.Text[1] : string.Empty;
+        string next = title + "\n" + right;
         if (_statusLineTexts.TryGetValue(key, out var cached) && cached == next)
         {
             return;
         }
 
         _statusLineTexts[key] = next;
-        label.text = next;
+        name.text = title;
+        time.text = right;
     }
 
-    private static string ComposeStatusText(StatusLineEntry entry)
-    {
-        if (entry.Text == null || entry.Text.Length == 0)
-        {
-            return string.Empty;
-        }
-
-        var name = entry.Text[0];
-        if (entry.Expiry > 0)
-        {
-            var remaining = Math.Max(0, entry.Expiry - DateTimeOffset.UtcNow.ToUnixTimeSeconds());
-            return $"{name}: {FormatTime(remaining)}";
-        }
-
-        if (entry.Text.Length > 1)
-        {
-            return $"{name}: {entry.Text[1]}";
-        }
-
-        return name;
-    }
-
+    // Остаток — «4:12», от часа — «1:04:12»
     private static string FormatTime(long seconds)
     {
         var ts = TimeSpan.FromSeconds(seconds);
         if (ts.TotalHours >= 1)
         {
-            return $"{(int)ts.TotalHours:D2}:{ts.Minutes:D2}:{ts.Seconds:D2}";
+            return $"{(int)ts.TotalHours}:{ts.Minutes:D2}:{ts.Seconds:D2}";
         }
 
-        return $"{ts.Minutes:D2}:{ts.Seconds:D2}";
+        return $"{ts.Minutes}:{ts.Seconds:D2}";
     }
 
     public void ClearSchedules()

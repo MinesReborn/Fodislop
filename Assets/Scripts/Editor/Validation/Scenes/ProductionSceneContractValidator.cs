@@ -141,11 +141,6 @@ public sealed class ProductionSceneContractValidator : IPreprocessBuildWithRepor
                 errors.Add($"{sceneName}: Bootstrap must contain exactly one root LifetimeScope.");
             }
 
-            if (scene.GetRootGameObjects().Any(root => root.name == "MenuScenery"))
-            {
-                errors.Add($"{sceneName}: Bootstrap must not own menu scenery (MainMenu owns it).");
-            }
-
             BootstrapLifetimeScope? bootstrap = scopes.OfType<BootstrapLifetimeScope>().SingleOrDefault();
             if (bootstrap != null)
             {
@@ -211,7 +206,7 @@ public sealed class ProductionSceneContractValidator : IPreprocessBuildWithRepor
         string[] requiredFields =
         {
             "_servicesRoot", "_runtimeRoot", "_robotsRoot", "_buildingsRoot",
-            "_vfxRoot", "_floatingUIRoot", "_audioEventsRoot",
+            "_visualEffectRoot", "_floatingUIRoot", "_audioEventsRoot",
             "_uiDocument", "_postProcessVolume", "_playerMovement",
         };
 

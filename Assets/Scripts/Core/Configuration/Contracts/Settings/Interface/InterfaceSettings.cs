@@ -25,14 +25,14 @@ public sealed class InterfaceSettings
     [SettingConsumer(SettingConsumerTarget.LocalizationService, "LocalizationService.SetLanguage")]
     public string Language = "ru";
 
-    // Дефолтная схема управления: клавиатура (WASD / стрелки). Используется
-    // кнопкой «Сбросить до стандартных» на вкладке «Управление».
-    public const int DefaultControlScheme = 0;
+    // Помощь в движении: при выключенном автокопании робот сам обходит
+    // непроходимую клетку на пути и идёт дальше в удерживаемом направлении.
+    public const bool DefaultMovementAssist = true;
 
-    [SettingRange(0f, 1f)]
-    [SettingLabel("gateway.onb.controls_scheme_label")]
-    [SettingConsumer(SettingConsumerTarget.Gameplay, "Controls / Onboarding scheme")]
-    public int ControlScheme;
+    [SettingUnbounded("Тумблер помощи в движении на вкладке «Управление».")]
+    [SettingLabel("settings.controls.movement_assist")]
+    [SettingConsumer(SettingConsumerTarget.Gameplay, "PlayerStepSelector.Select")]
+    public bool MovementAssist = DefaultMovementAssist;
 
     [SettingUnbounded("Тумблер автовхода в воротах авторизации.")]
     [SettingLabel("gateway.auth.auto_login")]
@@ -40,7 +40,7 @@ public sealed class InterfaceSettings
     public bool AutoLogin;
 
     [SettingUnbounded("Флаг пройденного онбординга; внутреннего тумблера нет.")]
-    [SettingConsumer(SettingConsumerTarget.UserInterface, "GatewayController onboarding gate")]
+    [SettingConsumer(SettingConsumerTarget.UserInterface, "MenuGate onboarding gate")]
     public bool OnboardingDone;
 
     // Привязки клавиш клавиатурной схемы (вкладка «Управление» настроек
@@ -59,8 +59,7 @@ public sealed class InterfaceSettings
     public const string DefaultKeyMoveRightAlternate = "RightArrow";
     public const string DefaultKeyTurnOnly = "LeftShift";
     public const string DefaultKeyTurnOnlyAlternate = "RightShift";
-    public const string DefaultKeyFastMove = "LeftCtrl";
-    public const string DefaultKeyFastMoveAlternate = "RightCtrl";
+    public const string DefaultKeyFastMove = "LeftAlt";
 
     [SettingUnbounded("Имя клавиши UnityEngine.InputSystem.Key.")]
     [SettingConsumer(SettingConsumerTarget.Gameplay, "PlayerInputHandler")]
@@ -106,10 +105,6 @@ public sealed class InterfaceSettings
     [SettingConsumer(SettingConsumerTarget.Gameplay, "PlayerInputHandler")]
     public string KeyFastMove = DefaultKeyFastMove;
 
-    [SettingUnbounded("Имя клавиши UnityEngine.InputSystem.Key.")]
-    [SettingConsumer(SettingConsumerTarget.Gameplay, "PlayerInputHandler")]
-    public string KeyFastMoveAlternate = DefaultKeyFastMoveAlternate;
-
     public const string DefaultKeyDig = "Space";
     public const string DefaultKeyAutoDig = "E";
     public const string DefaultKeyGeo = "G";
@@ -151,42 +146,6 @@ public sealed class InterfaceSettings
     [SettingConsumer(SettingConsumerTarget.Gameplay, "PlayerInputHandler.WantsToBuildWhite")]
     public string KeyBuildWhite = DefaultKeyBuildWhite;
 
-    // Позиция перетаскиваемой панели HUD (left/top в пикселях панели) с
-    // прошлого запуска. Пока игрок её не двигал, панель стоит по стилям.
-    [SettingUnbounded("Флаг сохранённой позиции панели HUD; тумблера нет.")]
-    [SettingConsumer(SettingConsumerTarget.UserInterface, "PlayerHUDView.ApplySavedPanelPosition")]
-    public bool HasHudPanelPosition;
-
-    [SettingUnbounded("Пиксели панели UI; разрешение проверяет PlayerHUDView при восстановлении.")]
-    [SettingConsumer(SettingConsumerTarget.UserInterface, "PlayerHUDView.ApplySavedPanelPosition")]
-    public float HudPanelX;
-
-    [SettingUnbounded("Пиксели панели UI; разрешение проверяет PlayerHUDView при восстановлении.")]
-    [SettingConsumer(SettingConsumerTarget.UserInterface, "PlayerHUDView.ApplySavedPanelPosition")]
-    public float HudPanelY;
-
-    // Геометрия перетаскиваемого/растягиваемого окна глобального чата (left,
-    // top, width, height в пикселях панели) с прошлого запуска. Пока игрок не
-    // трогал окно, оно стоит по стилям Chat.uss.
-    [SettingUnbounded("Флаг сохранённой геометрии окна глобального чата; тумблера нет.")]
-    [SettingConsumer(SettingConsumerTarget.UserInterface, "ChatWindowInteractionController.ApplySavedLayout")]
-    public bool HasChatWindowLayout;
-
-    [SettingUnbounded("Пиксели панели UI; разрешение проверяет ChatWindowInteractionController при восстановлении.")]
-    [SettingConsumer(SettingConsumerTarget.UserInterface, "ChatWindowInteractionController.ApplySavedLayout")]
-    public float ChatWindowX;
-
-    [SettingUnbounded("Пиксели панели UI; разрешение проверяет ChatWindowInteractionController при восстановлении.")]
-    [SettingConsumer(SettingConsumerTarget.UserInterface, "ChatWindowInteractionController.ApplySavedLayout")]
-    public float ChatWindowY;
-
-    [SettingUnbounded("Пиксели панели UI; минимум и границы экрана проверяет ChatWindowInteractionController.")]
-    [SettingConsumer(SettingConsumerTarget.UserInterface, "ChatWindowInteractionController.ApplySavedLayout")]
-    public float ChatWindowWidth;
-
-    [SettingUnbounded("Пиксели панели UI; минимум и границы экрана проверяет ChatWindowInteractionController.")]
-    [SettingConsumer(SettingConsumerTarget.UserInterface, "ChatWindowInteractionController.ApplySavedLayout")]
-    public float ChatWindowHeight;
     public bool IsGameplayKey(string keyName) =>
         string.Equals(KeyMoveUp, keyName, StringComparison.OrdinalIgnoreCase) ||
         string.Equals(KeyMoveDown, keyName, StringComparison.OrdinalIgnoreCase) ||
@@ -199,7 +158,6 @@ public sealed class InterfaceSettings
         string.Equals(KeyTurnOnly, keyName, StringComparison.OrdinalIgnoreCase) ||
         string.Equals(KeyTurnOnlyAlternate, keyName, StringComparison.OrdinalIgnoreCase) ||
         string.Equals(KeyFastMove, keyName, StringComparison.OrdinalIgnoreCase) ||
-        string.Equals(KeyFastMoveAlternate, keyName, StringComparison.OrdinalIgnoreCase) ||
         string.Equals(KeyDig, keyName, StringComparison.OrdinalIgnoreCase) ||
         string.Equals(KeyAutoDig, keyName, StringComparison.OrdinalIgnoreCase) ||
         string.Equals(KeyGeo, keyName, StringComparison.OrdinalIgnoreCase) ||

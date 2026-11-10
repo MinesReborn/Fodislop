@@ -2,6 +2,7 @@
    PauseMenu — стили меню паузы
    ═══════════════════════════════════════════════════════════ */
 
+/* Затемнение под окном поверх игры — как .dialog-layer макета visual/kern-ui: scrim и точки сетки 16 */
 .pause-overlay {
     position: absolute;
     left: 0;
@@ -10,248 +11,34 @@
     bottom: 0;
     justify-content: center;
     align-items: center;
-    background-color: transparent;
+    background-color: var(--scrim-strong);
+    --dots-color: rgba(216, 213, 238, 0.09);
+    --dots-step: 16;
+    --dots-size: 1;
 }
 
-.pause-dimmer {
-    display: none;
-}
-
-.pause-panel {
-    background-color: var(--surface-abyss-solid);
-    border-width: 1px;
-    border-color: var(--border-cyan);
-    border-radius: var(--radius-md);
-    padding: var(--space-10) 30px;
+/* Пауза на ПК (макет #menuDialog .dialog.pause): окно 320, заголовок, три клавиши во всю ширину */
+.dialog.pause {
+    width: 320px;
+    padding: 20px 20px 16px;
     flex-direction: column;
-    align-items: center;
-    width: 520px;
-    max-width: 80%;
-    height: 85%;
-    min-height: 0;
-    flex-shrink: 0;
-    overflow: hidden;
-    min-width: 260px;
-    align-self: center;
+    align-items: stretch;
 }
 
-.pause-settings {
-    width: 760px;
-    max-width: 90%;
-    padding-left: var(--space-11);
-    padding-right: var(--space-11);
+.dialog.pause > .dialog__title {
+    margin-bottom: 12px;
 }
 
-/* Главная страница паузы подстраивается под содержимое: фиксированная
-   высота 85% оставляла большую пустоту под четырьмя кнопками. Потолок
-   сохранён, чтобы на низких экранах список снова уходил в скролл. */
-.pause-panel--auto {
-    height: auto;
-    max-height: 85%;
+.pause-action {
+    height: var(--hit);
+    margin-bottom: 12px;
 }
 
-.pause-page {
-    align-items: center;
+#MainMenuButton {
+    margin-bottom: 0;
 }
 
-.pause-title {
-    -unity-font-definition: var(--face-display);
-    font-size: var(--size-xl);
-    -unity-font-style: bold;
-    color: var(--light-solid);
-    margin-bottom: var(--space-8);
-    flex-shrink: 0;
-}
 
-.pause-slider-container {
-    flex-direction: column;
-    margin-bottom: 18px;
-    padding-top: var(--space-2);
-    min-width: 240px;
-}
-
-.pause-slider-label {
-    font-size: var(--size-md);
-    color: var(--text-primary);
-    margin-bottom: var(--space-4);
-    white-space: normal;
-}
-
-.pause-scroll {
-    width: 100%;
-    flex-grow: 1;
-    min-height: 0;
-    flex-shrink: 1;
-}
-
-.settings-layout {
-    flex-direction: row;
-    width: 100%;
-    min-width: 0;
-    min-height: 0;
-    flex-grow: 1;
-    flex-shrink: 1;
-    margin-bottom: 18px;
-}
-
-.settings-navigation {
-    width: 150px;
-    min-width: 150px;
-    flex-shrink: 0;
-    padding-top: var(--space-3);
-    padding-right: 18px;
-    margin-right: var(--space-1);
-    border-right-width: 1px;
-    border-right-color: var(--border-line);
-}
-
-.settings-content {
-    position: relative;
-    flex-direction: column;
-    flex-grow: 1;
-    flex-shrink: 1;
-    min-width: 0;
-    min-height: 0;
-    padding-left: var(--space-9);
-    padding-right: var(--space-4);
-    overflow: hidden;
-}
-
-.settings-page {
-    position: relative;
-    width: 100%;
-    flex-grow: 1;
-    flex-shrink: 1;
-    min-height: 0;
-}
-
-.settings-page .unity-scroll-view__content-viewport {
-    padding-top: var(--space-3);
-    padding-right: var(--space-7);
-    padding-bottom: var(--space-11);
-    padding-left: var(--space-1);
-}
-
-.settings-page .unity-scroll-view__content-container {
-    padding-bottom: 18px;
-}
-
-/* Вкладка раздела настроек — приём навигации модалки меню (mm-nav-tab):
-   прозрачная кнопка с левой полосой 3px; активная подсвечивается
-   бирюзовым, а не сплошной золотой заливкой. */
-.settings-tab {
-    min-width: 0;
-    width: 100%;
-    margin-bottom: var(--space-5);
-    padding: var(--space-5) var(--space-6);
-    -unity-text-align: middle-left;
-    background-color: transparent;
-    border-width: 0;
-    border-left-width: 3px;
-    border-left-color: transparent;
-    color: var(--text-secondary);
-    font-size: var(--size-sm);
-    -unity-font-style: bold;
-    white-space: normal;
-}
-
-.settings-tab:hover {
-    color: var(--light-solid);
-    background-color: var(--accent-cyan-tint);
-}
-
-.settings-tab--active {
-    background-color: var(--accent-cyan-wash);
-    border-left-color: var(--accent-cyan);
-    color: var(--accent-cyan);
-}
-
-.settings-tab--advanced {
-    margin-top: auto;
-}
-
-.settings-section {
-    flex-direction: column;
-    width: 100%;
-    min-width: 0;
-    margin-bottom: 22px;
-    padding: var(--space-7) var(--space-7) var(--space-8) var(--space-7);
-    background-color: var(--surface-raised);
-    border-width: 1px;
-    border-color: var(--border-subtle);
-    border-radius: var(--radius-md);
-}
-
-.settings-section__title {
-    color: var(--accent-gold);
-    font-size: var(--size-lg);
-    -unity-font-style: bold;
-    margin-bottom: var(--space-8);
-    padding-bottom: var(--space-4);
-    border-bottom-width: 1px;
-    border-bottom-color: var(--accent-gold-fill);
-}
-
-.settings-section__description {
-    color: var(--text-secondary);
-    font-size: var(--size-sm);
-    white-space: normal;
-    margin-bottom: var(--space-8);
-    padding-bottom: var(--space-1);
-}
-
-.pause-subsection {
-    flex-direction: column;
-}
-
-.pause-subsection-title {
-    color: var(--accent-gold);
-    font-size: var(--size-md);
-    -unity-font-style: bold;
-    margin: var(--space-6) 0 var(--space-3) 0;
-}
-
-.settings-section .unity-label,
-.settings-section .unity-base-field__label,
-.settings-section .unity-toggle__label,
-.settings-section .unity-foldout__text {
-    color: var(--text-primary);
-}
-
-.settings-section--advanced,
-.settings-section--debug {
-    background-color: var(--surface-shelf-solid);
-    border-width: 1px;
-    border-color: var(--border-line);
-    padding: var(--space-7);
-}
-
-.settings-section--custom {
-    background-color: var(--surface-ember-solid);
-    border-color: var(--text-secondary);
-}
-
-.settings-section--effects {
-    background-color: var(--surface-shelf-solid);
-    border-color: var(--text-tertiary);
-}
-
-.settings-section--custom .unity-foldout__content {
-    margin-top: var(--space-6);
-    padding-left: var(--space-4);
-    padding-right: var(--space-2);
-}
-
-.settings-section--advanced .unity-foldout__content,
-.settings-section--debug .unity-foldout__content {
-    margin-top: var(--space-7);
-    padding-left: var(--space-5);
-    padding-right: var(--space-2);
-}
-
-.settings-section--debug {
-    border-color: var(--accent-gold-fill);
-}
 
 .pause-confirm-overlay {
     position: absolute;
@@ -266,7 +53,7 @@
 
 .pause-confirm-panel {
     background-color: var(--surface-panel);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-color: var(--border-cyan);
     border-radius: var(--radius-md);
     padding: var(--space-9) var(--space-13);
@@ -297,7 +84,7 @@
 
 .pause-btn-confirm {
     background-color: var(--state-danger-glow);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-color: var(--state-magma-glow);
     border-radius: var(--radius-sm);
     padding: var(--space-4) var(--space-9);
@@ -310,7 +97,7 @@
 
 .pause-btn {
     background-color: var(--surface-raised);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-color: var(--border-subtle);
     border-radius: var(--radius-sm);
     padding: var(--space-4) var(--space-9);
@@ -321,51 +108,6 @@
     -unity-text-align: middle-center;
 }
 
-#SettingsBack {
-    flex-shrink: 0;
-    margin-top: var(--space-2);
-    margin-bottom: 0;
-}
-
 .pause-btn:hover {
     background-color: var(--accent-cyan-wash);
-}
-
-/* Вкладка «Управление»: строки списка клавиш по текущей схеме. */
-.controls-key-row {
-    flex-direction: row;
-    justify-content: space-between;
-    align-items: center;
-    border-bottom-width: var(--space-1);
-    border-bottom-color: var(--border-subtle);
-    padding: var(--space-2) 0;
-}
-
-.controls-key-value {
-    -unity-font-style: bold;
-    color: var(--accent-gold);
-    white-space: normal;
-    margin-left: var(--space-5);
-}
-
-/* Кнопка замены клавиши: то же значение, но кликабельное. */
-.controls-key-btn {
-    background-color: var(--surface-sunken);
-    border-width: var(--space-1);
-    border-color: var(--border-subtle);
-    border-radius: var(--radius-sm);
-    padding: var(--space-2) var(--space-5);
-    min-width: 72px;
-    -unity-text-align: middle-center;
-}
-
-.controls-key-btn:hover {
-    border-color: var(--border-cyan);
-}
-
-/* Идёт перехват: ждём новую клавишу (Escape отменяет). */
-.controls-key-btn--listening {
-    background-color: var(--accent-gold-wash);
-    border-color: var(--border-gold);
-    color: var(--accent-gold);
 }

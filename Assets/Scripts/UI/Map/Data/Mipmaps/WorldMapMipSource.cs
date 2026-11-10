@@ -101,7 +101,7 @@ internal sealed class WorldMapMipSource : IMapMipTextureSource, IDisposable
             return;
         }
 
-        _mipBlockSize = WorldMapMipPyramid.ChooseBlockSize(worldWidth, worldHeight, chunkSize);
+        _mipBlockSize = WorldMapMipSizing.ChooseBlockSize(worldWidth, worldHeight, chunkSize);
     }
 
     public void Begin()

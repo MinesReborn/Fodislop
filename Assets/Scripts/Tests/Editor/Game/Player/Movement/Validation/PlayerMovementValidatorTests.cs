@@ -56,7 +56,7 @@ public class PlayerMovementValidatorTests
     }
 
     [Test]
-    public void CalculateMoveCooldown_WithCtrlPressed_UsesMinServerCooldown()
+    public void CalculateMoveCooldown_WithCtrlPressed_TriplesTileCooldown()
     {
         var mapProvider = new StubMapDataProvider(normalCooldown: 0.5f, emptyCooldown: 0.1f);
 
@@ -66,7 +66,7 @@ public class PlayerMovementValidatorTests
             isCtrlPressed: true,
             ignoreCollision: false);
 
-        Assert.AreEqual(0.1f, cooldown);
+        Assert.AreEqual(1.5f, cooldown);
     }
 
     [Test]
@@ -88,7 +88,7 @@ public class PlayerMovementValidatorTests
             isCtrlPressed: true,
             ignoreCollision: true);
 
-        Assert.AreEqual(0.01f, tinyCooldown, 0.001f);
+        Assert.AreEqual(0.015f, tinyCooldown, 0.001f);
     }
 
     [Test]
@@ -129,21 +129,21 @@ public class PlayerMovementValidatorTests
     [Test]
     public void IsPassable_UnloadedCell_ReturnsFalse()
     {
-        var passableConfig = CellPacket.Create(properties: CellConfigProperties.Passable);
+        var passableConfig = CellPacket.Create(drawLayer: CellRenderLayer.Background);
         Assert.IsFalse(PlayerMovementValidator.IsPassable(CellType.Unloaded, passableConfig));
     }
 
     [Test]
     public void IsPassable_PregenerCell_ReturnsFalse()
     {
-        var passableConfig = CellPacket.Create(properties: CellConfigProperties.Passable);
+        var passableConfig = CellPacket.Create(drawLayer: CellRenderLayer.Background);
         Assert.IsFalse(PlayerMovementValidator.IsPassable(CellType.Pregener, passableConfig));
     }
 
     [Test]
     public void IsPassable_ConfiguredPassable_ReturnsTrue()
     {
-        var passableConfig = CellPacket.Create(properties: CellConfigProperties.Passable);
+        var passableConfig = CellPacket.Create(passable: true, drawLayer: CellRenderLayer.Foreground);
         Assert.IsTrue(PlayerMovementValidator.IsPassable(CellType.BuildingDoor, passableConfig));
     }
 
@@ -252,11 +252,8 @@ public class PlayerMovementValidatorTests
         Assert.IsFalse(isPassable);
     }
 
-    [TestCase(CellType.Rock)]
     [TestCase(CellType.Empty)]
-    [TestCase(CellType.BlackRock)]
-    [TestCase(CellType.BuildingWall)]
-    public void ClickPath_DoesNotFilterCellTypes(CellType cell)
+    public void ClickPath_FollowsCellPassability(CellType cell)
     {
         var storage = new StubWorldStorage(true, cell);
         var map = new StubMapDataProvider(width: 3, height: 1);
@@ -265,8 +262,21 @@ public class PlayerMovementValidatorTests
         Assert.That(path, Is.EqualTo(new[] { new Vector2Int(1, 0), target }));
     }
 
+    [TestCase(CellType.Rock)]
+    [TestCase(CellType.BlackRock)]
+    [TestCase(CellType.BuildingWall)]
+    public void ClickPath_DoesNotRouteThroughSolidCells(CellType cell)
+    {
+        var storage = new StubWorldStorage(true, cell);
+        var map = new StubMapDataProvider(width: 3, height: 1);
+
+        List<Vector2Int>? path = ClickPathfinder.FindPath(storage, map, Vector2Int.zero, new Vector2Int(2, 0));
+
+        Assert.That(path, Is.Null);
+    }
+
     [TestCase(0.5f, false)]
-    [TestCase(0.01f, true)]
+    [TestCase(0.01f, false)]
     public void ClickPath_SelectsRouteByServerMovementCooldown(float solidCooldown, bool crossesSolid)
     {
         var storage = new StubWorldStorage(true, CellType.Empty,
@@ -306,9 +316,9 @@ public class PlayerMovementValidatorTests
         public bool IsStandaloneMode => false;
 
         public CellConfigurationPacket GetCellConfig(CellType type) =>
-            CellPacket.Create(properties: type == CellType.Empty
-                ? CellConfigProperties.Passable
-                : CellConfigProperties.None);
+            CellPacket.Create(drawLayer: type == CellType.Empty
+                ? CellRenderLayer.Background
+                : CellRenderLayer.Foreground);
 
         public float GetMoveCooldown(CellType cellType) =>
             cellType == CellType.Empty ? _emptyCooldown : _normalCooldown;
@@ -324,10 +334,17 @@ public class PlayerMovementValidatorTests
         public Color GetCellMinimapColor(CellType type) => Color.white;
 
         public Color32 GetCellMinimapColor32(CellType type) => Color.white;
+        public bool TryGetAudioBanks(out IReadOnlyList<AssetsDefinitionPacket> banks)
+        {
+            banks = Array.Empty<AssetsDefinitionPacket>();
+            return false;
+        }
         public void UpdateMovementSpeeds(MovementSpeedPacket packet) { }
         public void LoadWorldInit(WorldInitPacket packet) { }
         public Action? OnWorldInitialized { get; set; }
         public Action? OnWorldDataLoaded { get; set; }
+        public bool IsSameWorld(WorldInitPacket packet) => false;
+        public void ApplyWorldContent(WorldInitPacket packet) { }
         public void ResetWorldState() { }
     }
 

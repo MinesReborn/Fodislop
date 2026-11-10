@@ -22,9 +22,9 @@ public sealed class PacketTrafficWindow : ToolWindow
     private readonly List<string> _historyRows = new();
 
     private string _summary = "учёт не ведётся";
-    private string _rateSummary = string.Empty;
+    private string _rateSummary = "частота: собирается первое секундное окно";
     private string _batchSummary = string.Empty;
-    private string _queueSummary = string.Empty;
+    private string _queueSummary = "очередь: снимок ещё не получен";
     private string _unhandledBanner = string.Empty;
     private string _filter = string.Empty;
     private bool _frozen;
@@ -91,9 +91,9 @@ public sealed class PacketTrafficWindow : ToolWindow
         _incomingRows.Clear();
         _outgoingRows.Clear();
         _summary = "учёт не ведётся";
-        _rateSummary = string.Empty;
+        _rateSummary = "частота: собирается первое секундное окно";
         _batchSummary = string.Empty;
-        _queueSummary = string.Empty;
+        _queueSummary = "очередь: снимок ещё не получен";
         _historyRows.Clear();
         _unhandledBanner = string.Empty;
         _filter = string.Empty;
@@ -116,7 +116,7 @@ public sealed class PacketTrafficWindow : ToolWindow
     private void DrawQueue()
     {
         ToolChrome.SectionHeader("ОЧЕРЕДЬ ПРИЁМА");
-        bool starved = PacketTelemetry.BudgetStopCount > 0 || PacketTelemetry.BatchCapStopCount > 0;
+        bool starved = !PacketTelemetry.HasQueueSample || PacketTelemetry.BudgetStopCount > 0 || PacketTelemetry.BatchCapStopCount > 0;
         using (ToolLayout.Horizontal())
         {
             ToolChrome.StatusPip(starved ? ToolTheme.Warning : ToolTheme.Success);
@@ -135,17 +135,18 @@ public sealed class PacketTrafficWindow : ToolWindow
             $"принято {PacketTelemetry.TotalIncoming}, " +
             $"отправлено {PacketTelemetry.TotalOutgoing}, " +
             $"без обработчика {PacketTelemetry.TotalUnhandled}";
-        _rateSummary =
-            $"сейчас {PacketTelemetry.IncomingPerSecond:F1} вход/с, " +
-            $"{PacketTelemetry.OutgoingPerSecond:F1} исход/с";
-        _queueSummary =
-            $"в очереди {PacketTelemetry.QueueDepth} ({PacketTelemetry.QueueBytes / 1024} КБ), " +
-            $"пик {PacketTelemetry.PeakQueueDepth} ({PacketTelemetry.PeakQueueBytes / 1024} КБ); " +
-            $"разбор оборван бюджетом {PacketTelemetry.BudgetStopCount}, " +
-            $"потолком партии {PacketTelemetry.BatchCapStopCount}; " +
-            $"давление на сервер {PacketTelemetry.BackpressureCount} раз, " +
-            $"{PacketTelemetry.BackpressureMilliseconds:F0} мс; " +
-            $"сверх лимита с главного потока {PacketTelemetry.AdmissionOverflowCount}";
+        _rateSummary = PacketTelemetry.HasRateSample
+            ? $"сейчас {PacketTelemetry.IncomingPerSecond:F1} вход/с, {PacketTelemetry.OutgoingPerSecond:F1} исход/с"
+            : "частота: собирается первое секундное окно";
+        _queueSummary = PacketTelemetry.HasQueueSample
+            ? $"в очереди {PacketTelemetry.QueueDepth} ({PacketTelemetry.QueueBytes / 1024} КБ), " +
+              $"пик {PacketTelemetry.PeakQueueDepth} ({PacketTelemetry.PeakQueueBytes / 1024} КБ); " +
+              $"разбор оборван бюджетом {PacketTelemetry.BudgetStopCount}, " +
+              $"потолком партии {PacketTelemetry.BatchCapStopCount}; " +
+              $"давление на сервер {PacketTelemetry.BackpressureCount} раз, " +
+              $"{PacketTelemetry.BackpressureMilliseconds:F0} мс; " +
+              $"сверх лимита с главного потока {PacketTelemetry.AdmissionOverflowCount}"
+            : "очередь: снимок ещё не получен";
 
         double perBatch = PacketTelemetry.BatchCount > 0
             ? PacketTelemetry.BatchedPacketCount / (double)PacketTelemetry.BatchCount

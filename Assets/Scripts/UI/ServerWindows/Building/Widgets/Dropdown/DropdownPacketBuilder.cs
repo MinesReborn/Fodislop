@@ -1,7 +1,7 @@
 #nullable enable
 
-using System;
 using System.Collections.Generic;
+using System.Globalization;
 using MinesServer.Networking.Server.Packets.GUI.Components;
 using MinesServer.Networking.Server.Packets.GUI.Components.Input;
 using UnityEngine.UIElements;
@@ -21,21 +21,9 @@ public abstract class DropdownPacketBuilder<TPacket, TValue> : PacketUIBuilderBa
             options.Add(Caption(value));
         }
 
-        if (options.Count == 0)
-        {
-            throw new InvalidOperationException(
-                $"Dropdown '{packet.Name}' has no options.");
-        }
-
         string defaultValue = Caption(packet.DefaultValue);
-        if (!options.Contains(defaultValue))
-        {
-            throw new InvalidOperationException(
-                $"Dropdown '{packet.Name}' default '{defaultValue}' " +
-                "is not present in its options.");
-        }
 
-        var dropdown = new DropdownField(options, 0)
+        var dropdown = new DropdownField(options, options.IndexOf(defaultValue))
         {
             name = packet.Name,
             value = defaultValue,
@@ -47,6 +35,7 @@ public abstract class DropdownPacketBuilder<TPacket, TValue> : PacketUIBuilderBa
 
 public class IntDropdownPacketBuilder : DropdownPacketBuilder<IntDropdownPacket, int>
 {
+    protected override string Caption(int value) => value.ToString(CultureInfo.InvariantCulture);
 }
 
 public class StringDropdownPacketBuilder : DropdownPacketBuilder<StringDropdownPacket, string>

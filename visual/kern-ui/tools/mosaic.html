@@ -1,0 +1,12 @@
+<!doctype html>
+<!-- Лист снимков матрицы (tools/shots.mjs): ?page=N — девять снимков на лист, подпись — сцена@устройство-ввод-язык -->
+<html><head><meta charset="utf-8"><title>mosaic</title>
+<style>body{margin:0;background:#000;display:grid;grid-template-columns:repeat(3,1fr);gap:6px;padding:6px;font:600 13px monospace;color:#fff}
+figure{margin:0}img{width:100%;display:block}figcaption{padding:3px 0}</style></head><body><script>
+const page = +(new URLSearchParams(location.search).get('page') || 0);
+fetch('../shots/matrix/list.txt').then(r => r.text()).then(t => {
+  const names = t.trim().split('\n').slice(page * 9, page * 9 + 9);
+  document.body.innerHTML = names.map(n => `<figure><figcaption>${n}</figcaption><img src="../shots/matrix/${encodeURIComponent(n)}.jpg"></figure>`).join('');
+  document.title = `mosaic ${page} (${names.length})`;
+});
+</script></body></html>

@@ -11,9 +11,9 @@ public class GridPacketBuilder : PacketUIBuilderBase<GridPacket>
 {
     protected override VisualElement BuildTyped(GridPacket packet, PacketUIBuilder builder)
     {
-        if (packet.Columns.Length == 0 || packet.Rows.Length == 0)
+        if ((packet.Columns.Length == 0 || packet.Rows.Length == 0) && packet.Children.Count > 0)
         {
-            throw new InvalidOperationException("GridPacket must define at least one row and column.");
+            throw new InvalidOperationException("GridPacket with children must define at least one row and column.");
         }
 
         var gridRoot = new VisualElement();
@@ -50,33 +50,40 @@ public class GridPacketBuilder : PacketUIBuilderBase<GridPacket>
 
         // Расставлять можно только после того, как элементы измерены: размер
         // дорожки «по содержимому» неизвестен, пока панель не разложена.
-        EventCallback<GeometryChangedEvent> place = null!;
-        place = _ =>
+        GridItem[]? measuredItems = null;
+        gridRoot.RegisterCallback<GeometryChangedEvent>(change =>
         {
-            gridRoot.UnregisterCallback(place);
-            Place(gridRoot, packet, elements, placements);
-        };
-        gridRoot.RegisterCallback(place);
+            if (measuredItems != null && change.oldRect.size == change.newRect.size)
+            {
+                return;
+            }
+
+            measuredItems = Place(gridRoot, packet, elements, placements, measuredItems);
+        });
 
         return gridRoot;
     }
 
-    private static void Place(
+    private static GridItem[] Place(
         VisualElement gridRoot,
         GridPacket packet,
         List<VisualElement> elements,
-        List<(int Row, int Column, int RowSpan, int ColumnSpan)> placements)
+        List<(int Row, int Column, int RowSpan, int ColumnSpan)> placements,
+        GridItem[]? measuredItems)
     {
-        var items = new GridItem[elements.Count];
-        for (int i = 0; i < elements.Count; i++)
+        GridItem[] items = measuredItems ?? new GridItem[elements.Count];
+        if (measuredItems == null)
         {
-            items[i] = new GridItem(
-                placements[i].Row,
-                placements[i].Column,
-                placements[i].RowSpan,
-                placements[i].ColumnSpan,
-                MeasuredWidth(elements[i]),
-                MeasuredHeight(elements[i]));
+            for (int i = 0; i < elements.Count; i++)
+            {
+                items[i] = new GridItem(
+                    placements[i].Row,
+                    placements[i].Column,
+                    placements[i].RowSpan,
+                    placements[i].ColumnSpan,
+                    MeasuredWidth(elements[i]),
+                    MeasuredHeight(elements[i]));
+            }
         }
 
         GridRect[] rects = PacketGridLayout.Measure(
@@ -97,8 +104,9 @@ public class GridPacketBuilder : PacketUIBuilderBase<GridPacket>
             IStyle style = element.style;
             style.left = rects[i].Left;
             style.top = rects[i].Top;
-            style.width = rects[i].Width;
-            style.height = rects[i].Height;
+            IResolvedStyle resolved = element.resolvedStyle;
+            style.width = Math.Max(0f, rects[i].Width - resolved.marginLeft - resolved.marginRight);
+            style.height = Math.Max(0f, rects[i].Height - resolved.marginTop - resolved.marginBottom);
         }
 
         // Дети переведены в position:absolute и выпали из потока: без резерва
@@ -107,24 +115,20 @@ public class GridPacketBuilder : PacketUIBuilderBase<GridPacket>
         // отрисованное содержимое. minHeight держит высоту дорожек, не мешая
         // гриду растягиваться в контейнерах побольше (flex-grow).
         gridRoot.style.minHeight = totalHeight;
+        return items;
     }
 
-    // Подпись меряется вместе с полями: перенос строки уже случился внутри
-    // её собственной ширины, и без полей дорожка выходит уже содержимого.
+    // Дорожки учитывают внешние отступы каждого серверного компонента.
     private static float MeasuredWidth(VisualElement element)
     {
         IResolvedStyle style = element.resolvedStyle;
-        return element is Label
-            ? style.width + style.marginLeft + style.marginRight
-            : style.width;
+        return style.width + style.marginLeft + style.marginRight;
     }
 
     private static float MeasuredHeight(VisualElement element)
     {
         IResolvedStyle style = element.resolvedStyle;
-        return element is Label
-            ? style.height + style.marginTop + style.marginBottom
-            : style.height;
+        return style.height + style.marginTop + style.marginBottom;
     }
 
     private static int Placement(IGUIComponentPacket packet, string key, int fallback)

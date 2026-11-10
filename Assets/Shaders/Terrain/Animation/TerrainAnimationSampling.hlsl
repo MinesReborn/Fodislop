@@ -4,7 +4,6 @@
 // Requires TerrainAnimationProfile.hlsl, TerrainPrismaticCrystal.hlsl, and
 // caller-owned flow texture/sampler declarations.
 float3 TerrainResolveFlowSample(
-    int cellSurfaceEffect,
     int cellAnimationType,
     float4 worldPos,
     float4 packedData,
@@ -12,14 +11,15 @@ float3 TerrainResolveFlowSample(
 {
     float3 result = 0.0;
 
-    if (cellSurfaceEffect == (int)KERN_TERRAIN_SURFACE_EFFECT_PRISMATIC)
+    TerrainAnimationProfile profile = ResolveTerrainAnimationProfile(cellAnimationType);
+    if (profile.flowSource == KERN_TERRAIN_FLOW_PRISMATIC)
     {
         result = SAMPLE_TEXTURE2D(
             _PrismaticFlowMap,
             sampler_PrismaticFlowMap,
             PrismaticCrystalFlowUV(worldPos.xy, packedData.yz)).rgb;
     }
-    else if (TerrainAnimationUsesFlowMap(cellAnimationType, cellSurfaceEffect))
+    else if (profile.flowSource == KERN_TERRAIN_FLOW_STANDARD)
     {
         float2 flowPosition = worldPos.xy + packedData.yz * float2(1.0, -1.0);
         result = SAMPLE_TEXTURE2D(_FlowMap, sampler_FlowMap, flowPosition / flowScale.xy).rgb;

@@ -1,0 +1,215 @@
+/* Окно настроек — макет visual/kern-ui (css/screens.css .settings, .set-page, .seg, .keycap, .set-sec; systems.css):
+   820 × 620 (не больше экрана минус 48), шапка 56, столбец вкладок 200 на углублении, страница с полями 12/24.
+   Строки .field, .select, .switch, .range — общие (Theme/Kern/Styles/Kern.uss). Интервал букв — в сотых кегля. */
+
+.settings-layer {
+    padding: 24px;
+}
+
+.panel.settings {
+    width: 820px;
+    height: 620px;
+    max-width: 100%;
+    max-height: 100%;
+    flex-direction: column;
+    overflow: hidden;
+    --panel-fill: var(--graphite-solid);
+}
+
+.settings-head {
+    height: 56px;
+    flex-shrink: 0;
+    padding: 0 8px 0 18px;
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    border-bottom-width: 1px;
+    border-color: var(--seam);
+}
+
+.settings-head__title {
+    margin: 0;
+    padding: 0;
+    -unity-font-definition: var(--face-display);
+    font-size: var(--t-title);
+    -unity-font-style: bold;
+    letter-spacing: 4px;
+    color: var(--bone);
+}
+
+.settings-head > .win-close {
+    margin: 0 10px 0 0;
+}
+
+.settings-main {
+    flex-grow: 1;
+    flex-direction: row;
+    min-height: 0;
+}
+
+/* Вкладки: столбец на углублении, выбранная — черта слева */
+.settings-tabs {
+    width: 200px;
+    flex-shrink: 0;
+    padding: 12px 0;
+    flex-direction: column;
+    border-right-width: 1px;
+    border-color: var(--seam);
+    background-color: var(--well);
+}
+
+.settings-tab,
+.settings-tab:hover,
+.settings-tab:active,
+.settings-tab:focus {
+    height: var(--hit);
+    flex-shrink: 0;
+    margin: 0 0 2px 0;
+    padding: 0 24px;
+    border-width: 0 0 0 2px;
+    border-radius: 0;
+    border-color: rgba(0, 0, 0, 0);
+    background-color: rgba(0, 0, 0, 0);
+    background-image: none;
+    color: var(--ash);
+    -unity-font-definition: var(--face-text);
+    font-size: var(--t-body);
+    -unity-font-style: normal;
+    -unity-text-align: middle-left;
+}
+
+.settings-tab:hover {
+    color: var(--bone);
+}
+
+.settings-tab.is-on {
+    border-color: var(--bone);
+    color: var(--bone);
+}
+
+/* Страница: прокрутка, поля 4/24/16 */
+.settings-body {
+    flex-grow: 1;
+    flex-basis: 0;
+}
+
+.settings-body .unity-scroll-view__content-container {
+    padding: 4px 24px 16px;
+}
+
+.set-page {
+    display: none;
+}
+
+.set-page.is-on {
+    display: flex;
+}
+
+.set-page .field {
+    min-height: 65px;
+    padding: 12px 0;
+}
+
+/* Подзаголовок раздела: табличка */
+.set-sec {
+    flex-direction: row;
+    align-items: center;
+    margin-top: 20px;
+    padding-bottom: 4px;
+}
+
+/* Кнопка в строке и внизу страницы: 320 × 40 */
+.btn.set-btn {
+    width: 320px;
+    height: 40px;
+    flex-shrink: 0;
+}
+
+.set-foot {
+    flex-direction: row;
+    justify-content: flex-end;
+    padding-top: 16px;
+}
+
+/* Сегменты: 320 × 40, выбранный — плита с рамкой кости */
+.seg {
+    width: 320px;
+    height: 40px;
+    flex-shrink: 0;
+    flex-direction: row;
+    padding: 2px;
+    border-width: 1px;
+    border-color: var(--seam-strong);
+    background-color: var(--well);
+}
+
+.seg__btn,
+.seg__btn:hover,
+.seg__btn:active,
+.seg__btn:focus {
+    flex-grow: 1;
+    flex-basis: 0;
+    margin: 0 0 0 2px;
+    padding: 0;
+    border-width: 1px;
+    border-radius: 0;
+    border-color: rgba(0, 0, 0, 0);
+    background-color: rgba(0, 0, 0, 0);
+    background-image: none;
+    color: var(--ash);
+    -unity-font-definition: var(--face-text);
+    font-size: var(--t-body);
+    -unity-font-style: normal;
+    -unity-text-align: middle-center;
+}
+
+.seg__btn:hover {
+    color: var(--bone);
+}
+
+.seg__btn.is-on {
+    border-color: var(--bone);
+    background-color: var(--plate-solid);
+    color: var(--bone);
+    -unity-font-style: bold;
+}
+
+/* Клавиша: 120 × 36, моноширинный 12, нижняя грань толще */
+.keycaps {
+    flex-direction: row;
+    flex-shrink: 0;
+}
+
+.keycap,
+.keycap:hover,
+.keycap:active,
+.keycap:focus {
+    min-width: 120px;
+    height: 36px;
+    flex-shrink: 0;
+    margin: 0 0 0 6px;
+    padding: 0 14px;
+    border-width: 1px 1px 2px 1px;
+    border-radius: 0;
+    border-color: var(--seam-strong);
+    background-color: var(--plate-solid);
+    background-image: none;
+    color: var(--ash);
+    -unity-font-definition: var(--face-mono);
+    font-size: var(--t-4);
+    -unity-font-style: normal;
+    -unity-text-align: middle-center;
+}
+
+.keycap:hover {
+    border-color: var(--ash);
+}
+
+.keycap.is-fixed {
+    border-bottom-width: 1px;
+}
+
+.keycap.is-listening {
+    border-color: var(--signal);
+    color: var(--signal);
+}

@@ -1,99 +1,167 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements">
-    <ui:VisualElement name="PlayerHUDRoot" class="hud-root" picking-mode="Ignore">
-
-        <!-- ════════════ ОСНОВНОЙ ГЕЙМПЛЕЙНЫЙ HUD (скрывается в режиме карты) ════════════ -->
+    <!-- HUD игры — раскладка ПК макета visual/kern-ui (index.html .hud, css/hud.css, systems.css, micro.css):
+         левый верх — игрок, груз, состояния и рост навыков; левый низ — автокопание и программатор;
+         правый верх — системные кнопки (миникарта и миссия — под ними); строка состояния — по центру сверху.
+         Миникарта (Minimap.uxml), хотбар (Inventory.uxml) и чат (GlobalChat.uxml) — свои документы. -->
+    <ui:VisualElement name="PlayerHUDRoot" class="hud-root hud" picking-mode="Ignore">
         <ui:VisualElement name="HUDContent" class="hud-content" picking-mode="Ignore">
 
-        <ui:VisualElement class="hud-top-pill-container" picking-mode="Ignore">
-            <ui:VisualElement name="TopStatusPill" class="hud-top-pill" picking-mode="Position">
-                <ui:Label name="BuildVersionLabel" class="hud-top-pill-version" text="" picking-mode="Ignore" />
-                <ui:VisualElement class="hud-top-pill-divider" picking-mode="Ignore" />
-                <ui:Label name="FPSCounterLabel" class="hud-top-pill-fps" text="" picking-mode="Ignore" />
-                <ui:VisualElement class="hud-top-pill-divider" picking-mode="Ignore" />
-                <ui:VisualElement name="AssetStatusPill" class="hud-top-pill-asset" picking-mode="Ignore">
-                    <ui:VisualElement name="AssetStatusDot" class="hud-top-pill-dot" picking-mode="Ignore" />
-                    <ui:Label name="AssetStatusLabel" class="hud-top-pill-asset-text" text="" picking-mode="Ignore" />
+            <!-- Строка состояния: онлайн (запущено программ), версия · FPS, догрузка ресурсов — видна, пока идёт -->
+            <ui:VisualElement name="StatusBar" class="status-bar" picking-mode="Ignore">
+                <ui:VisualElement class="online" picking-mode="Ignore">
+                    <ui:VisualElement class="ico ico--users" picking-mode="Ignore" />
+                    <ui:Label name="OnlinePlayersLabel" class="online__count" text="" picking-mode="Ignore" />
+                    <ui:Label name="OnlineProgramsLabel" class="online__progs" text="" picking-mode="Ignore" />
+                </ui:VisualElement>
+                <ui:VisualElement class="diag" picking-mode="Ignore">
+                    <ui:Label name="BuildVersionLabel" class="diag__text" text="" picking-mode="Ignore" />
+                    <ui:Label class="diag__text diag__sep" text="·" picking-mode="Ignore" />
+                    <ui:Label name="FPSCounterLabel" class="diag__text" text="" picking-mode="Ignore" />
+                </ui:VisualElement>
+                <ui:VisualElement name="AssetStatusPill" class="asset-load" picking-mode="Ignore">
+                    <ui:VisualElement class="asset-load__bar" picking-mode="Ignore">
+                        <ui:VisualElement name="AssetStatusFill" class="asset-load__fill" picking-mode="Ignore" />
+                    </ui:VisualElement>
+                    <ui:Label name="AssetStatusLabel" class="asset-load__text" text="" picking-mode="Ignore" />
                 </ui:VisualElement>
             </ui:VisualElement>
-        </ui:VisualElement>
 
-        <!-- ════════════ ЕДИНАЯ ПАНЕЛЬ ИГРОКА (hud-panel): статус, валюта, корзина ════════════ -->
-        <ui:VisualElement name="PlayerStatusPanel" class="hud-panel">
-            <!-- Верхняя строка: Никнейм, Клан -->
-            <ui:VisualElement class="hud-title-row">
-                <ui:Label name="NicknameLabel" class="hud-nickname" text="---" />
-                <ui:Button name="ClanButton" class="hud-clan-button" tooltip="hud.tooltip.clan" picking-mode="Position" />
+            <!-- Левая колонка: игрок, груз, состояния, рост навыков -->
+            <ui:VisualElement class="col-top" picking-mode="Ignore">
+                <ui:VisualElement name="PlayerStatusPanel" class="panel player">
+                    <ui:VisualElement class="player-head">
+                        <ui:Button name="ClanButton" class="clan-btn" tooltip="hud.tooltip.clan" picking-mode="Position">
+                            <ui:VisualElement name="ClanIcon" class="clan-btn__icon" picking-mode="Ignore" />
+                        </ui:Button>
+                        <ui:Label name="PlayerIdLabel" class="pid" text="" />
+                        <ui:Label name="NicknameLabel" class="nick" text="---" />
+                    </ui:VisualElement>
+                    <!-- Прочность: 20 точек по 5 % и крупное число, единица мелко сверху -->
+                    <ui:VisualElement class="hp" tooltip="hud.tooltip.hp">
+                        <ui:VisualElement name="HPDots" class="hp-dots" picking-mode="Ignore" />
+                        <ui:VisualElement class="hp-value" picking-mode="Ignore">
+                            <ui:Label name="HPCountLabel" class="hp-value__num" text="--" picking-mode="Ignore" />
+                            <ui:Label class="unit" text="HP" picking-mode="Ignore" />
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                    <!-- Деньги и кредиты: знак валюты и значок кредита в одном слоте; «Пополнить» — окно сервера -->
+                    <ui:VisualElement class="wallet">
+                        <ui:VisualElement class="wallet__cell money" tooltip="hud.money">
+                            <ui:Label class="cur" text="$" picking-mode="Ignore" />
+                            <ui:Label name="MoneyLabel" class="wallet__num" text="---" picking-mode="Ignore" />
+                        </ui:VisualElement>
+                        <ui:VisualElement class="wallet__cell creds" tooltip="hud.credits">
+                            <ui:VisualElement class="ico ico--credit cur-cred" picking-mode="Ignore" />
+                            <ui:Label name="CreditsLabel" class="wallet__num" text="---" picking-mode="Ignore" />
+                        </ui:VisualElement>
+                        <ui:Button name="DonateButton" class="btn wallet-buy" tooltip="hud.tooltip.donate" picking-mode="Position">
+                            <ui:VisualElement class="ico ico--topup wallet-buy__ico" picking-mode="Ignore" />
+                            <ui:Label class="wallet-buy__text" text="hud.donate" picking-mode="Ignore" />
+                        </ui:Button>
+                    </ui:VisualElement>
+                </ui:VisualElement>
+
+                <!-- Груз: 20 ячеек по 5 %, шкала 0…100; кристаллы в ряд; геология. Пустая корзина — панели нет -->
+                <ui:VisualElement name="CargoPanel" class="panel cargo">
+                    <ui:VisualElement class="cargo-head">
+                        <ui:Label class="sec-plate caps" text="hud.cargo" picking-mode="Ignore" />
+                        <ui:VisualElement name="CargoPercent" class="cargo-percent" picking-mode="Ignore">
+                            <ui:Label name="BasketPercentLabel" class="cargo-percent__num" text="" picking-mode="Ignore" />
+                            <ui:Label class="unit" text="%" picking-mode="Ignore" />
+                        </ui:VisualElement>
+                        <ui:Button name="DropBoxButton" class="icon-btn icon-btn--small cargo-box" tooltip="hud.tooltip.dropbox" picking-mode="Position">
+                            <ui:VisualElement class="ico ico--box" picking-mode="Ignore" />
+                        </ui:Button>
+                    </ui:VisualElement>
+                    <ui:VisualElement name="CargoCells" class="cells cargo-cells" picking-mode="Ignore" />
+                    <ui:VisualElement class="cargo-scale" picking-mode="Ignore">
+                        <ui:Label text="0" picking-mode="Ignore" />
+                        <ui:Label text="50" picking-mode="Ignore" />
+                        <ui:Label text="100" picking-mode="Ignore" />
+                    </ui:VisualElement>
+                    <ui:VisualElement name="BasketContainer" class="crystals" picking-mode="Ignore" />
+                    <ui:VisualElement name="GeologyBlock" class="geo" picking-mode="Ignore">
+                        <ui:VisualElement class="dash-rule" picking-mode="Ignore" />
+                        <ui:VisualElement class="geo-row" picking-mode="Ignore">
+                            <ui:Label class="sec-plate caps" text="hud.geology_label" picking-mode="Ignore" />
+                            <ui:VisualElement name="GeologyCells" class="cells geo-cells" picking-mode="Ignore" />
+                            <ui:Label name="GeologyCountLabel" class="geo-count" text="" picking-mode="Ignore" />
+                        </ui:VisualElement>
+                        <ui:VisualElement class="geo-last" picking-mode="Ignore">
+                            <ui:Label class="geo-last__label caps" text="hud.geology_last" picking-mode="Ignore" />
+                            <ui:Label class="geo-last__sl" text="//" picking-mode="Ignore" />
+                            <ui:Label name="GeologyLabel" class="geo-last__name" text="" picking-mode="Ignore" />
+                        </ui:VisualElement>
+                    </ui:VisualElement>
+                </ui:VisualElement>
+
+                <!-- Состояния (AddStatusLinePacket) и рост навыков — под грузом -->
+                <ui:VisualElement class="left-stack" picking-mode="Ignore">
+                    <ui:VisualElement name="StatusPanel" class="states is-hidden" picking-mode="Ignore" />
+                    <ui:VisualElement name="SkillContainer" class="mini-skills" picking-mode="Ignore" />
+                </ui:VisualElement>
             </ui:VisualElement>
-            <ui:Label name="LevelLabel" class="hud-level"  text="" />
 
-            <ui:VisualElement class="hud-separator" />
-
-            <!-- Прочность (HP): счётчик внутри полосы прогресса -->
-            <ui:VisualElement class="hud-hp-bar">
-                <ui:VisualElement name="HPBarFill" class="hud-hp-fill" />
-                <ui:Label name="HPCountLabel" class="hud-hp-count" text="-- / --" picking-mode="Ignore" />
+            <!-- Левый низ: автокопание, программатор -->
+            <ui:VisualElement class="col-bottom" picking-mode="Ignore">
+                <ui:Button name="AutoDigButton" class="toggle" tooltip="hud.tooltip.autodig" picking-mode="Position">
+                    <ui:VisualElement class="toggle__dot" picking-mode="Ignore">
+                        <ui:VisualElement class="toggle__knob" picking-mode="Ignore" />
+                    </ui:VisualElement>
+                    <ui:Label name="AutoDigLabel" class="toggle__label" text="hud.autodig" picking-mode="Ignore" />
+                    <ui:Label name="AutoDigKey" class="kbd" text="E" picking-mode="Ignore" />
+                </ui:Button>
+                <ui:VisualElement class="panel prog" picking-mode="Position">
+                    <ui:Button name="ProgrammatorButton" class="prog-open" picking-mode="Position">
+                        <ui:VisualElement class="ico ico--prog" picking-mode="Ignore" />
+                        <ui:Label name="ProgramLabel" class="prog-open__label" text="hud.programmator" picking-mode="Ignore" />
+                        <ui:Label name="ProgramNameLabel" class="prog-name is-hidden" text="" picking-mode="Ignore" />
+                    </ui:Button>
+                    <ui:Button name="ProgramRunButton" class="icon-btn prog-run" picking-mode="Position">
+                        <ui:VisualElement class="ico ico--play" picking-mode="Ignore" />
+                    </ui:Button>
+                </ui:VisualElement>
             </ui:VisualElement>
 
-            <!-- Валюта -->
-            <ui:Label name="MoneyLabel" class="hud-money" text="---" />
-            <ui:Label name="CreditsLabel" class="hud-credits" text="---" />
-            <ui:Label name="GeologyLabel" class="hud-stat"  text="" />
-
-            <ui:Button name="DonateButton" class="hud-donate-button" text="💰" tooltip="hud.tooltip.donate" picking-mode="Position" />
-
-            <ui:VisualElement name="BasketSeparator" class="hud-separator" />
-
-            <!-- Корзина: груз + кнопка выброса бокса справа от процента (видна только при грузе > 0%) -->
-            <ui:VisualElement name="BasketRow" class="hud-basket-row">
-                <ui:Label name="BasketPercentLabel" class="hud-basket"  text="" />
-                <ui:Button name="DropBoxButton" class="hud-dropbox-button" text="▣" tooltip="hud.tooltip.dropbox" />
+            <!-- Правый верх: игровое (здания, респаун) | системное (консоль, помощь, меню) -->
+            <ui:VisualElement class="top-right" picking-mode="Ignore">
+                <ui:VisualElement class="sysbuttons" picking-mode="Ignore">
+                    <ui:Button name="BuildingsButton" class="sys-btn" tooltip="hud.tooltip.buildings" picking-mode="Position">
+                        <ui:VisualElement class="ico ico--buildings" picking-mode="Ignore" />
+                        <ui:Label class="control-label caps" text="hud.sys.buildings" picking-mode="Ignore" />
+                    </ui:Button>
+                    <ui:Button name="RespawnButton" class="sys-btn" tooltip="hud.tooltip.respawn" picking-mode="Position">
+                        <ui:VisualElement class="ico ico--respawn" picking-mode="Ignore" />
+                        <ui:Label class="control-label caps" text="hud.sys.respawn" picking-mode="Ignore" />
+                    </ui:Button>
+                    <ui:VisualElement class="sys-sep" picking-mode="Ignore" />
+                    <ui:Button name="MConsoleButton" class="sys-btn" tooltip="hud.tooltip.mconsole" picking-mode="Position">
+                        <ui:VisualElement class="ico ico--console" picking-mode="Ignore" />
+                        <ui:Label class="control-label caps" text="hud.sys.console" picking-mode="Ignore" />
+                    </ui:Button>
+                    <ui:Button name="FaqButton" class="sys-btn" tooltip="hud.tooltip.help" picking-mode="Position">
+                        <ui:VisualElement class="ico ico--help" picking-mode="Ignore" />
+                        <ui:Label class="control-label caps" text="hud.sys.help" picking-mode="Ignore" />
+                    </ui:Button>
+                    <ui:Button name="SysMenuButton" class="sys-btn" tooltip="hud.tooltip.menu" picking-mode="Position">
+                        <ui:VisualElement class="ico ico--menu" picking-mode="Ignore" />
+                        <ui:Label class="control-label caps" text="hud.sys.menu" picking-mode="Ignore" />
+                    </ui:Button>
+                </ui:VisualElement>
             </ui:VisualElement>
-            <ui:VisualElement name="BasketContainer" class="hud-basket-container" />
 
-            <!-- Ручка перетаскивания панели -->
-            <ui:VisualElement name="HUDDragHandle" class="hud-drag-handle" tooltip="Перетащить панель">
-                <ui:Label text="✥" picking-mode="Ignore" />
+            <!-- Миссия — под миникартой (MissionInitPacket, MissionProgressPacket): 10 ячеек хода, картинка, название, задание, счёт -->
+            <ui:VisualElement name="MissionPanel" class="panel mission is-hidden">
+                <ui:VisualElement name="MissionCells" class="cells mission-cells" picking-mode="Ignore" />
+                <ui:VisualElement class="mission-body" picking-mode="Ignore">
+                    <ui:VisualElement name="MissionImage" class="mission-img is-hidden" picking-mode="Ignore" />
+                    <ui:VisualElement class="mission-texts" picking-mode="Ignore">
+                        <ui:Label name="MissionTitleLabel" class="mission-title" text="---" picking-mode="Ignore" />
+                        <ui:Label name="MissionDescLabel" class="mission-text" text="---" picking-mode="Ignore" />
+                    </ui:VisualElement>
+                    <ui:Label name="MissionProgressLabel" class="mission-progress" text="" picking-mode="Ignore" />
+                </ui:VisualElement>
             </ui:VisualElement>
-        </ui:VisualElement>
-
-        <!-- ════════════ СТАТУСНЫЕ ЛИНИИ (справа от панели игрока, под кнопкой бонуса) ════════════ -->
-        <ui:VisualElement name="StatusPanel" class="hud-status-panel is-hidden" />
-
-        <!-- ════════════ КНОПКА БОНУСА ════════════ -->
-        <ui:Button name="BonusButton" class="hud-button-accent hud-bonus-button" text="hud.bonus" tooltip="hud.tooltip.bonus" picking-mode="Position" />
-
-        <!-- ════════════ ПАНЕЛЬ БОНУСОВ ════════════ -->
-        <ui:VisualElement name="BonusPanel" class="hud-bonus-panel is-hidden">
-            <ui:VisualElement class="hud-title-row">
-                <ui:Label class="hud-stat" text="hud.bonus" />
-                <ui:Button name="BonusCloseButton" class="hud-button-close" text="×" picking-mode="Position" />
-            </ui:VisualElement>
-            <ui:Label name="BonusStatusLabel" class="hud-stat hud-stat-wrap"  text="" />
-            <ui:Button name="BonusClaimButton" class="hud-button-claim is-hidden" text="hud.bonus.claim" picking-mode="Position" />
-        </ui:VisualElement>
-
-        <!-- ════════════ ТУМБЛЕРЫ (снизу слева) ════════════ -->
-        <ui:Button name="AutoDigButton" class="hud-button hud-toggle-btn hud-toggle-auto-dig" tooltip="hud.tooltip.autodig" picking-mode="Position">
-            <ui:Label name="AutoDigLabel" class="hud-toggle-btn-label"  text="" picking-mode="Ignore" />
-        </ui:Button>
-
-        <!-- ════════════ ПРОГРАММАТОР (снизу слева) ═════════════ -->
-        <!-- Кнопки чата в HUD больше нет: чат открывается и закрывается по TAB
-             (см. GlobalChatUI.Update), панель - широкая полоса справа от
-             мини-карты (см. .gchat-panel в Chat.uss). -->
-        <ui:Button name="ProgrammatorButton" class="hud-btn-action hud-programmator-button"  text="" picking-mode="Position" />
-        <ui:Button name="ProgramRunButton" class="hud-btn-action hud-program-run-btn" text="▶" tooltip="hud.tooltip.program_start" picking-mode="Position" />
-
-        <!-- ════════════ КНОПКИ ВЕРХНЕГО РЯДА: FAQ / ЗДАНИЯ / РЕСПАВН / MCONSOLE ════════════ -->
-        <!-- Порядок от правого верхнего угла влево: Помощь, Мои здания, Респаун, Серверная консоль.
-             Размер 32x32 и спрайты заданы в HUD.uss, классами hud-btn-top-row, текста нет. -->
-        <ui:Button name="FaqButton" class="hud-btn-action hud-btn-top-row hud-btn-top-row--faq" picking-mode="Position" />
-        <ui:Button name="BuildingsButton" class="hud-btn-action hud-btn-top-row hud-btn-top-row--buildings" picking-mode="Position" />
-        <ui:Button name="RespawnButton" class="hud-btn-action hud-btn-top-row hud-btn-top-row--respawn" picking-mode="Position" />
-        <ui:Button name="MConsoleButton" class="hud-btn-action hud-btn-top-row hud-btn-top-row--mconsole" tooltip="hud.tooltip.mconsole" picking-mode="Position" />
-
-        <!-- ════════════ НАВЫКИ И ПРОГРЕСС (справа снизу) ════════════ -->
-        <ui:VisualElement name="SkillContainer" class="hud-skill-container" picking-mode="Ignore" />
 
         <ui:VisualElement name="MobileControls" class="hud-mobile-controls" picking-mode="Ignore">
             <ui:VisualElement name="MobileMovePad" class="hud-mobile-move-pad" picking-mode="Position">
@@ -121,54 +189,44 @@
                 </ui:VisualElement>
             </ui:VisualElement>
         </ui:VisualElement>
-        <!-- ════════════ ТЕКУЩАЯ МИССИЯ (сверху по центру) ════════════ -->
-        <ui:VisualElement name="MissionPanel" class="sci-fi-panel sci-fi-panel--tech hud-mission-panel is-hidden">
-            <ui:VisualElement class="hud-mission-header">
-                <ui:Label class="sci-fi-badge-gold" text="hud.mission_badge" />
-                <ui:Label name="MissionTitleLabel" class="hud-mission-title" text="---" />
-            </ui:VisualElement>
-            <ui:VisualElement class="hud-mission-body">
-                <ui:VisualElement name="MissionImage" class="hud-mission-image is-hidden" picking-mode="Ignore" />
-                <ui:Label name="MissionDescLabel" class="hud-mission-desc" text="---" />
-            </ui:VisualElement>
-            <ui:VisualElement class="sci-fi-bar-track hud-mission-track">
-                <ui:VisualElement name="MissionProgressFill" class="sci-fi-bar-fill-cyan" />
-            </ui:VisualElement>
-            <ui:Label name="MissionProgressLabel" class="hud-mission-progress-text" text="0 / 0" />
-        </ui:VisualElement>
         </ui:VisualElement>
 
-        <!-- ════════════ КАРТА МИРА (WorldMapRenderer) ════════════ -->
-        <ui:VisualElement name="WorldMapOverlay" class="world-map-overlay is-hidden" picking-mode="Position">
-            <ui:VisualElement name="WorldMapWindow" class="world-map-window">
-                <ui:VisualElement class="world-map-header">
-                    <ui:Label class="world-map-title" text="hud.world_map" />
-                    <ui:Button name="WorldMapFollowPlayerButton" class="world-map-follow" text="hud.map_follow_player" />
-                    <ui:Button name="WorldMapCloseButton" class="world-map-close" text="×" />
+        <!-- Карта мира (WorldMapRenderer) — макет visual/kern-ui (#mapDialog, css/hud.css .map-win): окно почти во весь
+             экран, шапка «Карта мира» с закрытием, поле карты на точках, справа внизу — масштаб, «к себе» и «Моя метка». -->
+        <ui:VisualElement name="WorldMapOverlay" class="dialog-layer map-layer is-hidden" picking-mode="Position">
+            <ui:VisualElement name="WorldMapWindow" class="panel map-win">
+                <ui:VisualElement class="srv-head map-head">
+                    <ui:Label class="srv-head__title caps" text="hud.world_map" />
+                    <ui:Label name="WorldMapCoords" class="head-tag map-coords is-empty" picking-mode="Ignore" />
+                    <ui:Button name="WorldMapCloseButton" class="icon-btn win-close" tooltip="hud.close" picking-mode="Position">
+                        <ui:VisualElement class="ico ico--close" picking-mode="Ignore" />
+                    </ui:Button>
                 </ui:VisualElement>
-                <ui:Label name="WorldMapStatus" class="world-map-status is-hidden" text="hud.map_preparing" picking-mode="Ignore" />
-                <ui:VisualElement name="WorldMapViewport" class="world-map-viewport">
-                    <ui:Image name="WorldMapImage" class="world-map-image" picking-mode="Position" />
-                    <ui:VisualElement name="WorldMapPlayerMarker" class="world-map-player-marker is-hidden" picking-mode="Ignore" />
-                </ui:VisualElement>
-            </ui:VisualElement>
-        </ui:VisualElement>
-
-        <!-- ════════════ ПОПАПЫ ════════════ -->
-        <!-- Респавн -->
-        <ui:VisualElement name="RespawnPopup" class="popup-overlay">
-            <ui:VisualElement class="popup-dimmer" picking-mode="Ignore" />
-            <ui:VisualElement class="popup-panel">
-                <ui:Label class="popup-title" text="hud.respawn" />
-                <ui:VisualElement class="popup-btn-row">
-                    <ui:Button name="RespawnConfirmButton" class="popup-btn" text="hud.ok" />
-                    <ui:Button name="RespawnCancelButton" class="popup-btn" text="hud.back" />
+                <ui:VisualElement name="WorldMapViewport" class="map-view">
+                    <ui:Image name="WorldMapImage" class="map-image" picking-mode="Position" />
+                    <ui:VisualElement name="WorldMapPlayerMarker" class="map-me is-hidden" picking-mode="Ignore" />
+                    <ui:VisualElement name="WorldMapMarkPin" class="map-pin is-hidden" picking-mode="Ignore">
+                        <ui:VisualElement class="map-pin__dot map-pin__dot--mark" picking-mode="Ignore" />
+                        <ui:Label class="map-pin__name" text="hud.map_mark_pin" picking-mode="Ignore" />
+                    </ui:VisualElement>
+                    <ui:Label name="WorldMapScale" class="map-scale" picking-mode="Ignore" />
+                    <ui:VisualElement class="map-tools" picking-mode="Ignore">
+                        <ui:Button name="WorldMapZoomInButton" class="icon-btn map-tool" tooltip="hud.map_zoom_in" picking-mode="Position">
+                            <ui:VisualElement class="ico ico--plus" picking-mode="Ignore" />
+                        </ui:Button>
+                        <ui:Button name="WorldMapZoomOutButton" class="icon-btn map-tool" tooltip="hud.map_zoom_out" picking-mode="Position">
+                            <ui:VisualElement class="ico ico--minus" picking-mode="Ignore" />
+                        </ui:Button>
+                        <ui:Button name="WorldMapFollowPlayerButton" class="icon-btn map-tool" tooltip="hud.map_follow_player" picking-mode="Position">
+                            <ui:VisualElement class="ico ico--target" picking-mode="Ignore" />
+                        </ui:Button>
+                        <ui:Button name="WorldMapMarkButton" class="icon-btn map-tool" tooltip="hud.map_mark" picking-mode="Position">
+                            <ui:VisualElement class="ico ico--flag" picking-mode="Ignore" />
+                        </ui:Button>
+                    </ui:VisualElement>
                 </ui:VisualElement>
             </ui:VisualElement>
         </ui:VisualElement>
-
-        <!-- «Мои здания» и FAQ — серверные окна (OpenBuildingsClickPacket/OpenHelpClickPacket),
-             локальных попапов у них больше нет. -->
 
     </ui:VisualElement>
 </ui:UXML>

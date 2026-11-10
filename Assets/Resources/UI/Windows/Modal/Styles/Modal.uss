@@ -13,16 +13,6 @@
     justify-content: center;
 }
 
-.modal-window {
-    background-color: var(--surface-panel);
-    border-color: var(--border-subtle);
-    border-width: 1px;
-    border-radius: var(--radius-md);
-    padding: var(--space-8);
-    min-width: 300px;
-    max-width: 500px;
-}
-
 .modal-title {
     -unity-font-definition: var(--face-display);
     font-size: var(--size-lg);
@@ -31,133 +21,12 @@
     -unity-text-align: middle-center;
 }
 
-.modal-body {
-    color: var(--text-primary);
-    font-size: var(--size-md);
-    margin-bottom: var(--space-8);
-    -unity-text-align: middle-center;
-}
-
-.modal-buttons {
-    flex-direction: row;
-    justify-content: center;
-}
-
-/* In-game popup dialogs (respawn, buildings, FAQ) */
-/* ─── Попап ───
-   Единственное определение. Раньше блок существовал дважды — здесь и в
-   HUD.uss; поскольку HUD импортируется позже, эта версия молча
-   перекрывалась почти целиком, но не полностью: свойства, которых у HUD
-   не было (центрирование панели, выключка заголовка, паддинг кнопки
-   закрытия), продолжали приходить отсюда. Версии слиты, значения
-   переведены на токены. */
-
-.popup-overlay {
-    position: absolute;
-    left: 0;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    justify-content: center;
-    align-items: center;
-    display: none;
-}
-
-.popup-dimmer {
-    position: absolute;
-    left: 0;
-    top: 0;
-    right: 0;
-    bottom: 0;
-    /* backdrop-filter в USS нет — размытие фона заменяется плотной заливкой. */
-    background-color: var(--surface-scrim);
-}
-
-.popup-panel {
-    background-color: var(--surface-panel);
-    border-color: var(--border-subtle);
-    border-width: 1px;
-    border-radius: var(--radius-md);
-    padding: var(--space-8);
-    min-width: 260px;
-    flex-direction: column;
-    align-items: center;
-}
-
-.popup-title {
-    -unity-font-definition: var(--face-display);
-    font-size: var(--size-lg);
-    -unity-font-style: bold;
-    color: var(--accent-gold);
-    margin-bottom: var(--space-4);
-    -unity-text-align: middle-center;
-}
-
-.popup-close-btn {
-    margin-top: var(--space-4);
-    align-self: flex-end;
-    background-color: transparent;
-    color: var(--text-secondary);
-    font-size: var(--size-sm);
-    border-width: 0;
-    padding: var(--space-2) var(--space-5);
-}
-
-.popup-btn-row {
-    flex-direction: row;
-    justify-content: center;
-    margin-top: var(--space-6);
-}
-
-.popup-btn {
-    background-color: var(--surface-raised);
-    border-color: var(--border-subtle);
-    border-width: 1px;
-    border-radius: var(--radius-sm);
-    padding: var(--space-4) var(--space-9);
-    min-width: 96px;
-    margin: 0 var(--space-2);
-    color: var(--text-primary);
-    font-size: var(--size-base);
-    -unity-text-align: middle-center;
-}
-
-.popup-btn:hover {
-    background-color: var(--accent-cyan-wash);
-    border-color: var(--border-cyan);
-}
-
-/* ─── Модальное окно серверного пакета (ModalWindowHandler) ─── */
-
-.modal-icon {
-    width: 64px;
-    height: 64px;
-    margin-bottom: var(--space-5);
-    background-color: var(--surface-shelf-solid);
-}
-
-.modal-desc {
-    font-size: var(--size-base);
-    color: var(--light-solid);
-    white-space: normal;
-    margin-bottom: var(--space-9);
-    -unity-text-align: middle-center;
-}
-
-.modal-panel {
-    width: 90%;
-    min-width: 0;
-    max-width: 520px;
-    max-height: 90%;
-    flex-shrink: 1;
-}
-
 /* ─── Тултип ─── */
 
 .tooltip-panel {
     position: absolute;
     background-color: var(--surface-slate-dense);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-color: var(--text-disabled);
     padding: var(--space-3) var(--space-5);
     max-width: 250px;
@@ -192,7 +61,7 @@
     min-width: 260px;
     padding: var(--space-6) var(--space-8);
     background-color: var(--surface-panel);
-    border-width: 1px;
+    border-width: var(--border-width-thin);
     border-color: var(--border-cyan);
     border-radius: var(--radius-sm);
     flex-direction: column;

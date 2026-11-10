@@ -15,6 +15,7 @@ public sealed class FrameBaseline
 {
     private const int WindowFrames = 121;
     private const int RecomputeEvery = 30;
+    private const int MinimumFramesForBaseline = 30;
 
     private readonly double[] _window = new double[WindowFrames];
     private readonly double[] _sorted = new double[WindowFrames];
@@ -25,8 +26,15 @@ public sealed class FrameBaseline
     /// <summary>Медиана; 0, пока кадров не набралось.</summary>
     public double Milliseconds { get; private set; }
 
+    public bool IsReady => _count >= MinimumFramesForBaseline && Milliseconds > 0.0;
+
     public void Push(double frameMilliseconds)
     {
+        if (frameMilliseconds <= 0.0 || double.IsNaN(frameMilliseconds) || double.IsInfinity(frameMilliseconds))
+        {
+            return;
+        }
+
         _window[_next] = frameMilliseconds;
         _next = (_next + 1) % WindowFrames;
         if (_count < WindowFrames)
@@ -34,7 +42,7 @@ public sealed class FrameBaseline
             _count++;
         }
 
-        if (++_sinceRecompute < RecomputeEvery && Milliseconds > 0.0)
+        if (++_sinceRecompute < RecomputeEvery && _count >= MinimumFramesForBaseline)
         {
             return;
         }

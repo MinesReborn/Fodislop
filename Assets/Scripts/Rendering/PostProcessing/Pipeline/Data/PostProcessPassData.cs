@@ -20,7 +20,6 @@ internal sealed class PostProcessPassData
     public Vector4 WorldGridRect;
     public Vector4 DisplayWorldToViewportUv = new(1, 1, 0, 0);
     public float DisplayViewportAspect;
-    public float FisheyeStrength;
     public ComputeShader PostProcessCS = null!;
     public bool HDROutput;
     public ColorGamut HDRGamut;
@@ -41,6 +40,12 @@ internal sealed class PostProcessPassData
     public Vector4 VignetteColor;
     public float VignetteSmoothness;
     public Vector2 VignetteCenter;
+
+    public bool ChromaticAberrationActive;
+    public int ColorVisionMode;
+    public float DisplayBlackLift;
+    public float DisplayGamma = 1f;
+    public float ChromaticAberration;
 
     public float DisplayPaperWhiteNits;
     public float DisplayPeakRelative;
@@ -70,7 +75,10 @@ internal sealed class PostProcessPassData
     // кадров выше заданной узор бы держался по нескольку кадров подряд.
     public float FrameIndex;
 
-    // Калибровочный узор: 0 — нет, 1 — белая точка, 2 — лестница пика.
+    // Калибровочный узор (CalibrationPattern) и его места — прямоугольники в долях кадра от левого верхнего угла
     public int CalibrationPattern;
     public float CalibrationValue;
+    public Vector4 CalibrationRect0;
+    public Vector4 CalibrationRect1;
+    public Vector4 CalibrationRect2;
 }

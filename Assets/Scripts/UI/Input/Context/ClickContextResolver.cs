@@ -6,7 +6,7 @@ using System.Globalization;
 using System.Linq;
 using Kern.UI.Controls;
 using MinesServer.Networking.Server.Packets.GUI.Components;
-using MinesServer.Networking.Shared.Packets;
+using MinesServer.Networking.Contracts.Packets;
 using UnityEngine.UIElements;
 
 namespace Kern.UI.Input;
@@ -74,6 +74,11 @@ public static class ClickContextResolver
 
     private static VisualElement? PacketParent(VisualElement element, VisualElement windowRoot)
     {
+        if (ReferenceEquals(element, windowRoot))
+        {
+            return null;
+        }
+
         for (VisualElement? parent = element.parent; parent != null; parent = parent.parent)
         {
             if (parent.userData is IGUIComponentPacket)
@@ -143,9 +148,14 @@ public static class ClickContextResolver
 
     private static void CollectRecursive(VisualElement element, List<StringPairPacket> result)
     {
-        if (!string.IsNullOrEmpty(element.name) && IsInputElement(element))
+        if (element.userData is IInputComponentPacket packet && IsInputElement(element))
         {
-            result.Add(new StringPairPacket(element.name, GetControlValue(element)));
+            if (string.IsNullOrEmpty(packet.Name))
+            {
+                throw new InvalidOperationException("[PacketUI] Input component has no protocol name.");
+            }
+
+            result.Add(new StringPairPacket(packet.Name, GetControlValue(element)));
         }
 
         foreach (var child in element.Children())

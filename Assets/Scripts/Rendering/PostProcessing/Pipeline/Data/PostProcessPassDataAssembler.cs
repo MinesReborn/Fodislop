@@ -47,8 +47,10 @@ namespace Kern.Rendering.PostProcessing
             PostProcessPassData passData,
             VignetteComponent vignette,
             EigengrauComponent eigengrau,
+            ChromaticAberrationComponent? chromaticAberration,
             bool vignetteActive,
             bool eigengrauActive,
+            bool chromaticAberrationActive,
             bool HDROutput,
             ColorGamut HDRGamut,
             float paperWhite,
@@ -59,6 +61,9 @@ namespace Kern.Rendering.PostProcessing
             passData.VignetteColor = vignette.color.value;
             passData.VignetteSmoothness = vignette.smoothness.value;
             passData.VignetteCenter = vignette.center.value;
+
+            passData.ChromaticAberrationActive = chromaticAberrationActive;
+            passData.ChromaticAberration = chromaticAberration?.intensity.value ?? 0f;
 
             passData.DisplayPaperWhiteNits = paperWhite;
             passData.DisplayPeakRelative = HDROutput ? peakNits / paperWhite : 0f;

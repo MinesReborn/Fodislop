@@ -1,23 +1,41 @@
-/* ═══════════════════════════════════════════════════════════
-   Panel — общие стили панелей
-   ═══════════════════════════════════════════════════════════ */
+/* Панель — корпус макета (visual/kern-ui: micro.css .panel, systems.css .panel:not(.minimap)).
+   Срез правого верхнего угла с диагональю шва, Г-уголки, волосяной шов и отсвет сверху рисует KernVector
+   (Painter2D) по свойствам --panel-*: текстур нет. Варианты — как в systems.css: базовая (вход, онбординг),
+   окно (уголки 16 px, 2 px), HUD (корпус .88, уголки 10 px). */
 
 .panel {
-    background-color: var(--surface-panel);
-    border-color: var(--border-subtle);
-    border-width: 1px;
-    border-radius: var(--radius-md);
-    padding: var(--space-6);
-    color: var(--text-primary);
+    background-color: rgba(0, 0, 0, 0);
+    background-image: none;
+    border-width: 1px; /* рамка занимает место, как в макете; рисует её KernVector — цвет USS прозрачный */
+    border-color: rgba(0, 0, 0, 0);
+    border-radius: 0;
+    color: var(--bone);
+    -unity-font-definition: var(--face-text);
+    font-size: var(--t-body);
+    --panel-fill: var(--graphite);
+    --panel-grain: rgba(216, 213, 238, 0.028); /* --grain макета: шум bone .05, средний тон — .028 */
+    --panel-edge: var(--seam);
+    --panel-highlight: rgba(216, 213, 238, 0.06);
+    --panel-notch: 10;
+    --panel-tick: 6;
+    --panel-tick-width: 1;
+    --panel-tick-color: rgba(216, 213, 238, 0.55);
 }
 
-.panel-header {
-    -unity-font-definition: var(--face-display);
-    font-size: var(--size-xl);
-    color: var(--accent-gold);
-    margin-bottom: var(--space-4);
+.panel.dialog,
+.panel.settings,
+.panel.skills,
+.panel.inv-window,
+.panel.srv-window,
+.panel.srv-pk {
+    --panel-tick: 16;
+    --panel-tick-width: 2;
+    --panel-tick-color: rgba(216, 213, 238, 0.9);
 }
 
-.panel-body {
-    flex-grow: 1;
+.hud .panel {
+    --panel-fill: rgba(17, 16, 24, 0.88);
+    --panel-tick: 10;
+    --panel-tick-width: 2;
+    --panel-tick-color: rgba(216, 213, 238, 0.8);
 }

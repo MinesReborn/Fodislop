@@ -1,0 +1,74 @@
+/* Значки макета visual/kern-ui (SVG-спрайт index.html, <symbol id="i-…">) — векторные картинки Icons/Hud/<имя>.svg.
+   Сгенерировано выгрузкой значков; руками не править. Цвет — -unity-background-image-tint-color (белый SVG). */
+
+.ico {
+    width: 20px;
+    height: 20px;
+    flex-shrink: 0;
+    -unity-background-scale-mode: scale-to-fit;
+    -unity-background-image-tint-color: var(--ash);
+}
+
+.ico--arrows { background-image: resource("UI/Theme/Kern/Icons/Hud/arrows"); }
+.ico--autodig { background-image: resource("UI/Theme/Kern/Icons/Hud/autodig"); }
+.ico--box { background-image: resource("UI/Theme/Kern/Icons/Hud/box"); }
+.ico--break { background-image: resource("UI/Theme/Kern/Icons/Hud/break"); }
+.ico--buildings { background-image: resource("UI/Theme/Kern/Icons/Hud/buildings"); }
+.ico--chat { background-image: resource("UI/Theme/Kern/Icons/Hud/chat"); }
+.ico--chevron { background-image: resource("UI/Theme/Kern/Icons/Hud/chevron"); }
+.ico--close { background-image: resource("UI/Theme/Kern/Icons/Hud/close"); }
+.ico--collapse { background-image: resource("UI/Theme/Kern/Icons/Hud/collapse"); }
+.ico--console { background-image: resource("UI/Theme/Kern/Icons/Hud/console"); }
+.ico--copy { background-image: resource("UI/Theme/Kern/Icons/Hud/copy"); }
+.ico--credit { background-image: resource("UI/Theme/Kern/Icons/Hud/credit"); }
+.ico--cut { background-image: resource("UI/Theme/Kern/Icons/Hud/cut"); }
+.ico--down { background-image: resource("UI/Theme/Kern/Icons/Hud/down"); }
+.ico--edit { background-image: resource("UI/Theme/Kern/Icons/Hud/edit"); }
+.ico--flag { background-image: resource("UI/Theme/Kern/Icons/Hud/flag"); }
+.ico--fx-bit { background-image: resource("UI/Theme/Kern/Icons/Hud/fx-bit"); }
+.ico--fx-core { background-image: resource("UI/Theme/Kern/Icons/Hud/fx-core"); }
+.ico--fx-ore { background-image: resource("UI/Theme/Kern/Icons/Hud/fx-ore"); }
+.ico--fx-signal { background-image: resource("UI/Theme/Kern/Icons/Hud/fx-signal"); }
+.ico--fx-skill { background-image: resource("UI/Theme/Kern/Icons/Hud/fx-skill"); }
+.ico--fx-surge { background-image: resource("UI/Theme/Kern/Icons/Hud/fx-surge"); }
+.ico--fx-time { background-image: resource("UI/Theme/Kern/Icons/Hud/fx-time"); }
+.ico--fx-xp { background-image: resource("UI/Theme/Kern/Icons/Hud/fx-xp"); }
+.ico--fx-yield { background-image: resource("UI/Theme/Kern/Icons/Hud/fx-yield"); }
+.ico--geo { background-image: resource("UI/Theme/Kern/Icons/Hud/geo"); }
+.ico--gift { background-image: resource("UI/Theme/Kern/Icons/Hud/gift"); }
+.ico--heal { background-image: resource("UI/Theme/Kern/Icons/Hud/heal"); }
+.ico--help { background-image: resource("UI/Theme/Kern/Icons/Hud/help"); }
+.ico--left { background-image: resource("UI/Theme/Kern/Icons/Hud/left"); }
+.ico--link { background-image: resource("UI/Theme/Kern/Icons/Hud/link"); }
+.ico--list { background-image: resource("UI/Theme/Kern/Icons/Hud/list"); }
+.ico--lock { background-image: resource("UI/Theme/Kern/Icons/Hud/lock"); }
+.ico--mail { background-image: resource("UI/Theme/Kern/Icons/Hud/mail"); }
+.ico--menu { background-image: resource("UI/Theme/Kern/Icons/Hud/menu"); }
+.ico--minus { background-image: resource("UI/Theme/Kern/Icons/Hud/minus"); }
+.ico--multi { background-image: resource("UI/Theme/Kern/Icons/Hud/multi"); }
+.ico--next { background-image: resource("UI/Theme/Kern/Icons/Hud/next"); }
+.ico--offline { background-image: resource("UI/Theme/Kern/Icons/Hud/offline"); }
+.ico--paste { background-image: resource("UI/Theme/Kern/Icons/Hud/paste"); }
+.ico--pause { background-image: resource("UI/Theme/Kern/Icons/Hud/pause"); }
+.ico--play { background-image: resource("UI/Theme/Kern/Icons/Hud/play"); }
+.ico--plus { background-image: resource("UI/Theme/Kern/Icons/Hud/plus"); }
+.ico--prev { background-image: resource("UI/Theme/Kern/Icons/Hud/prev"); }
+.ico--prog { background-image: resource("UI/Theme/Kern/Icons/Hud/prog"); }
+.ico--redo { background-image: resource("UI/Theme/Kern/Icons/Hud/redo"); }
+.ico--respawn { background-image: resource("UI/Theme/Kern/Icons/Hud/respawn"); }
+.ico--right { background-image: resource("UI/Theme/Kern/Icons/Hud/right"); }
+.ico--run { background-image: resource("UI/Theme/Kern/Icons/Hud/run"); }
+.ico--save { background-image: resource("UI/Theme/Kern/Icons/Hud/save"); }
+.ico--send { background-image: resource("UI/Theme/Kern/Icons/Hud/send"); }
+.ico--settings { background-image: resource("UI/Theme/Kern/Icons/Hud/settings"); }
+.ico--shift { background-image: resource("UI/Theme/Kern/Icons/Hud/shift"); }
+.ico--step-in { background-image: resource("UI/Theme/Kern/Icons/Hud/step-in"); }
+.ico--step-out { background-image: resource("UI/Theme/Kern/Icons/Hud/step-out"); }
+.ico--step-over { background-image: resource("UI/Theme/Kern/Icons/Hud/step-over"); }
+.ico--stop { background-image: resource("UI/Theme/Kern/Icons/Hud/stop"); }
+.ico--target { background-image: resource("UI/Theme/Kern/Icons/Hud/target"); }
+.ico--topup { background-image: resource("UI/Theme/Kern/Icons/Hud/topup"); }
+.ico--trash { background-image: resource("UI/Theme/Kern/Icons/Hud/trash"); }
+.ico--undo { background-image: resource("UI/Theme/Kern/Icons/Hud/undo"); }
+.ico--up { background-image: resource("UI/Theme/Kern/Icons/Hud/up"); }
+.ico--users { background-image: resource("UI/Theme/Kern/Icons/Hud/users"); }

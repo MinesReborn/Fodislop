@@ -1,5 +1,5 @@
 {
-  "_": "Машинный файл. Источник visual/kern-ui-lab/css/tokens.css, генератор tools/Kern.DesignSystem/Commands/Styles/Tokens/EmitUssTokensTool.cs.",
+  "_": "Машинный файл. Источник visual/kern-ui-lab/css/tokens.css, генератор tools/generators/Kern.DesignSystem/Commands/Styles/Tokens/EmitUssTokensTool.cs.",
   "colors": {
     "--accent-cyan": [
       100,

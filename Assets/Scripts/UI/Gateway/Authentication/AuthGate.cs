@@ -1,8 +1,6 @@
 #nullable enable
 
 using System;
-using System.Threading;
-using Cysharp.Threading.Tasks;
 using Kern.Core;
 using Kern.Core.Interfaces;
 using Kern.Core.Localization;
@@ -26,15 +24,8 @@ public sealed class AuthGate
     private readonly Toggle _autoLogin;
     private readonly Label _hint;
     private readonly IClientConfigManager _clientConfig;
-    private readonly IAuthenticationService _authentication;
-    private readonly IAsyncOperationSupervisor _operations;
+    private readonly IGameTokenStore _tokens;
     private readonly ILocalizationService? _loc;
-
-    private Button? _vkButton;
-    private Label? _vkLabel;
-    private bool _vkBusy;
-    private int _loginGeneration;
-    private bool _disposed;
 
     public event Action? Passed;
 
@@ -47,8 +38,7 @@ public sealed class AuthGate
         Toggle autoLogin,
         Label hint,
         IClientConfigManager clientConfig,
-        IAuthenticationService authentication,
-        IAsyncOperationSupervisor operations,
+        IGameTokenStore tokens,
         ILocalizationService? loc)
     {
         _loginForm = loginForm;
@@ -59,8 +49,7 @@ public sealed class AuthGate
         _autoLogin = autoLogin;
         _hint = hint;
         _clientConfig = clientConfig;
-        _authentication = authentication;
-        _operations = operations;
+        _tokens = tokens;
         _loc = loc;
     }
 
@@ -74,16 +63,10 @@ public sealed class AuthGate
         return _loc != null ? _loc.Get(key, arg0, arg1) : fallback;
     }
 
-    private string L(string key, string fallback, object arg0)
-    {
-        return _loc != null ? _loc.Get(key, arg0) : fallback;
-    }
-
     public static AuthGate? TryCreate(
         VisualElement tree,
         IClientConfigManager clientConfig,
-        IAuthenticationService authentication,
-        IAsyncOperationSupervisor operations,
+        IGameTokenStore tokens,
         ILocalizationService? loc)
     {
         var loginForm = tree.Q<VisualElement>("AuthLoginForm");
@@ -98,7 +81,7 @@ public sealed class AuthGate
             tabLogin == null || tabRegister == null || login == null ||
             autoLogin == null || hint == null)
         {
-            Debug.LogWarning("[AuthGate] Разметка ворот входа не найдена в MainMenu.uxml — экран пропущен.");
+            Debug.LogWarning("[AuthGate] Разметка ворот входа не найдена в Gateway.uxml — экран пропущен.");
             return null;
         }
 
@@ -111,8 +94,7 @@ public sealed class AuthGate
             autoLogin,
             hint,
             clientConfig,
-            authentication,
-            operations,
+            tokens,
             loc);
         gate.Bind(tree);
         return gate;
@@ -125,10 +107,18 @@ public sealed class AuthGate
 
         tree.Q<Button>("AuthSubmitButton")!.clicked += Submit;
 
-        var offline = tree.Q<Button>("AuthOfflineButton");
-        if (offline != null)
+        // Регистрация протоколом не проверяется: «Создать аккаунт» входит так же, как «Войти»
+        var registerSubmit = tree.Q<Button>("AuthRegisterSubmitButton");
+        if (registerSubmit != null)
         {
-            offline.clicked += StartOffline;
+            registerSubmit.clicked += Submit;
+        }
+
+        // Вход через VK — везде, как в макете: регион системы его не прячет
+        var vkButton = tree.Q<Button>("AuthVkButton");
+        if (vkButton != null)
+        {
+            vkButton.clicked += Submit;
         }
 
         var recover = tree.Q<Button>("AuthRecoverButton");
@@ -139,103 +129,13 @@ public sealed class AuthGate
                 warn: true);
         }
 
-        _vkButton = tree.Q<Button>("AuthVkButton");
-        _vkLabel = tree.Q<Label>("AuthVkLabel");
-        if (_vkButton != null)
-        {
-            _vkButton.clicked += StartVKLogin;
-            if (_vkLabel != null && _authentication.HasVKSession)
-            {
-                _vkLabel.text = L("gateway.auth.vk_continue", "Продолжить как {0} (VK)", _authentication.VKDisplayName);
-            }
-        }
-
-        _login.SetValueWithoutNotify(GenerateCallsign());
         _autoLogin.SetValueWithoutNotify(_clientConfig.Config.Interface.AutoLogin);
     }
 
-    private void StartVKLogin()
+    // forceForm — смена аккаунта: форму показываем и при сохранённом токене.
+    public void Show(bool forceForm)
     {
-        if (_disposed || _vkBusy)
-        {
-            return;
-        }
-
-        int loginGeneration = ++_loginGeneration;
-        _vkBusy = true;
-        _vkButton?.SetEnabled(false);
-        ShowHint(
-            L("gateway.auth.vk_started", "VK: откройте ссылку подтверждения в браузере…"),
-            warn: false);
-
-        _operations.Run("gateway_vk_login", token => CompleteVKLoginAsync(loginGeneration, token));
-    }
-
-    private async UniTask CompleteVKLoginAsync(int loginGeneration, CancellationToken cancellationToken)
-    {
-        AuthenticationResult result;
-        try
-        {
-            result = await _authentication.LoginWithVKAsync();
-            cancellationToken.ThrowIfCancellationRequested();
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-            return;
-        }
-        catch (Exception e)
-        {
-            if (!IsCurrentLogin(loginGeneration))
-            {
-                return;
-            }
-
-            Debug.LogError($"[AuthGate] VK login failed: {e}");
-            _vkBusy = false;
-            _vkButton?.SetEnabled(true);
-            ShowHint(L("gateway.auth.vk_fail", "Ошибка VK: {0}", e.Message), warn: true);
-            return;
-        }
-
-        if (!IsCurrentLogin(loginGeneration))
-        {
-            return;
-        }
-
-        _vkBusy = false;
-        _vkButton?.SetEnabled(true);
-        if (result.Success)
-        {
-            ShowHint(
-                L("gateway.auth.vk_success", "Вход через VK: {0}", result.DisplayName),
-                warn: false);
-            _login.SetValueWithoutNotify(result.DisplayName);
-
-            Pass();
-            return;
-        }
-
-        string message = _loc != null && _loc.HasKey(result.Error)
-            ? _loc.Get(result.Error)
-            : result.Error;
-        ShowHint(message, warn: true);
-    }
-
-    public void Dispose()
-    {
-        _disposed = true;
-        _loginGeneration++;
-        _vkBusy = false;
-        _vkButton = null;
-        _vkLabel = null;
-    }
-
-    private bool IsCurrentLogin(int loginGeneration) =>
-        !_disposed && loginGeneration == _loginGeneration;
-
-    public void Show()
-    {
-        if (!GatewayDevFlags.ForceGates && _authentication.HasStoredCredentials && _autoLogin.value)
+        if (!forceForm && !GatewayDevFlags.ForceGates && _tokens.HasToken && _autoLogin.value)
         {
             Pass();
             return;
@@ -251,23 +151,13 @@ public sealed class AuthGate
         _loginForm.EnableInClassList(HiddenFormClass, register);
         _registerForm.EnableInClassList(HiddenFormClass, !register);
 
-        ShowHint(
-            register
-                ? L("gateway.auth.register_hint", "Регистрация")
-                : L("gateway.auth.login_hint", "Вход"),
-            warn: register);
+        // Подсказки под вкладками в макете нет: строка заметки пуста до действия игрока
+        ShowHint(string.Empty, warn: false);
     }
 
     private void Submit()
     {
         ShowHint(L("gateway.auth.connecting", "Подключение..."), warn: false);
-        Pass();
-    }
-
-    private void StartOffline()
-    {
-        _clientConfig.UpdateSection(config => config.Connection, settings => settings.UseDummyConnection = true);
-        ShowHint(L("gateway.auth.offline_hint", "Офлайн-режим"), warn: false);
         Pass();
     }
 
@@ -285,15 +175,5 @@ public sealed class AuthGate
     {
         _hint.text = text;
         _hint.EnableInClassList(HintWarnClass, warn);
-    }
-
-    private string GenerateCallsign()
-    {
-        string seed = SystemInfo.deviceUniqueIdentifier;
-        int hash = seed.GetHashCode();
-        string[] clans = { "DVM", "VOID", "NEO", "CORE", "ORE", "HDS" };
-        int number = Math.Abs(hash % 900) + 100;
-        string clan = clans[Math.Abs(hash / 900) % clans.Length];
-        return L("gateway.auth.callsign", $"#{number} {clan}", number, clan);
     }
 }

@@ -37,7 +37,7 @@ using Kern.Diagnostics.Artifacts;
 using Kern.Game.Entities.Robots;
 using Kern.Game.Player.Cameras;
 using Kern.Networking.Authentication;
-using Kern.Networking.Offline;
+using Kern.Networking.Dummy;
 using Kern.Rendering.Display;
 
 using Kern.Diagnostics.World;
@@ -52,7 +52,7 @@ namespace Kern.Tests.PlayMode;
 // изолированная стоимость: зависимости и CPU/GPU overlap сохраняются. Отчёт
 // разделяет CPU profiler markers, production CommandBuffer scopes и whole-frame
 // CPU/GPU timings. Stage scopes — оконные агрегаты, не покадровое время; вложенные
-// scopes не суммируются. Результат пишется в Logs/Diagnostics/Performance/benchmark_*.txt.
+// scopes не суммируются. Результат пишется в общую категорию Performance.
 //
 // Explicit: в обычный прогон тестов не входит, запускается руками.
 [TestFixture]
@@ -452,7 +452,7 @@ public sealed class FrameBenchmarkPlayModeTests
                         ["gpuFrameMs"] = "No frame-correlated GPU measurement; CPU command timings are not GPU time.",
                         ["inputs"] = "No deterministic replay, full source revisions, readiness or resource-generation observations.",
                         ["class"] = "Warmup length alone cannot establish steady/cold/reanchor classification.",
-                        ["workloadHash"] = "Offline world is not pinned to a captured seed/snapshot/input schedule.",
+                        ["workloadHash"] = "Dummy world is not pinned to a captured seed/snapshot/input schedule.",
                     ["uploadCountsAndBytes"] = "Cell-data Apply estimates are exported; aggregate mesh and atlas upload coverage remains absent.",
                         ["visualCoverage"] = "No independent production visual oracle.",
                         ["fullArtifactIdentity"] = "Loaded assembly MVIDs exclude shaders/assets and current source-tree changes.",
@@ -574,7 +574,7 @@ public sealed class FrameBenchmarkPlayModeTests
         yield return SceneManager.LoadSceneAsync("Bootstrap", LoadSceneMode.Single);
         yield return WaitUntil(() => FindBootstrap() is { Container: not null }, UITimeoutSeconds, "Bootstrap container was not built.");
         _bootstrap = FindBootstrap()!;
-        yield return WaitUntil(() => _bootstrap.CurrentSceneName == "Gateway", UITimeoutSeconds, "Gateway did not open.");
+        yield return WaitUntil(() => _bootstrap.CurrentSceneName == "MainMenu", UITimeoutSeconds, "MainMenu did not open.");
     }
 
     [UnityTearDown]

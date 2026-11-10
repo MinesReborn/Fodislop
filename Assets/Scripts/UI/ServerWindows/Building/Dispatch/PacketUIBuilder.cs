@@ -11,9 +11,6 @@ using Kern.AssetPipeline.Loading;
 namespace Kern.UI.ServerWindows;
 public class PacketUIBuilder
 {
-    /// <summary>Закрывающая кнопка легаси-окна (мост ProtocolWindow).</summary>
-    internal const string ExitActionKey = "PacketUI.ExitAction";
-
     private readonly IAssetLoader _assetLoader;
     private readonly IAsyncOperationSupervisor _operations;
     private readonly IWebAssetLoader _webAssetLoader;

@@ -4,25 +4,25 @@ using System;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using Kern;
+using Kern.AssetPipeline.Loading;
 using Kern.Core.Interfaces;
 using Kern.Core.Localization;
+using Kern.UI.Controls;
+using Kern.UI.Motion;
 using UnityEngine;
 using UnityEngine.UIElements;
 
-using Kern.AssetPipeline.Loading;
 using Kern.UI.Screens;
 
 namespace Kern.UI.HUD;
 
 public sealed class PlayerHUDMissionPanel
 {
-    // Дневной сброс заданий Рабочего Центра — 18:00 МСК (игровое правило,
-    // продублированное на сервере в GJobs/ServerTime). Дедлайна в пакете нет,
-    // поэтому клиент считает остаток сам и тикает локально.
-    private static readonly TimeZoneInfo MoscowTimeZone =
-        TimeZoneInfo.FindSystemTimeZoneById("Russian Standard Time");
     private const int MissionResetHour = 18;
     private const string TimerMacro = "%T%";
+    private const int MissionCells = 10;
+    // Картинка миссии — слева от названия и задания; размер от сервера, не больше строки на две (макет: .mission-img)
+    private const float ImageMax = 40f;
 
     private readonly ILocalizationService _loc;
     private readonly IAssetLoader _assetLoader;
@@ -33,7 +33,7 @@ public sealed class PlayerHUDMissionPanel
     private Label? _missionTitleLabel;
     private VisualElement? _missionImage;
     private Label? _missionDescLabel;
-    private VisualElement? _missionProgressFill;
+    private VisualElement? _missionCells;
     private Label? _missionProgressLabel;
 
     private IVisualElementScheduledItem? _timerSchedule;
@@ -59,7 +59,7 @@ public sealed class PlayerHUDMissionPanel
         _missionTitleLabel = root.Q<Label>("MissionTitleLabel");
         _missionImage = root.Q<VisualElement>("MissionImage");
         _missionDescLabel = root.Q<Label>("MissionDescLabel");
-        _missionProgressFill = root.Q<VisualElement>("MissionProgressFill");
+        _missionCells = root.Q<VisualElement>("MissionCells");
         _missionProgressLabel = root.Q<Label>("MissionProgressLabel");
     }
 
@@ -87,22 +87,23 @@ public sealed class PlayerHUDMissionPanel
         UpdateImage(stats);
         UpdateDescription(stats);
 
+        // Ход задания — 10 ячеек (макет: .mission-cells); счёт «3 / 10», при Max = 1 его нет
         float pct = stats.MissionMaxProgress > 0 ? (float)stats.MissionProgress / stats.MissionMaxProgress : 0f;
-        if (_missionProgressFill != null)
+        if (_missionCells != null)
         {
-            _missionProgressFill.style.width = new Length(Mathf.Clamp01(pct) * 100, LengthUnit.Percent);
+            KernQuant.Set(_missionCells, MissionCells, Mathf.FloorToInt(Mathf.Clamp01(pct) * MissionCells));
         }
 
         if (_missionProgressLabel != null)
         {
-            _missionProgressLabel.text = $"{stats.MissionProgress:N0}/{stats.MissionMaxProgress:N0}";
+            bool counted = stats.MissionMaxProgress > 1;
+            _missionProgressLabel.text = counted
+                ? KernNumbers.Group(stats.MissionProgress) + " / " + KernNumbers.Group(stats.MissionMaxProgress)
+                : string.Empty;
+            _missionProgressLabel.EnableInClassList("is-hidden", !counted);
         }
     }
 
-    // Картинка миссии — по договорённости ImagePacketBuilder: пустой URI значит
-    // «картинки нет» (загрузку не планируем), absolute http(s) идёт в веб-канал,
-    // относительный — в серверный asset-канал (M3G). URI кэшируется, чтобы
-    // повторные Update не перезагружали ту же картинку.
     private void UpdateImage(IPlayerStats stats)
     {
         if (_missionImage == null)
@@ -127,12 +128,16 @@ public sealed class PlayerHUDMissionPanel
             _missionImage.style.width = 0;
             _missionImage.style.height = 0;
             UIState.Hide(_missionImage);
+            _missionPanel?.RemoveFromClassList("has-img");
             return;
         }
 
-        _missionImage.style.width = stats.MissionImageWidth;
-        _missionImage.style.height = stats.MissionImageHeight;
+        float w = stats.MissionImageWidth, h = stats.MissionImageHeight;
+        float k = Mathf.Min(1f, ImageMax / Mathf.Max(1f, Mathf.Max(w, h)));
+        _missionImage.style.width = w * k;
+        _missionImage.style.height = h * k;
         UIState.Show(_missionImage);
+        _missionPanel?.AddToClassList("has-img");
 
         CancellationToken token = _imageCts.Token;
         VisualElement imageElement = _missionImage;
@@ -154,7 +159,7 @@ public sealed class PlayerHUDMissionPanel
         Texture2D? texture;
         try
         {
-            texture = await GetTextureAsync(uri, token);
+            texture = await ServerImageSource.LoadAsync(_assetLoader, _webAssetLoader, uri, token);
         }
         catch (OperationCanceledException)
         {
@@ -172,17 +177,6 @@ public sealed class PlayerHUDMissionPanel
         }
 
         imageElement.style.backgroundImage = new StyleBackground(texture);
-    }
-
-    private async UniTask<Texture2D?> GetTextureAsync(string uri, CancellationToken token)
-    {
-        if (!Uri.TryCreate(uri, UriKind.Absolute, out Uri? absolute) ||
-            (absolute.Scheme != Uri.UriSchemeHttp && absolute.Scheme != Uri.UriSchemeHttps))
-        {
-            return await _assetLoader.GetTextureAsync(uri, token);
-        }
-
-        return await _webAssetLoader.GetTextureAsync(uri, token);
     }
 
     private void UpdateDescription(IPlayerStats stats)
@@ -212,17 +206,23 @@ public sealed class PlayerHUDMissionPanel
             return;
         }
 
-        _missionDescLabel.text = _timerDescription.Replace(TimerMacro, FormatTimeUntilReset(), StringComparison.Ordinal);
+        _missionDescLabel.text = _timerDescription.Replace(
+            TimerMacro,
+            FormatTimeUntilReset(),
+            StringComparison.Ordinal);
     }
 
-    private static string FormatTimeUntilReset()
+    private string FormatTimeUntilReset()
     {
-        DateTime mskNow = TimeZoneInfo.ConvertTimeFromUtc(DateTime.UtcNow, MoscowTimeZone);
-        DateTime nextReset = mskNow.Hour < MissionResetHour
-            ? new DateTime(mskNow.Year, mskNow.Month, mskNow.Day, MissionResetHour, 0, 0)
-            : new DateTime(mskNow.Year, mskNow.Month, mskNow.Day, MissionResetHour, 0, 0).AddDays(1);
-        TimeSpan remaining = nextReset - mskNow;
-        return $"{remaining.Hours} ч. {remaining.Minutes} мин.";
+        DateTime localNow = DateTime.Now;
+        DateTime nextReset = localNow.Date.AddHours(MissionResetHour);
+        if (localNow >= nextReset)
+        {
+            nextReset = nextReset.AddDays(1);
+        }
+
+        TimeSpan remaining = nextReset - localNow;
+        return _loc.Get("hud.mission.reset_in", remaining.Hours, remaining.Minutes);
     }
 
     private void StopTimer()

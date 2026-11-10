@@ -45,7 +45,11 @@ public static class PacketTelemetry
 
     public static double OutgoingPerSecond { get; private set; }
 
+    public static bool HasRateSample { get; private set; }
+
     public static int QueueDepth { get; private set; }
+
+    public static bool HasQueueSample { get; private set; }
 
     public static int PeakQueueDepth { get; private set; }
 
@@ -144,6 +148,7 @@ public static class PacketTelemetry
         }
 
         QueueDepth = depth;
+        HasQueueSample = true;
         PeakQueueDepth = Math.Max(PeakQueueDepth, depth);
         QueueBytes = bytes;
         PeakQueueBytes = Math.Max(PeakQueueBytes, bytes);
@@ -195,6 +200,7 @@ public static class PacketTelemetry
 
         IncomingPerSecond = s_windowIncoming / elapsed;
         OutgoingPerSecond = s_windowOutgoing / elapsed;
+        HasRateSample = true;
         s_windowIncoming = 0;
         s_windowOutgoing = 0;
         s_windowStart = nowSeconds;
@@ -234,7 +240,9 @@ public static class PacketTelemetry
         CompressedCount = 0;
         IncomingPerSecond = 0d;
         OutgoingPerSecond = 0d;
+        HasRateSample = false;
         QueueDepth = 0;
+        HasQueueSample = false;
         PeakQueueDepth = 0;
         QueueBytes = 0;
         PeakQueueBytes = 0;

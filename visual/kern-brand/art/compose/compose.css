@@ -1,0 +1,65 @@
+/* Кадры шаблонов: размер в пикселях результата, раскладка в --u (сотая короткой стороны) — один шаблон на все размеры.
+   Стоит поверх tokens.css и web.css. */
+
+/* Один кадр для экспорта: ничего, кроме кадра */
+html.k-single, html.k-single body { background: transparent; min-height: 0; overflow: hidden; }
+html.k-single body { width: max-content; }
+
+.k-asset { position: relative; overflow: hidden; flex: none; transform-origin: 0 0; background: var(--void); color: var(--bone); font-family: var(--font-text); isolation: isolate; }
+.k-asset.is-alpha { background: transparent; }
+.k-asset > * { position: absolute; }
+.k-scene { inset: 0; width: 100%; height: 100%; image-rendering: pixelated; }
+/* Затемнение сцены: базальт ведёт, мир — фактура под ним */
+/* Затемнение только со стороны текста: под текстом базальт, дальше мир виден почти как в игре */
+.k-scrim { inset: 0; background: linear-gradient(var(--dir, 90deg), rgb(var(--rgb-void) / .96) 0%, rgb(var(--rgb-void) / .9) 34%, rgb(var(--rgb-void) / .3) 66%, rgb(var(--rgb-void) / .12) 100%); }
+.k-dots { inset: 0; background: radial-gradient(rgb(var(--rgb-bone) / .09) calc(var(--u) * .12), transparent calc(var(--u) * .14)) 0 0 / calc(var(--u) * 2) calc(var(--u) * 2); }
+.k-hatch { left: 0; right: 0; height: calc(var(--u) * .5); background: repeating-linear-gradient(135deg, rgb(var(--rgb-bone) / .14) 0 1px, transparent 1px calc(var(--u) * .5)); }
+
+/* Знак и название: Exo 2 полужирный, обычным начертанием */
+.k-lockup { display: flex; align-items: center; gap: calc(var(--s) * .32); white-space: nowrap; }
+.k-lockup img { width: calc(var(--s) * 1.18); height: calc(var(--s) * 1.18); }
+.k-lockup b { font: var(--fw-bold) var(--s)/1 var(--font-display); letter-spacing: .01em; color: var(--bone); }
+.k-slogan { font: var(--fw-heavy) calc(var(--u) * var(--fs, 7))/1.02 var(--font-display); letter-spacing: -.005em; color: var(--bone); text-wrap: balance; }
+.k-slogan em { font-style: normal; color: var(--signal); }
+.k-sub { font: var(--fw-semi) 20px/1.25 var(--font-text); color: var(--mist); text-wrap: balance; max-width: 16em; }
+.k-kicker { display: flex; align-items: center; gap: .7em; font: var(--fw-semi) calc(var(--u) * var(--ks, 1.6))/1 var(--font-mono); letter-spacing: .16em;
+  text-transform: uppercase; color: var(--ash); white-space: nowrap; }
+.k-kicker i { width: .55em; height: .55em; background: var(--signal); transform: rotate(45deg); flex: none; }
+.k-kicker s { text-decoration: none; color: var(--smoke); }
+.k-lead { font: var(--fw-normal) calc(var(--u) * var(--ls, 2.4))/1.4 var(--font-text); color: var(--mist); }
+
+/* Уголки кадра — как у панели игры, в масштабе кадра */
+.k-ticks { inset: calc(var(--u) * 3); --t: calc(var(--u) * 3); --l: max(1px, calc(var(--u) * .2)); --c: rgb(var(--rgb-bone) / .55);
+  background:
+    linear-gradient(var(--c), var(--c)) left top / var(--t) var(--l) no-repeat, linear-gradient(var(--c), var(--c)) left top / var(--l) var(--t) no-repeat,
+    linear-gradient(var(--c), var(--c)) right top / var(--t) var(--l) no-repeat, linear-gradient(var(--c), var(--c)) right top / var(--l) var(--t) no-repeat,
+    linear-gradient(var(--c), var(--c)) left bottom / var(--t) var(--l) no-repeat, linear-gradient(var(--c), var(--c)) left bottom / var(--l) var(--t) no-repeat,
+    linear-gradient(var(--c), var(--c)) right bottom / var(--t) var(--l) no-repeat, linear-gradient(var(--c), var(--c)) right bottom / var(--l) var(--t) no-repeat; }
+/* Безопасная зона площадки — только в галерее, в экспорт не идёт */
+.k-safe { border: 1px dashed rgb(var(--rgb-signal) / .7); pointer-events: none; }
+html.k-single .k-safe { display: none; }
+
+/* Скриншот в рамке: тонкая рамка 1 px и уголки */
+.k-shot { border: max(1px, calc(var(--u) * .12)) solid var(--seam-strong); background: var(--black); box-shadow: 0 0 0 calc(var(--u) * .6) rgb(var(--rgb-void) / .6); }
+.k-shot img { display: block; width: 100%; height: 100%; object-fit: cover; }
+
+/* ── Галерея ── */
+.k-group { padding: 48px 0 8px; }
+.k-cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 440px), 1fr)); gap: 24px; margin-top: 20px; align-items: start; }
+.k-card { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.k-card.is-wide { grid-column: 1 / -1; }
+/* Лист размеров: иконки в натуральную величину в ряд, подпись размера под каждой */
+.k-sheet { inset: 0; display: flex; align-items: flex-end; justify-content: center; gap: 32px; padding: 24px 28px 30px; }
+.k-sheet figure { position: relative; flex: none; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.k-sheet figure > div { position: relative; }
+.k-sheet figcaption { font: var(--fw-semi) 11px/1 var(--font-mono); color: var(--dim); }
+.k-box { position: relative; overflow: hidden; display: flex; justify-content: safe center; align-items: center; border: 1px solid var(--seam); background: var(--void); }   /* фон кадров — тот же базальт: узкий кадр не даёт полос по бокам */
+.k-box.is-alpha { background: repeating-conic-gradient(#1a1825 0 25%, #111018 0 50%) 0 0 / 16px 16px; }
+.k-card figcaption { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 10px; font-size: var(--t-5); color: var(--ash); }
+.k-card figcaption b { color: var(--bone); font-weight: var(--fw-semi); }
+.k-card figcaption span { font-family: var(--font-mono); font-size: var(--t-3); }
+.k-card figcaption small { order: 2; flex-basis: 100%; color: var(--dim); }
+.k-box.is-scroll { overflow-x: auto; overflow-y: hidden; }
+.k-card figcaption a { margin-left: auto; font-size: var(--t-3); }
+/* Лист размеров уже коробки — без своего фона, чтобы по бокам не было полос другого тона */
+.k-box.is-scroll > .k-asset { background: transparent; }

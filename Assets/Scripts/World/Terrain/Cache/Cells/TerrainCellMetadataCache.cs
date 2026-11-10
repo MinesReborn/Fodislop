@@ -126,16 +126,16 @@ public sealed class TerrainCellMetadataCache : ITerrainMetadataLookup
         BlockDefinition block = BlockRegistry.Get(type);
         var meta = new CellMetadata
         {
-            // Вид — из cells.json, как в строке типа.
-            ReliefGroup = block.ReliefGroup,
+            IsPopulated = true,
             Outline = block.Outline,
+            AtlasIndex = atlasIndex,
+            AtlasRect = atlasRect,
             HasTileGroup = mm.TryGetTileGroup(type, out int gid),
             TileGroupId = gid,
-            AtlasRect = atlasRect,
-            AtlasIndex = atlasIndex,
+            DecalTextureIndex = TerrainDecalCatalog.TextureIndex(config.DecalTextureName),
+            ReliefGroup = block.ReliefGroup,
             AnimationFrameCount = frameCount,
             IsTextureReady = atlasIndex >= 0 && atlasRect.z > 0f,
-            IsPopulated = true,
         };
 
         // Кладётся и неготовый тип: сборка клетки читает только этот массив
@@ -159,12 +159,13 @@ public sealed class TerrainCellMetadataCache : ITerrainMetadataLookup
         {
             State = TerrainCellState.Loaded,
             Type = type,
-            ReliefGroup = meta.ReliefGroup,
+            IsBackground = BlockRegistry.Get(type).DrawLayer != CellDrawLayer.Foreground,
             Outline = meta.Outline,
+            AtlasIndex = meta.AtlasIndex,
+            AtlasRect = meta.AtlasRect,
             HasTileGroup = meta.HasTileGroup,
             TileGroupId = meta.TileGroupId,
-            AtlasRect = meta.AtlasRect,
-            AtlasIndex = meta.AtlasIndex,
+            ReliefGroup = meta.ReliefGroup,
             AnimationFrameCount = meta.AnimationFrameCount,
             IsTextureReady = meta.IsTextureReady,
         };

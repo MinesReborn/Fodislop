@@ -100,8 +100,7 @@ namespace Kern.Game.Player.Input
 
         public bool IsCtrlPressed =>
             _touchFastMove ||
-            (IsHeld(ConfiguredKey(_clientConfig?.Config.Interface.KeyFastMove, Key.LeftCtrl)) ||
-             IsHeld(ConfiguredKey(_clientConfig?.Config.Interface.KeyFastMoveAlternate, Key.RightCtrl))) ||
+            IsHeld(ConfiguredKey(_clientConfig?.Config.Interface.KeyFastMove, Key.LeftAlt)) ||
             (Gamepad.current != null && Gamepad.current.leftTrigger.isPressed);
 
         [VContainer.Inject]
@@ -200,6 +199,7 @@ namespace Kern.Game.Player.Input
                 case TouchPlayerAction.BuildGray: _touchBuildGray = true; break;
                 case TouchPlayerAction.BuildGreen: _touchBuildGreen = true; break;
                 case TouchPlayerAction.BuildWhite: _touchBuildWhite = true; break;
+                default: throw new System.ArgumentOutOfRangeException(nameof(action), action, "Unknown touch action.");
             }
         }
 
@@ -313,15 +313,12 @@ namespace Kern.Game.Player.Input
             }
         }
 
-        // Схема «Указатель мыши» (InterfaceSettings.ControlScheme == 1): пока
-        // зажата ПКМ, дрон идёт к указателю от центра экрана — то, что
-        // обещает вкладка «Управление» («ПКМ (удержание)»). ЛКМ остаётся за
-        // клик-маршрутом. Мёртвая зона 20 px гасит дрожь у центра.
+        // Движение мышью: пока зажата ПКМ, дрон идёт к указателю от центра
+        // экрана — то, что обещает вкладка «Управление» («ПКМ (удержание)»).
+        // ЛКМ остаётся за клик-маршрутом. Мёртвая зона 20 px гасит дрожь у центра.
         private void ReadMousePointerMovement()
         {
-            if (Mouse.current == null ||
-                _clientConfig?.Config.Interface.ControlScheme != 1 ||
-                !Mouse.current.rightButton.isPressed)
+            if (Mouse.current == null || !Mouse.current.rightButton.isPressed)
             {
                 return;
             }

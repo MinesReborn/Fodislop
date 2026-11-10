@@ -22,12 +22,17 @@ float4 _VignetteColor;
 float _VignetteSmoothness;
 float2 _VignetteCenter;
 
+// Хроматическая аберрация объектива: каналы расходятся по радиусу от центра,
+// сильнее к краям кадра. 0 — кадр не трогается.
+float _ChromaticAberration;
+// Режим для дальтоников: 0 — выкл., 1 — протанопия, 2 — дейтеранопия, 3 — тританопия
+int _ColorVisionMode;
+
 float _DisplayPaperWhiteNits;
 float _DisplayPeakRelative;
 float4 _DisplaySourceUv;
 float4 _DisplayWorldToViewportUv;
 float _DisplayViewportAspect;
-float _FisheyeStrength;
 // 0 when the world-grid final blit applies the vignette per screen pixel;
 // the mask is still computed here for the vignette debug view.
 int _DisplayApplyVignette;
@@ -56,11 +61,22 @@ float _EigengrauNoiseScale;
 float _EigengrauNoiseAmplitude;
 float _FrameIndex;
 
-// Калибровка дисплея. 0 — узор не рисуется, 1 — белая точка, 2 — лестница
-// пиковой яркости. _CalibrationValue несёт выбранное пользователем значение
-// в нитах: белую точку для режима 1, пик для режима 2.
+// Калибровка дисплея (CalibrationPattern). 0 — узор не рисуется, 1 — белая точка, 2 — знак на пике,
+// 3 — три знака у чёрного. _CalibrationValue — выбранный пик в нитах для режима 2.
+// Места узора задаёт раскладка экрана калибровки: прямоугольники в долях кадра от левого верхнего угла
+// (xy — угол, zw — размер). Строка 0 текстуры вывода — низ кадра (проверено снимком: узор вставал зеркально).
 float _CalibrationPattern;
 float _CalibrationValue;
+float4 _CalibRect0;
+float4 _CalibRect1;
+float4 _CalibRect2;
+Texture2D<float4> _CalibMark;
+SamplerState sampler_CalibMark_LinearClamp;
+
+// Поправки калибровки на пути к экрану: подъём чёрного (доля белой точки у самых тёмных тонов)
+// и степень средних тонов (только SDR, 1 — без изменения). См. DisplayAdjustment.
+float _DisplayBlackLift;
+float _DisplayGamma;
 
 // LUT must see the complete parameter block above. Keeping this include after
 // the declarations also makes Metal compile every kernel consistently; Metal
@@ -150,6 +166,13 @@ float PerceptualToLinear(float perceptualValue)
         : pow((perceptualValue + 0.055) / 1.055, 2.4);
 }
 
+inline float4 SampleDisplaySource(float2 sampleUv)
+{
+    return _DisplayLinearFilter != 0
+        ? _InputTex.SampleLevel(sampler_LinearClamp, sampleUv, 0)
+        : _InputTex.SampleLevel(sampler_PointClamp, sampleUv, 0);
+}
+
 float Hash31(float3 p)
 {
     p = frac(p * float3(0.1031, 0.1030, 0.0973));
@@ -168,6 +191,31 @@ float FilmGrain(float2 pixel)
     return Hash31(float3(grainPixel, _FrameIndex * 1.618 + 17.0)) * 2.0 - 1.0;
 }
 
+// Коррекция для дальтоников (daltonization): кадр переводится в пространство колбочек LMS
+// (Viénot, Brettel, Mollon 1999), там моделируется зрение без одного типа колбочек, а разница
+// между настоящим и увиденным переносится в каналы, которые человек различает (Fidaner и др.).
+// Цвет линейный относительно белой точки; сверху не ограничивается — свет выше 1.0 остаётся светом.
+float3 CorrectColorVision(float3 color, int mode)
+{
+    const float3x3 rgbToLms = float3x3(
+        17.8824, 43.5161, 4.11935,
+        3.45565, 27.1554, 3.86714,
+        0.0299566, 0.184309, 1.46709);
+    const float3x3 lmsToRgb = float3x3(
+        0.0809444479, -0.130504409, 0.116721066,
+        -0.0102485335, 0.0540193266, -0.113614708,
+        -0.000365296938, -0.00412161469, 0.693511405);
+    float3x3 deficiency = mode == 1
+        ? float3x3(0.0, 2.02344, -2.52581, 0.0, 1.0, 0.0, 0.0, 0.0, 1.0)
+        : mode == 2
+            ? float3x3(1.0, 0.0, 0.0, 0.494207, 0.0, 1.24827, 0.0, 0.0, 1.0)
+            : float3x3(1.0, 0.0, 0.0, 0.0, 1.0, 0.0, -0.395913, 0.801109, 0.0);
+    float3 seen = mul(lmsToRgb, mul(deficiency, mul(rgbToLms, color)));
+    float3 error = color - seen;
+    float3 shift = float3(0.0, 0.7 * error.r + error.g, 0.7 * error.r + error.b);
+    return max(color + shift, 0.0);
+}
+
 float3 ToDisplayOutput(float3 color)
 {
 #if defined(HDR_COLORSPACE_CONVERSION)
@@ -176,7 +224,37 @@ float3 ToDisplayOutput(float3 color)
     // HDR calibration can briefly be unavailable while the display mode is
     // being reconciled. Never allow a zero white level to create NaN/Inf.
     float paperWhite = max(_DisplayPaperWhiteNits, 1.0);
-    return max(0.0, color) * paperWhite;
+    color = max(0.0, color);
+    // Яркость SDR — степень средних тонов; белое (1) и чёрное (0) остаются на месте
+    color = pow(color, _DisplayGamma);
+    // Уровень чёрного — сдвиг, гаснущий к средним тонам: блики и белое не трогаются
+    color = max(0.0, color + _DisplayBlackLift * exp2(-color / 0.05));
+    return color * paperWhite;
+}
+
+// Доля знака в точке прямоугольника калибровки: маска CalibrationMark, знак — 56 % стороны квадрата
+float CalibrationMark(float2 topUv, float4 rect)
+{
+    float2 local = (topUv - rect.xy) / max(rect.zw, 1e-5);
+    if (any(local < 0.0) || any(local > 1.0))
+    {
+        return 0.0;
+    }
+
+    float2 markUv = (local - 0.22) / 0.56;
+    if (any(markUv < 0.0) || any(markUv > 1.0))
+    {
+        return 0.0;
+    }
+
+    // Текстура лежит по правилам Unity: строка 0 — низ картинки
+    return _CalibMark.SampleLevel(sampler_CalibMark_LinearClamp, float2(markUv.x, 1.0 - markUv.y), 0).r;
+}
+
+bool InCalibrationRect(float2 topUv, float4 rect)
+{
+    float2 local = topUv - rect.xy;
+    return all(local >= 0.0) && all(local <= rect.zw);
 }
 
 [numthreads(8, 8, 1)]
@@ -186,19 +264,28 @@ void DisplayFinal(uint3 id : SV_DispatchThreadID)
 
     float2 worldUv = (id.xy + 0.5) * _ScreenSize.zw;
     float2 screenUv = worldUv * _DisplayWorldToViewportUv.xy + _DisplayWorldToViewportUv.zw;
-    // Warp on the world-pixel lattice, after terrain/entity filtering and before
-    // point presentation. Screen-space effects keep their original coordinates.
-    float2 centered = worldUv * 2.0 - 1.0;
-    // Positive distortion samples outside the frame unless the image is
-    // fitted first. Clamp sampling would stretch the outermost texel into
-    // visible stripes; fit the furthest corner inside the source instead.
-    float radialScale = (1.0 + dot(centered, centered) * _FisheyeStrength) /
-        (1.0 + 2.0 * max(_FisheyeStrength, 0.0));
-    float2 warpedUv = 0.5 + centered * (radialScale * 0.5);
-    float2 uv = warpedUv * _DisplaySourceUv.xy + _DisplaySourceUv.zw;
-    float4 source = _DisplayLinearFilter != 0
-        ? _InputTex.SampleLevel(sampler_LinearClamp, uv, 0)
-        : _InputTex.SampleLevel(sampler_PointClamp, uv, 0);
+    float2 uv = worldUv * _DisplaySourceUv.xy + _DisplaySourceUv.zw;
+    float4 source = SampleDisplaySource(uv);
+    // Аберрация применяется к сэмплу сцены по радиусу: красный уходит наружу,
+    // синий внутрь, зелёный остаётся опорой. Край кадра получает заметную
+    // дужку, центр остаётся чистым — как в киношном объективе.
+    if (_ChromaticAberration > 0.001)
+    {
+        float aspect = _DisplayViewportAspect > 0.01 ? _DisplayViewportAspect : 1.0;
+        float2 screenCentered = (screenUv - 0.5) * float2(aspect, 1.0);
+        // Кривая держит кадр чистым до ~40% радиуса и выходит на максимум
+        // только к граням: центр не должен выглядеть расфокусированным.
+        float edge = smoothstep(0.38, 0.98, length(screenCentered));
+        // Направление считаем в экранных координатах, чтобы смещение было
+        // радиальным на мониторе, а не растянутым по осям кадра.
+        float2 screenRadial = (uv - 0.5) * float2(aspect, 1.0);
+        float2 radialDirection = screenRadial / max(length(screenRadial), 1e-5);
+        float2 offset = (radialDirection / float2(aspect, 1.0)) *
+            (_ChromaticAberration * 0.004 * edge);
+        float redChannel = SampleDisplaySource(uv + offset).r;
+        float blueChannel = SampleDisplaySource(uv - offset).b;
+        source = float4(redChannel, source.g, blueChannel, source.a);
+    }
     float srcAlpha = source.a;
     // URP supplies display-linear output: absolute nits in HDR, relative
     // white in SDR. Normalize only for the artistic screen effects.
@@ -229,6 +316,10 @@ void DisplayFinal(uint3 id : SV_DispatchThreadID)
     if (!showBefore)
     {
         color = ApplyCubeLut(color);
+        if (_ColorVisionMode != 0)
+        {
+            color = CorrectColorVision(color, _ColorVisionMode);
+        }
     }
 
     // 5. Vignette
@@ -296,51 +387,38 @@ void DisplayFinal(uint3 id : SV_DispatchThreadID)
     {
         float paperWhite = max(_DisplayPaperWhiteNits, 1.0);
         float3 patternColor = float3(0.0, 0.0, 0.0);
+        float2 topUv = (id.xy + 0.5) * _ScreenSize.zw;
+        topUv.y = 1.0 - topUv.y;
 
         if (_CalibrationPattern < 1.5)
         {
-            // Белая точка: одно большое поле ровно в paper white на чёрном.
-            // Человек поднимает ползунок, пока белое не станет бумагой при
-            // его освещении в комнате, а не лампой.
-            float2 half = _ScreenSize.xy * 0.5;
-            float2 distanceFromCenter = abs(screenUv * _ScreenSize.xy - half);
-            bool insidePatch = distanceFromCenter.x < half.x * 0.35 &&
-                distanceFromCenter.y < half.y * 0.45;
-            patternColor = insidePatch ? float3(1.0, 1.0, 1.0) : float3(0.0, 0.0, 0.0);
+            // Белая точка: лист ровно в paper white на чёрном рядом с карточкой интерфейса.
+            // Человек поднимает ползунок, пока белое не станет бумагой при его освещении в комнате.
+            patternColor = InCalibrationRect(topUv, _CalibRect0) ? float3(1.0, 1.0, 1.0) : float3(0.0, 0.0, 0.0);
+        }
+        else if (_CalibrationPattern < 2.5)
+        {
+            // Пик (как HGIG): поле — больше, чем умеет любой дисплей, знак — выбранный пик.
+            // Пока пик ниже настоящего, знак темнее поля; выше — дисплей срезает оба, и знак сливается.
+            // Нужное значение — где знак едва заметен.
+            if (InCalibrationRect(topUv, _CalibRect0))
+            {
+                float field = 10000.0 / paperWhite;
+                float mark = max(_CalibrationValue, paperWhite) / paperWhite;
+                patternColor = lerp(field, mark, CalibrationMark(topUv, _CalibRect0)).xxx;
+            }
         }
         else
         {
-            // Лестница пика. Ступени логарифмические: восприятие яркости
-            // логарифмично, и равномерный шаг в нитах дал бы внизу лестницы
-            // неразличимые ступени, а наверху — провалы.
-            //
-            // Выбранный пик обведён рамкой. Смысл процедуры: найти верхнюю
-            // ступень, которая ещё светлее соседней снизу, и поставить пик
-            // туда. Выше неё дисплей уже не различает — обещать ему больше
-            // значит отдать блики в плоскую заливку.
-            const float stepCount = 12.0;
-            float2 pixel = screenUv * _ScreenSize.xy;
-            float2 ladderSize = float2(_ScreenSize.x * 0.75, _ScreenSize.y * 0.3);
-            float2 ladderOrigin = (_ScreenSize.xy - ladderSize) * 0.5;
-            float2 local = pixel - ladderOrigin;
-            if (local.x >= 0.0 && local.y >= 0.0 && local.x < ladderSize.x && local.y < ladderSize.y)
-            {
-                float stepWidth = ladderSize.x / stepCount;
-                float stepIndex = floor(local.x / stepWidth);
-                float t = stepIndex / (stepCount - 1.0);
-                float peakNits = max(_CalibrationValue, paperWhite);
-                float topNits = max(peakNits, paperWhite * 2.0) * 1.5;
-                float stepNits = paperWhite * pow(topNits / paperWhite, t);
-                patternColor = float3(stepNits, stepNits, stepNits) / paperWhite;
-
-                // Рамка вокруг ступени, ближайшей к выбранному пику.
-                float selected = round(log(peakNits / paperWhite) / log(topNits / paperWhite) * (stepCount - 1.0));
-                float withinStep = local.x - stepIndex * stepWidth;
-                bool onFrame = abs(stepIndex - selected) < 0.5 &&
-                    (withinStep < 3.0 || withinStep > stepWidth - 3.0 ||
-                     local.y < 3.0 || local.y > ladderSize.y - 3.0);
-                patternColor = onFrame ? float3(0.0, 0.0, 0.0) : patternColor;
-            }
+            // Чёрный: три знака чуть светлее чёрного — «не виден», «едва заметен», «виден». Ползунок уровня чёрного
+            // (или яркости SDR) двигает их через ToDisplayOutput, пока они не станут такими, как подписано.
+            // Фон — настоящий чёрный дисплея, поправку получают только знаки: «не виден» проявляется,
+            // когда чёрное поднято слишком сильно, «едва заметен» гаснет, когда оно задавлено.
+            float3 marks = CalibrationMark(topUv, _CalibRect0) * ToDisplayOutput(float3(0.0, 0.0, 0.0)) +
+                CalibrationMark(topUv, _CalibRect1) * ToDisplayOutput(float3(0.0024, 0.0024, 0.0024)) +
+                CalibrationMark(topUv, _CalibRect2) * ToDisplayOutput(float3(0.008, 0.008, 0.008));
+            _OutputTex[id.xy] = float4(marks, srcAlpha);
+            return;
         }
 
         _OutputTex[id.xy] = float4(ToDisplayOutput(patternColor), srcAlpha);

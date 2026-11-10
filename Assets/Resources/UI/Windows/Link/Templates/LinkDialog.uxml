@@ -1,0 +1,25 @@
+<ui:UXML xmlns:ui="UnityEngine.UIElements">
+    <!-- Сервер просит открыть ссылку (OpenURLPacket) — макет visual/kern-ui (#linkDialog, css/events.css .link-url):
+         строка источника «Сервер ····», вопрос, адрес целиком с выделенным доменом, «Отмена» и «Открыть». -->
+    <ui:VisualElement name="LinkOverlay" class="dialog-layer is-hidden" picking-mode="Ignore">
+        <ui:VisualElement name="LinkPanel" class="panel dialog link-dlg">
+            <ui:VisualElement class="src-rail" picking-mode="Ignore">
+                <ui:Label name="LinkSource" class="src-rail__label caps" picking-mode="Ignore" />
+                <ui:VisualElement class="src-rail__line" picking-mode="Ignore" />
+            </ui:VisualElement>
+            <ui:Label name="LinkTitle" class="dialog__title caps" />
+            <ui:Label name="LinkText" class="dialog__text" />
+            <ui:VisualElement class="link-url">
+                <ui:VisualElement class="ico ico--link link-url__ico" picking-mode="Ignore" />
+                <ui:VisualElement class="link-url__addr">
+                    <ui:Label name="LinkHost" class="link-url__host" />
+                    <ui:Label name="LinkPath" class="link-url__path" />
+                </ui:VisualElement>
+            </ui:VisualElement>
+            <ui:VisualElement class="dialog-actions">
+                <ui:Button name="LinkCancel" class="btn" />
+                <ui:Button name="LinkOpen" class="btn btn--primary"><ui:VisualElement class="ico ico--arrows btn__arrows" picking-mode="Ignore" /></ui:Button>
+            </ui:VisualElement>
+        </ui:VisualElement>
+    </ui:VisualElement>
+</ui:UXML>

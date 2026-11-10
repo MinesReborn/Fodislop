@@ -1,0 +1,53 @@
+import {chromium} from '@playwright/test';
+import assert from 'node:assert/strict';
+const browser=await chromium.launch();
+try{
+const page=await browser.newPage({viewport:{width:1700,height:1100}}),errors=[];page.on('pageerror',e=>errors.push(e.message));
+await page.goto('http://127.0.0.1:8791/visual/kern-protocol/');await page.waitForSelector('#builder-properties fieldset');
+assert.ok(await page.locator('.box-overlay').isHidden());
+await page.locator('#tree [data-node-path]').first().click();assert.ok(await page.locator('.box-overlay').isHidden());
+await page.keyboard.press('Escape');
+await page.click('#new-window');
+await page.getByLabel('WindowTag',{exact:true}).fill('admin_test');await page.getByLabel('WindowTag',{exact:true}).press('Tab');
+await page.click('#components-tab');await page.locator('#library button[data-component-type=TextPacket]').click();
+await page.getByLabel('Text',{exact:true}).fill('Новый элемент');await page.getByLabel('Text',{exact:true}).press('Tab');
+await page.getByLabel('Собственное оформление',{exact:true}).check();
+await page.getByLabel('Style.Background',{exact:true}).fill('#123456');await page.getByLabel('Собственное оформление',{exact:true}).uncheck();await page.getByLabel('Собственное оформление',{exact:true}).check();assert.equal(await page.getByLabel('Style.Background',{exact:true}).inputValue(),'#123456');
+await page.getByLabel('Padding.Top',{exact:true}).fill('7');await page.getByLabel('Padding.Top',{exact:true}).press('Tab');
+await page.getByLabel('Собственное оформление',{exact:true}).uncheck();
+assert.equal(JSON.parse(await page.locator('#properties').inputValue()).Style,null);
+await page.getByLabel('Собственное оформление',{exact:true}).check();assert.equal(await page.getByLabel('Style.Background',{exact:true}).inputValue(),'#123456');assert.equal(await page.getByLabel('Padding.Top',{exact:true}).inputValue(),'7');
+await page.getByLabel('Собственное оформление',{exact:true}).uncheck();
+await page.getByLabel('Canvas.X',{exact:true}).fill('21');await page.getByLabel('Canvas.X',{exact:true}).press('Tab');
+assert.equal(await page.getByLabel('Canvas.X',{exact:true}).inputValue(),'21');
+await page.click('#clear-selection');assert.equal(await page.locator('#artboard .selected').count(),0);assert.ok(await page.locator('.builder-selection').isHidden());
+await page.locator('#tree [data-node-path]').nth(1).click();await page.keyboard.press('Escape');assert.equal(await page.locator('#artboard .selected').count(),0);
+await page.locator('#tree [data-node-path]').nth(1).click();await page.locator('.viewport').click({position:{x:5,y:5}});assert.equal(await page.locator('#artboard .selected').count(),0);
+await page.locator('#tree [data-node-path]').nth(1).click();await page.locator('[data-edit=duplicate]').click();assert.equal(await page.locator('#tree [data-node-path]').count(),3);
+await page.click('#undo-edit');assert.equal(await page.locator('#tree [data-node-path]').count(),2);await page.click('#redo-edit');assert.equal(await page.locator('#tree [data-node-path]').count(),3);
+await page.locator('[data-edit=delete]').click();assert.equal(await page.locator('#tree [data-node-path]').count(),2);
+await page.locator('#tree [data-node-path]').nth(1).click();await page.selectOption('#snap-mode','grid');await page.getByLabel('Шаг сетки',{exact:true}).fill('8');
+const handle=page.locator('.move-handle');await handle.waitFor({state:'visible'});const box=await handle.boundingBox();await page.mouse.move(box.x+5,box.y+5);await page.mouse.down();await page.mouse.move(box.x+18,box.y+16);assert.ok(await page.locator('.snap-guide').count());await page.mouse.up();
+assert.equal(Number(await page.getByLabel('Canvas.X',{exact:true}).inputValue())%8,0);assert.equal(await page.locator('.snap-guide').count(),0);
+await page.click('#save-local');const saved=await page.evaluate(()=>JSON.parse(localStorage.getItem('kern.protocol.builder.document')));assert.equal(saved.WindowTag,'admin_test');assert.ok(!JSON.stringify(saved).includes('snap-mode'));
+await page.reload();await page.waitForSelector('#builder-properties fieldset');assert.equal(await page.getByLabel('WindowTag',{exact:true}).inputValue(),'admin_test');await page.locator('#tree [data-node-path]').nth(1).click();await page.getByLabel('Собственное оформление',{exact:true}).check();assert.equal(await page.getByLabel('Style.Background',{exact:true}).inputValue(),'#123456');assert.equal(await page.getByLabel('Padding.Top',{exact:true}).inputValue(),'7');await page.getByLabel('Собственное оформление',{exact:true}).uncheck();
+const downloadPromise=page.waitForEvent('download');await page.click('#export');const download=await downloadPromise;assert.equal(download.suggestedFilename(),'admin_test.json');
+await page.click('#new-window');await page.click('#load-local');assert.equal(await page.getByLabel('WindowTag',{exact:true}).inputValue(),'admin_test');
+await page.locator('#tree [data-node-path]').nth(1).click();await page.getByLabel('Собственное оформление',{exact:true}).check();assert.equal(await page.getByLabel('Style.Background',{exact:true}).inputValue(),'#123456');assert.equal(await page.getByLabel('Padding.Top',{exact:true}).inputValue(),'7');
+await page.getByLabel('Собственное оформление',{exact:true}).uncheck();await page.locator('[data-edit=duplicate]').click();await page.getByLabel('Собственное оформление',{exact:true}).check();assert.equal(await page.getByLabel('Style.Background',{exact:true}).inputValue(),'#123456');
+await page.click('#undo-edit');await page.click('#undo-edit');assert.equal(await page.locator('#tree [data-node-path]').count(),2);await page.getByLabel('Собственное оформление',{exact:true}).check();assert.equal(await page.getByLabel('Padding.Top',{exact:true}).inputValue(),'7');
+
+const leaf=text=>({Type:'TextPacket',Text:text,Style:{Background:'#00000000',Border:'#00000000',BorderWidth:0,Margin:{Top:0,Left:0,Right:0,Bottom:16},Padding:{Top:8,Left:8,Right:8,Bottom:8}},OnClickContext:'',AttachedProperties:[{Key:'DockPanel.Dock',Value:'Top'}]});
+const flowPacket={WindowTag:'flow_test',Width:640,Height:480,Content:{Type:'CanvasPacket',Style:null,OnClickContext:'',AttachedProperties:[],Children:[{Type:'DockPanelPacket',Style:null,OnClickContext:'',AttachedProperties:Object.entries({X:24,Y:64,Width:320,Height:240}).map(([k,v])=>({Key:'Canvas.'+k,Value:String(v)})),Children:[leaf('A'),leaf('B'),leaf('C')]}]}};
+await page.locator('details').filter({has:page.locator('#importData')}).evaluate(el=>el.open=true);await page.locator('#importData').fill(JSON.stringify(flowPacket));await page.click('#import');
+await page.locator('#tree [data-node-path]').nth(4).click();await page.locator('.move-handle').waitFor({state:'visible'});
+const target=await page.locator('#artboard [data-type=TextPacket]').filter({hasText:/^B$/}).boundingBox(),handleRect=await page.locator('.move-handle').boundingBox();
+await page.mouse.move(handleRect.x+5,handleRect.y+5);await page.mouse.down();await page.mouse.move(target.x+10,target.y+2,{steps:5});assert.equal(await page.locator('.flow-insertion').count(),1);await page.mouse.up();
+await page.locator('#tree [data-node-path]').first().click();let current=JSON.parse(await page.locator('#properties').inputValue());assert.deepEqual(current.Children[0].Children.map(n=>n.Text),['A','C','B']);
+// Grouping is a packet transformation, not editor fields added to the contract.
+await page.locator('details').filter({has:page.locator('#importData')}).evaluate(el=>el.open=true);await page.locator('#importData').fill(JSON.stringify(saved));await page.click('#import');
+await page.locator('#tree [data-node-path]').nth(1).click();await page.locator('[data-edit=duplicate]').click();await page.locator('#tree [data-node-path]').nth(1).click();await page.locator('#tree [data-node-path]').nth(2).click({modifiers:['Shift']});await page.click('#group-selection');
+await page.locator('#tree [data-node-path]').first().click();current=JSON.parse(await page.locator('#properties').inputValue());assert.equal(current.Children.length,1);assert.equal(current.Children[0].Type,'CanvasPacket');assert.equal(current.Children[0].Children.length,2);
+await page.locator('#tree [data-node-path]').nth(1).click();await page.click('#ungroup-selection');await page.locator('#tree [data-node-path]').first().click();current=JSON.parse(await page.locator('#properties').inputValue());assert.equal(current.Children.length,2);
+await page.evaluate(()=>document.fonts.ready);await page.screenshot({path:'/tmp/kern-builder-checked.png',fullPage:true});assert.deepEqual(errors,[]);console.log('Builder: edit, selection clearing, duplicate/delete, undo/redo, grid drag, local save/load, JSON export, flow insertion and grouping passed');
+}finally{await browser.close();}

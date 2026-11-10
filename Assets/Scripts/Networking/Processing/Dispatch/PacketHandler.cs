@@ -1,6 +1,5 @@
 #nullable enable
 
-using Kern.Core.Platform;
 
 using System;
 using System.Collections.Generic;
@@ -36,7 +35,7 @@ public sealed class PacketHandler : IStartable, IDisposable
     private readonly ChatProcessor _chat;
     private readonly StatusProcessor _status;
     private readonly AudioPacketProcessor _audio;
-    private readonly VFXPacketProcessor _vfx;
+    private readonly VisualPacketProcessor _visual;
     private readonly InventoryProcessor _inventory;
     private readonly ClanProcessor _clan;
     private readonly MissionProcessor _mission;
@@ -58,7 +57,7 @@ public sealed class PacketHandler : IStartable, IDisposable
         ChatProcessor chat,
         StatusProcessor status,
         AudioPacketProcessor audio,
-        VFXPacketProcessor vfx,
+        VisualPacketProcessor visual,
         InventoryProcessor inventory,
         ClanProcessor clan,
         MissionProcessor mission,
@@ -77,7 +76,7 @@ public sealed class PacketHandler : IStartable, IDisposable
         _chat = chat;
         _status = status;
         _audio = audio;
-        _vfx = vfx;
+        _visual = visual;
         _inventory = inventory;
         _clan = clan;
         _mission = mission;
@@ -96,7 +95,7 @@ public sealed class PacketHandler : IStartable, IDisposable
             chat,
             status,
             audio,
-            vfx,
+            visual,
             inventory,
             clan,
             mission,
@@ -173,7 +172,6 @@ public sealed class PacketHandler : IStartable, IDisposable
 
         On<AutoMineStatePacket>(_playerInfo.Process);
         On<SkillProgressPacket>(_playerStats.Process);
-        On<DailyBonusStatePacket>(_playerStats.Process);
         On<TeleportPacket>(_playerInfo.Process);
         On<ChatMessageListPacket>(_chat.Process);
         On<LocalChatMessagePacket>(_chat.Process);
@@ -184,7 +182,7 @@ public sealed class PacketHandler : IStartable, IDisposable
         On<PingPacket>(_status.Process);
         On<OutdatedClientPacket>(_status.Process);
         On<AudioPacket>(_audio.Process);
-        On<VFXPacket>(_vfx.Process);
+        On<VisualPacket>(_visual.Process);
         On<InventoryPacket>(_inventory.Process);
         On<MinesServer.Networking.Server.Packets.Inventory.SelectItemPacket>(_inventory.Process);
         On<MinesServer.Networking.Server.Packets.Inventory.DeselectItemPacket>(_inventory.Process);
@@ -199,7 +197,7 @@ public sealed class PacketHandler : IStartable, IDisposable
         On<DisconnectPacket>(_connection.Process);
         On<ReconnectPacket>(_connection.Process);
         On<AuthTokenPacket>(_authToken.Process);
-        On<OpenURLPacket>(packet => ExternalUrlOpener.TryOpen(packet.URL, nameof(PacketHandler)));
+        On<OpenURLPacket>(_windowProcessor.Process);
         On<MissionArrowPacket>(_missionArrow.Process);
         On<ClientConfigPacket>(_clientConfig.Process);
 

@@ -52,12 +52,12 @@ public sealed class InputAndTextConfigMigrationTests
         Assert.That(settings.IsGameplayKey("k"), Is.True);
         Assert.That(settings.IsGameplayKey("W"), Is.False);
         Assert.That(settings.IsGameplayKey("UpArrow"), Is.True);
-        Assert.That(settings.IsGameplayKey("LeftCtrl"), Is.True);
+        Assert.That(settings.IsGameplayKey("LeftAlt"), Is.True);
         Assert.That(settings.IsGameplayKey("Space"), Is.True);
     }
 
     [TestCase("LeftShift", "KeyTurnOnly")]
-    [TestCase("RightCtrl", "KeyFastMoveAlternate")]
+    [TestCase("LeftAlt", "KeyFastMove")]
     [TestCase("UpArrow", "KeyMoveUpAlternate")]
     public void SavedActionMayOwnAnAlternateOrModifier(string saved, string newlyAdded)
     {

@@ -15,4 +15,13 @@ public static class WorldRenderLayers
     // камеры: подложка мира то ложилась под террейн, то накрывала его
     // собственный фоновый слой.
     public const int WorldBackgroundSortingOrder = TerrainSortingOrder - 100;
+
+    // Сущности мира (роботы, хвосты, эффекты в общем батче) — над фоновыми
+    // клетками террейна, но под его блоками: стенки и передний план блоков
+    // вынесены в отдельный рендерер TerrainForegroundSortingOrder.
+    public const int WorldEntitySortingOrder = TerrainSortingOrder + 998;
+
+    // Блоки террейна (боковые стенки и верхняя грань) — над роботами и
+    // хвостами, чтобы они уходили под породу, как в легаси-клиенте.
+    public const int TerrainForegroundSortingOrder = WorldEntitySortingOrder + 1;
 }

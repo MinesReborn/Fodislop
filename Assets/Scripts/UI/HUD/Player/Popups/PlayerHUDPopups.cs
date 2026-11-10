@@ -21,7 +21,6 @@ public sealed class PlayerHUDPopups
     private readonly Action<OpenHelpClickPacket> _sendHelpRequest;
     private readonly Action<OpenBuildingsClickPacket> _sendBuildingsRequest;
     private readonly Action<SendLocalChatMessagePacket> _sendLocalChat;
-    private VisualElement? _respawnPopup;
 
     public PlayerHUDPopups(
         Action<SuicidePacket> sendSuicide,
@@ -37,21 +36,9 @@ public sealed class PlayerHUDPopups
 
     public void Initialize(VisualElement root)
     {
-        _respawnPopup = root.Q<VisualElement>("RespawnPopup") ??
-            throw new InvalidOperationException("[PlayerHUD] RespawnPopup is missing from PlayerHUD.uxml.");
-        Button respawnConfirm = root.Q<Button>("RespawnConfirmButton") ??
-            throw new InvalidOperationException("[PlayerHUD] RespawnConfirmButton is missing from PlayerHUD.uxml.");
-        respawnConfirm.clicked += () =>
-        {
-            _sendSuicide(new SuicidePacket());
-            _respawnPopup.style.display = DisplayStyle.None;
-        };
-        Button respawnCancel = root.Q<Button>("RespawnCancelButton") ??
-            throw new InvalidOperationException("[PlayerHUD] RespawnCancelButton is missing from PlayerHUD.uxml.");
-        respawnCancel.clicked += () => _respawnPopup.style.display = DisplayStyle.None;
         Button respawnButton = root.Q<Button>("RespawnButton") ??
             throw new InvalidOperationException("[PlayerHUD] RespawnButton is missing from PlayerHUD.uxml.");
-        respawnButton.clicked += () => _respawnPopup.style.display = DisplayStyle.Flex;
+        respawnButton.clicked += () => _sendSuicide(new SuicidePacket());
 
         // «Мои здания» и FAQ — серверные страницы: кнопки шлют OpenBuildingsClickPacket (27)
         // и OpenHelpClickPacket (18); сервер отвечает окном (Session.BuildingsHandler →

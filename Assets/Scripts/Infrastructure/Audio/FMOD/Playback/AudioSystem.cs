@@ -23,9 +23,15 @@ namespace Kern.Infrastructure.Audio
         private bool _configWaitLogged;
         private bool _bankWaitStarted;
         private bool _pausedInBackground;
+        private int _bankRevision = -1;
+        private bool _bankRefreshRunning;
 
         [Inject]
         private IClientConfigManager _clientConfig = null!;
+        [Inject]
+        private IAssetLoader _assetLoader = null!;
+        [Inject]
+        private IAudioBankManifestState _audioBankManifest = null!;
 
         [Inject]
         private IAsyncOperationSupervisor _operations = null!;
@@ -37,7 +43,7 @@ namespace Kern.Infrastructure.Audio
         public bool IsBackgroundMuted => _pausedInBackground;
 
         public UniTask WaitUntilBanksReadyAsync(CancellationToken cancellationToken = default)
-            => _backend.WaitUntilReadyAsync(this, cancellationToken);
+            => _backend.WaitUntilReadyAsync(this, _assetLoader, _audioBankManifest, cancellationToken);
 
         private void Awake()
         {
@@ -52,10 +58,44 @@ namespace Kern.Infrastructure.Audio
         private void Update()
         {
             TryStartBankWait();
+            TryRefreshBanks();
             if (!_configApplied)
             {
                 TryApplySavedBusVolumes();
             }
+        }
+
+        // Сервер может сменить набор банков посреди игры: изменившиеся перезагружаются, не прерывая её
+        private void TryRefreshBanks()
+        {
+            if (_bankRefreshRunning ||
+                _operations == null ||
+                _backend == null ||
+                !_backend.IsReady ||
+                _audioBankManifest.Revision == _bankRevision)
+            {
+                return;
+            }
+
+            _bankRevision = _audioBankManifest.Revision;
+            _bankRefreshRunning = true;
+            _operations.Run(
+                "refresh_audio_banks",
+                async cancellationToken =>
+                {
+                    try
+                    {
+                        await _backend.RefreshBanksAsync(
+                            this,
+                            _assetLoader,
+                            _audioBankManifest,
+                            cancellationToken);
+                    }
+                    finally
+                    {
+                        _bankRefreshRunning = false;
+                    }
+                });
         }
 
         private void TryStartBankWait()
@@ -68,7 +108,11 @@ namespace Kern.Infrastructure.Audio
             _bankWaitStarted = true;
             _operations.Run(
                 "wait_audio_banks",
-                cancellationToken => _backend.WaitUntilReadyAsync(this, cancellationToken));
+                cancellationToken => _backend.WaitUntilReadyAsync(
+                    this,
+                    _assetLoader,
+                    _audioBankManifest,
+                    cancellationToken));
         }
 
         private void OnEnable()
@@ -154,7 +198,7 @@ namespace Kern.Infrastructure.Audio
                 return null;
             }
 
-            AudioLayer layer = overrideLayer ?? AudioLayer.SFXDefault();
+            AudioLayer layer = overrideLayer ?? AudioLayer.SoundEffectsDefault();
             if (overrideVolume.HasValue)
             {
                 layer.Volume = overrideVolume.Value;

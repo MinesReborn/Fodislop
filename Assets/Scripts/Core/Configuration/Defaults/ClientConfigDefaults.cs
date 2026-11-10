@@ -5,6 +5,7 @@ using System;
 using Kern.Rendering;
 
 using Kern.Core.UserInterface;
+using Kern.Core.Platform;
 
 namespace Kern.Core.Configuration;
 
@@ -26,6 +27,7 @@ internal static class ClientConfigDefaults
         };
         config.GraphicsQualitySettings = graphicsQualityProfile.Get(config.GraphicsPreset);
         config.Interface.UIScale = UIScalePolicy.RecommendedDefaultScale;
+        config.Interface.Language = ClientMarketPolicy.DefaultLanguageCode;
         return config;
     }
 }

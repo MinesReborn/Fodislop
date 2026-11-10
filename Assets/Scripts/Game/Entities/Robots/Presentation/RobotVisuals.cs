@@ -8,7 +8,7 @@ using Kern.Core.Lifecycle;
 using UnityEngine;
 
 using Kern.Game.Rendering;
-using Kern.Game.VisualEffects.Tentacles;
+using Kern.Game.Visual.Entities.Tentacles;
 
 namespace Kern.Game.Entities.Robots;
 
@@ -33,6 +33,7 @@ public sealed class RobotVisuals
     private Sprite? _skinSprite;
     private Sprite? _clanSprite;
     private Tentacle[]? _tentacles;
+    private bool _hasTailBudgetSlot;
     private bool _tentaclesSettled;
     private Vector3 _lastTentacleRootPosition;
     private Vector3 _forcedTailOffset;
@@ -177,6 +178,57 @@ public sealed class RobotVisuals
                 position,
                 i);
         }
+    }
+
+    public void ApplyTailTexture(
+        Texture2D? tailTexture,
+        Vector3 position,
+        RobotManager robotManager,
+        uint botId,
+        bool prioritize)
+    {
+        if (tailTexture == null)
+        {
+            ClearTentacles();
+            if (_hasTailBudgetSlot)
+            {
+                robotManager.ReleaseTailSlot(botId);
+                _hasTailBudgetSlot = false;
+            }
+
+            return;
+        }
+
+        if (!_hasTailBudgetSlot)
+        {
+            if (!robotManager.TryReserveTailSlot(botId, prioritize))
+            {
+                ClearTentacles();
+                return;
+            }
+
+            _hasTailBudgetSlot = true;
+        }
+
+        CreateTentacles(tailTexture, position);
+    }
+
+    public void ReleaseTailSlot(uint botId, RobotManager robotManager)
+    {
+        if (!_hasTailBudgetSlot)
+        {
+            return;
+        }
+
+        robotManager.ReleaseTailSlot(botId);
+        _hasTailBudgetSlot = false;
+        ClearTentacles();
+    }
+
+    public void ReleaseTailSlotFromManager()
+    {
+        _hasTailBudgetSlot = false;
+        ClearTentacles();
     }
 
     public void ClearTentacles()

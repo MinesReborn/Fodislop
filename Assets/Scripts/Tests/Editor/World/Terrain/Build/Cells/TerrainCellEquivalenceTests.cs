@@ -86,8 +86,6 @@ public sealed class TerrainCellEquivalenceTests
             slot => sources.Atlases[slot].Size,
             TerrainCellData.PackTileDescriptors(),
             (uint)BlockRegistry.UnderlayType,
-            TerrainCellData.PackDecal(TerrainDecalCatalog.GroundRule),
-            TerrainCellData.PackDecal(TerrainDecalCatalog.RockRule),
             TerrainTestWorld.WorldHeight);
         int anchored = 0;
         foreach ((int x, int y, int layer, TerrainVertex[] vertices, TerrainQuadResult result) in quads)

@@ -32,7 +32,7 @@ public sealed class GraphicsPresetSwitchPlayModeTests
         Assume.That(SystemInfo.supportsComputeShaders, Is.True, "Graphics switching test needs compute shader support.");
 
         _authentication = DummyAuthenticationScope.Seed(TestDummyToken);
-        yield return PlayModeHarness.StartAtGateway();
+        yield return PlayModeHarness.StartAtMainMenu();
         _bootstrap = PlayModeHarness.FindBootstrap()!;
         _config = _bootstrap.Container.Resolve<IClientConfigManager>();
         _originalPreset = _config.Config.GraphicsPreset;

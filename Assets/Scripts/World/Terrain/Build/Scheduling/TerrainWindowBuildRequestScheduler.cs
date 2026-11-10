@@ -153,7 +153,9 @@ internal sealed class TerrainWindowBuildRequestScheduler : IDisposable
 
             if (_publishedView.CellsCommitted)
             {
-                _publishedView.WithdrawPublication(_driver);
+                _publishedView.WithdrawPublication(
+                    _driver,
+                    $"materials recreated, atlases={atlases.Count}");
             }
         }
 

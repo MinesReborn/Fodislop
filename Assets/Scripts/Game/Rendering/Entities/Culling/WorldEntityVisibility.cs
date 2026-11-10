@@ -4,7 +4,7 @@ using System.Collections.Generic;
 using Kern.World;
 using UnityEngine;
 
-using Kern.Game.VisualEffects.Tentacles;
+using Kern.Game.Visual.Entities.Tentacles;
 
 namespace Kern.Game.Rendering
 {
@@ -17,6 +17,8 @@ namespace Kern.Game.Rendering
         private readonly SpatialShardGrid<WorldEntityBatchRenderer.SpriteHandle> _grid;
         private readonly float _prefetchMargin;
         private readonly List<WorldEntityBatchRenderer.SpriteHandle> _candidates = new();
+        private readonly HashSet<WorldEntityBatchRenderer.SpriteHandle> _visibleSpriteHandles = new();
+        private readonly HashSet<WorldEntityBatchRenderer.SpriteHandle> _currentVisibleSpriteHandles = new();
 
         public readonly List<WorldEntityBatchRenderer.SpriteHandle> UnderTentacles = new();
         public readonly List<WorldEntityBatchRenderer.SpriteHandle> OverTentacles = new();
@@ -128,8 +130,66 @@ namespace Kern.Game.Rendering
             }
         }
 
+        public bool HasVisibleSpriteChanges()
+        {
+            _currentVisibleSpriteHandles.Clear();
+            AddVisibleHandles(UnderTentacles, _currentVisibleSpriteHandles);
+            AddVisibleHandles(OverTentacles, _currentVisibleSpriteHandles);
+            AddVisibleHandles(Overlay, _currentVisibleSpriteHandles);
+
+            if (_currentVisibleSpriteHandles.Count != _visibleSpriteHandles.Count)
+            {
+                return true;
+            }
+
+            foreach (WorldEntityBatchRenderer.SpriteHandle handle in _currentVisibleSpriteHandles)
+            {
+                if (!_visibleSpriteHandles.Contains(handle) || handle.HasChanged())
+                {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        public void CaptureVisibleSpriteState()
+        {
+            _visibleSpriteHandles.Clear();
+            foreach (WorldEntityBatchRenderer.SpriteHandle handle in _currentVisibleSpriteHandles)
+            {
+                _visibleSpriteHandles.Add(handle);
+            }
+        }
+
+        private static void AddVisibleHandles(
+            IReadOnlyList<WorldEntityBatchRenderer.SpriteHandle> source,
+            HashSet<WorldEntityBatchRenderer.SpriteHandle> destination)
+        {
+            for (int i = 0; i < source.Count; i++)
+            {
+                destination.Add(source[i]);
+            }
+        }
+
         public bool TryGetVisibleRect(Camera? camera, out Rect visibleRect) =>
             TryGetCameraRect(camera, _prefetchMargin, out visibleRect);
+
+        public bool TryGetCachedVisibleRect(out Rect visibleRect)
+        {
+            visibleRect = _cachedVisibleRect;
+            return _hasCachedVisibleRect;
+        }
+
+        public bool TryGetCollectionRect(Camera? camera, bool coverageInvalidated, out Rect visibleRect)
+        {
+            if (camera != null && !coverageInvalidated && TryGetCachedVisibleRect(out visibleRect))
+            {
+                return true;
+            }
+
+            return TryGetVisibleRect(camera, out visibleRect);
+        }
 
         private static bool TryGetCameraRect(Camera? camera, float margin, out Rect visibleRect)
         {

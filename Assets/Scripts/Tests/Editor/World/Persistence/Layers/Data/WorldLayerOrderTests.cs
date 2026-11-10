@@ -19,6 +19,10 @@ public class WorldLayerOrderTests
         WorldRenderLayers.WorldBackgroundSortingOrder;
     private const int Terrain =
         WorldRenderLayers.TerrainSortingOrder;
+    private const int WorldEntities =
+        WorldRenderLayers.WorldEntitySortingOrder;
+    private const int TerrainForeground =
+        WorldRenderLayers.TerrainForegroundSortingOrder;
 
     [Test]
     public void WorldBackgroundStaysStrictlyBehindTerrain()
@@ -27,5 +31,18 @@ public class WorldLayerOrderTests
             WorldBackground,
             Is.LessThan(Terrain),
             "Подложка мира обязана лежать под террейном, а не вровень с ним.");
+    }
+
+    [Test]
+    public void WorldEntitiesStayUnderTerrainBlocks()
+    {
+        Assert.That(
+            WorldEntities,
+            Is.GreaterThan(Terrain),
+            "Роботы и хвосты обязаны лежать над фоновыми клетками террейна.");
+        Assert.That(
+            TerrainForeground,
+            Is.GreaterThan(WorldEntities),
+            "Стенки и передний план блоков обязаны накрывать роботов и хвосты.");
     }
 }

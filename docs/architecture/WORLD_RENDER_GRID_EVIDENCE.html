@@ -1,12 +1,18 @@
 <!doctype html>
 <html lang="ru">
 <meta charset="utf-8">
-<title>WorldRenderGrid — evidence первого этапа</title>
+<title>WorldRenderGrid — архив evidence</title>
 <style>
 body{font:16px/1.6 system-ui,sans-serif;margin:40px auto;max-width:1080px;padding:0 24px;color:#20252b;background:#fafafa}table{border-collapse:collapse;width:100%;margin:20px 0}th,td{border:1px solid #ccd2d8;padding:9px;text-align:left;vertical-align:top}code{background:#e9edf0;padding:2px 5px}pre{white-space:pre-wrap;background:#e9edf0;padding:16px}.pending{color:#8b4300}
 </style>
-<h1>WorldRenderGrid — текущее состояние реализации</h1>
-<h2>2026-10-09 — восстановление растеризации через штатный URP</h2>
+<h1>WorldRenderGrid — архив evidence</h1>
+<p>Это хронология проверок и production captures, а не описание текущей
+реализации. Снимок от 9 октября ниже фиксирует промежуточный вариант с
+<code>PixelPerfectCamera</code>; он заменён renderer-owned raster passes без
+изменения Camera. Текущие владельцы и проходы описаны в
+<a href="WORLD_RASTER_GRID.html">WORLD_RASTER_GRID.html</a>. Старые результаты
+подтверждают только перечисленные в записи условия на дату прогона.</p>
+<h2>Исторический снимок 2026-10-09 — растеризация через штатный URP</h2>
 <p>После удаления собственного URP hook сетка сохранилась в расчётах, но мировой color target стал экранным.
 WorldRenderGridBinding теперь задаёт PixelPerfectCamera reference target до растеризации Renderer2D:
 32 пикселя на клетку. Финальный штатный point blit только увеличивает уже готовый мировой буфер.
@@ -52,8 +58,8 @@ TL-VERIFY: фактический geometry attachment плюс независи�
 Перестройка всего плана пока не завершена; производительность и полный HDR/UI lifecycle gate не подтверждены.</p>
 <h2>Контракт изменений и владельцы</h2>
 <p>Rendering владеет WorldRenderGrid, camera binding, контекстом Renderer2D, color/depth и postprocessing.
-Видимые terrain/entity/surface и стандартные URP sprite/mask vertex shaders потребляют одну плотность;
-Effekseer использует Unity backend и те же vertex helpers. Вершины округляются при растеризации,
+Видимые terrain/entity/surface и стандартные URP sprite/mask vertex shaders потребляют одну плотность.
+Вершины округляются при растеризации,
 угол робота не округляется. Lighting владеет своей опубликованной текстурой/rect; presentation читает её,
 Пробы каскадов остаются редкими; поля геометрии, материалов, эмиссии и применения света теперь имеют 32×32 текселя на клетку.</p>
 <p>Последовательность: world color/depth → WorldBloom.compute → RGB additive WorldBloomAdd → native URP exposure/tonemapping
@@ -219,11 +225,11 @@ DI изменений или регистраций. Поиск renderer feature
 вне 300-frame sample loop. Orchestration migration не выполняется, gates A–D не перескакиваются.</p>
 <h2>Verification — TL-VERIFY</h2>
 <table><tr><th>Проверка</th><th>Результат</th></tr>
-<tr><td>dotnet test tools/Kern.FrameHarness.Tests --verbosity minimal</td><td>172 passed: независимые layout expectations, negative bounds, guard crop, overflow, target-size reuse, odd dimensions, fused thread counts, optional bloomDispatches producer/schema parity и negative counter rejection.</td></tr>
+<tr><td>dotnet test tools/tests/Kern.FrameHarness.Tests --verbosity minimal</td><td>172 passed: независимые layout expectations, negative bounds, guard crop, overflow, target-size reuse, odd dimensions, fused thread counts, optional bloomDispatches producer/schema parity и negative counter rejection.</td></tr>
 <tr><td>Unity CLI recompile / recompile_status</td><td>Unity 6000.6.0f1: compilation completed, failed=false.</td></tr>
 <tr><td>unity command run_tests --mode EditMode --filter Kern.Tests.WorldRenderGridCameraTests --async_tests true</td><td>1 passed: реальные Unity camera matrices сохраняют исходную projection/targetTexture и дают ожидаемые viewport координаты. Это не visual oracle.</td></tr>
 <tr><td>unity command run_tests --mode PlayMode --filter Kern.Tests.PlayMode.FrameBenchmarkPlayModeTests.MainGame_FrameCostByScenario --include_explicit true --async_tests true</td><td>3/3 passed. Duration 164.03 / 202.03 / 212.33 s; 28 сценариев на повторение, 120-frame основной warmup, 300 samples на сценарий. В каждом каталоге 84 файла. Основной all-enabled сценарий: 300/300 scene и display frame stamps; независимые размеры пирамиды дали ожидаемые pixels/threads/bytes для всех 900 наблюдений.</td></tr>
-<tr><td>dotnet run --project tools/Kern.FrameHarness -- validate &lt;all-enabled-capture.json&gt; --json</td><td>Exit 3: input PASS; invariant/performance/coverage INCOMPLETE. Producer ранее экспортировал bloomDispatches без schema member; это исправлено без удаления producer-поля. Source observations, sample class, pinned workload, production-content identity и visual evidence всё ещё отсутствуют.</td></tr>
+<tr><td>dotnet run --project tools/harness/Kern.FrameHarness -- validate &lt;all-enabled-capture.json&gt; --json</td><td>Exit 3: input PASS; invariant/performance/coverage INCOMPLETE. Producer ранее экспортировал bloomDispatches без schema member; это исправлено без удаления producer-поля. Source observations, sample class, pinned workload, production-content identity и visual evidence всё ещё отсутствуют.</td></tr>
 <tr><td>Production visual + SDR/HDR + leak proof</td><td class="pending">INCOMPLETE. Нет production Renderer2D integration и независимого image oracle. Offscreen benchmark не доказывает final output/UI.</td></tr>
 <tr><td>Performance acceptance</td><td class="pending">INCOMPLETE. Не выполнено сопоставление before/after одинакового детерминированного workload; 30% p50 / p95 и 5 ms не заявлены.</td></tr></table>
 <h2>Диагностические повторения исходного пути</h2>
@@ -258,8 +264,8 @@ WorldBloom prefilter/pyramid/additive и native URP grading; наблюдени�
 <p>Исходный тест ошибочно ожидал отсутствие tonemapping и использовал конфликтующий runtime Volume.
 Проверка исправлена: fixture сохраняет штатные Neutral и +1 stop. Production HDR ownership не изменялся.
 Readbacks работают только при явном diagnostic callback; production дополнительных проходов не получает.</p>
-<p><code>dotnet test tools/Kern.FrameHarness.Tests --no-restore --verbosity minimal</code>: 172/172;
-<code>dotnet test tools/Kern.WorldLightingExchangeTests --no-restore --verbosity minimal</code>: 34/34.
+<p><code>dotnet test tools/tests/Kern.FrameHarness.Tests --no-restore --verbosity minimal</code>: 172/172;
+<code>dotnet test tools/tests/Kern.WorldLightingExchangeTests --no-restore --verbosity minimal</code>: 34/34.
 <code>git diff --check</code> clean; оба TL-API source scans empty (exit 1).</p>
 <p>Сейчас выполняется <code>MainGame_RenderPathBeforeAfter</code>: 78 окон ×300 кадров,
 120 кадров прогрева на окно; 3420×2148, три зума, две плотности, движение/стояние, три повторения,
@@ -632,7 +638,7 @@ GPU stress test после этого не запускались. Ни прич
 сохраняются. Максимальная длина лучей вычисляется при подготовке размеров
 текстур; выбранное число направлений не уменьшается. Terrain/Lighting API и
 composition-root registrations не менялись.</p>
-<p>TL-VERIFY: <code>dotnet test tools/Kern.FrameHarness.Tests --no-restore</code>:
+<p>TL-VERIFY: <code>dotnet test tools/tests/Kern.FrameHarness.Tests --no-restore</code>:
 184/184, включая 9 проверок памяти. Независимый byte oracle:
 4096×2560×64×8 = 5 GiB; такой cache отклонён без его создания. Проверены driver
 headroom, reserve, arithmetic overflow, неизвестное измерение и неработающий
@@ -667,7 +673,7 @@ runner/callback, RunFinished снимает budget. Изменение каса�
 не изменены. Scope regression проверяет Require с long.MaxValue вне прогона,
 отказ в активном прогоне и отсутствие отказа после EndTestRun; больших
 ресурсов этот тест не создаёт.</p>
-<p>TL-VERIFY: <code>dotnet test tools/Kern.FrameHarness.Tests</code>: 185/185,
+<p>TL-VERIFY: <code>dotnet test tools/tests/Kern.FrameHarness.Tests</code>: 185/185,
 включая 10 bounded memory tests, 0 skipped. Лог:
 <code>Logs/Diagnostics/Tests/oom-guard-test-scope-tests.txt</code>.
 <code>scripts/check-compile.sh Kern.Core Kern.World Kern.Tests.Shared Kern.Tests.Editor Kern.Tests.PlayMode</code>:

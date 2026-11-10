@@ -56,7 +56,7 @@ public sealed class SoakPlayModeTests
     public IEnumerator SetUp()
     {
         _authentication = DummyAuthenticationScope.Seed(TestDummyToken);
-        yield return PlayModeHarness.StartAtGateway();
+        yield return PlayModeHarness.StartAtMainMenu();
         _bootstrap = PlayModeHarness.FindBootstrap()!;
         _connection = _bootstrap.Container.Resolve<IConnectionService>();
         _operations = _bootstrap.Container.Resolve<IAsyncOperationSupervisor>();

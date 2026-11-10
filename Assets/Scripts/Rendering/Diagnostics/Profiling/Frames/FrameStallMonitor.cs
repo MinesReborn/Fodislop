@@ -4,11 +4,13 @@ using System;
 using System.Collections.Generic;
 using System.Text;
 using Kern.Core.Interfaces.Diagnostics;
+using Unity.Profiling;
 using UnityEngine;
 using VContainer.Unity;
 
 using Kern.Diagnostics.Artifacts;
 using Kern.Diagnostics.Frames;
+using Kern.Rendering.Display;
 
 namespace Kern.Rendering.Diagnostics.Profiling;
 
@@ -46,6 +48,11 @@ public sealed class FrameStallMonitor : IStartable, ITickable, IDisposable
     private const double ShownMinimumMilliseconds = 0.5;
     private const int EventLookbackFrames = 3;
 
+    // Сам отчёт (сборка текста и вывод в журнал) раньше писал файл на главном
+    // потоке и входил в следующий провис. Имя нужно, чтобы отчёт не прятался
+    // в безымянном кадре, если вывод снова станет дорогим.
+    private static readonly ProfilerMarker s_reportMarker = new("Kern.Diagnostics.FrameStallReport");
+
     private readonly FrameBaseline _baseline = new();
     private readonly List<FrameProbe> _probes = FrameProbeCatalog.CreateStallProbes();
     private readonly FrameProbe _allocated = new("Мусор за кадр", "GC Allocated In Frame");
@@ -69,6 +76,10 @@ public sealed class FrameStallMonitor : IStartable, ITickable, IDisposable
 
     public void Start()
     {
+        // Рекордер по имени видит только уже зарегистрированный маркер.
+        HDROutputReconciler.PrimeDiagnostics();
+        SceneCensus.PrimeDiagnostics();
+
         foreach (FrameProbe probe in _probes)
         {
             probe.EnsureStarted();
@@ -85,7 +96,7 @@ public sealed class FrameStallMonitor : IStartable, ITickable, IDisposable
     {
         double frameMs = Time.unscaledDeltaTime * 1000.0;
         double baselineMs = _baseline.Milliseconds;
-        bool stall = baselineMs > 0.0 && FrameBudget.IsStall(frameMs, baselineMs);
+        bool stall = _baseline.IsReady && FrameBudget.IsStall(frameMs, baselineMs);
         _baseline.Push(frameMs);
         if (stall)
         {
@@ -113,16 +124,17 @@ public sealed class FrameStallMonitor : IStartable, ITickable, IDisposable
         _worstFrameMs = frameMs;
         _worstBaselineMs = baselineMs;
         _worstFrame = Time.frameCount - 1;
-        _worstAllocatedBytes = _allocated.Available ? _allocated.ReadLast() : -1.0;
+        _worstAllocatedBytes = _allocated.TryReadLast(out double allocatedBytes) ? allocatedBytes : -1.0;
         for (int index = 0; index < _probes.Count; index++)
         {
             FrameProbe probe = _probes[index];
-            _worstValues[index] = probe.Available && probe.IsTime ? probe.ReadLast() : -1.0;
+            _worstValues[index] = probe.Available && probe.IsTime && probe.TryReadLast(out double value) ? value : -1.0;
         }
     }
 
     private void Report()
     {
+        using var marker = s_reportMarker.Auto();
         _text.Clear();
         _text.Append("[FrameStall] frame=").Append(_worstFrame).Append(" · ")
             .Append(_worstFrameMs.ToString("F1")).Append(" мс кадр (обычный ")

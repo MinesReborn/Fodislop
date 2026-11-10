@@ -32,8 +32,12 @@ public sealed class LightingCostWindow : ToolWindow
     private long _totalRaySteps;
     private long _totalMergeTaps;
     private long _heaviestRaySteps;
+    private int _lastStaticSolveCount;
+    private int _lastDynamicSolveCount;
+    private double _lastSolveSampleTime;
+    private bool _hasSolveSample;
     private string _summary = "нет данных";
-    private string _solveMix = "решений: --";
+    private string _solveMix = "решений/с: --";
 
     // Строки пределов собираются по таймеру, а не на каждое событие IMGUI:
     // окно открыто, пока смотрят на цену кадра, и мусор здесь искажает то,
@@ -91,6 +95,7 @@ public sealed class LightingCostWindow : ToolWindow
         }
 
         _lighting.CollectCascadeCosts(_samples);
+        UpdateSolveMix(Time.unscaledTimeAsDouble);
         Recalculate();
     }
 
@@ -104,7 +109,11 @@ public sealed class LightingCostWindow : ToolWindow
         _totalMergeTaps = 0;
         _heaviestRaySteps = 0;
         _summary = "нет данных";
-        _solveMix = "решений: --";
+        _solveMix = "решений/с: --";
+        _lastStaticSolveCount = 0;
+        _lastDynamicSolveCount = 0;
+        _lastSolveSampleTime = 0d;
+        _hasSolveSample = false;
         _fieldDetail = NoDetail;
         _cascadeDetail = NoDetail;
         _atlasDetail = NoDetail;
@@ -155,12 +164,21 @@ public sealed class LightingCostWindow : ToolWindow
         string execution = _lighting?.ActiveGraphicsPreset == Kern.Rendering.GraphicsPreset.Classic
             ? "не выполняется: пресет «Классика» отключает динамический свет"
             : applied;
-        _dynamicDetail = $"Режим: {transport}, {batching} ({execution}). " +
-            $"Последний кадр: {_telemetry.LightingDynamicReceiverDispatchCount} dispatch-приёмников, " +
-            $"{_telemetry.LightingDynamicPolarDispatchCount} dispatch-вейеров, " +
-            $"дескрипторы {_telemetry.LightingDynamicBatchDescriptorBytes:N0} Б; " +
-            $"{_telemetry.LightingDynamicDispatchPixels:N0} пикселей и " +
-            $"{_telemetry.LightingPolarRayWorkUnits:N0} отсчётов веера. GPU-время отдельных этапов здесь недоступно.";
+        IFrameTelemetryProducerStamp? producerStamp = _telemetry as IFrameTelemetryProducerStamp;
+        int producerFrameAge = producerStamp is { ProducerLifecycleValid: true }
+            ? Time.frameCount - producerStamp.ProducerFrameId
+            : int.MaxValue;
+        bool hasCurrentFrameSnapshot = producerStamp is { ProducerLifecycleValid: true } &&
+            producerStamp.ProducerFrameId >= 0 && producerFrameAge is >= 0 and <= 1;
+        string frameMetrics = hasCurrentFrameSnapshot
+            ? $"Снимок кадра {producerStamp!.ProducerFrameId}: {_telemetry.LightingDynamicReceiverDispatchCount} dispatch-приёмников, " +
+              $"{_telemetry.LightingDynamicPolarDispatchCount} dispatch-вейеров, " +
+              $"дескрипторы {_telemetry.LightingDynamicBatchDescriptorBytes:N0} Б; " +
+              $"{_telemetry.LightingDynamicDispatchPixels:N0} пикселей и " +
+              $"{_telemetry.LightingPolarRayWorkUnits:N0} отсчётов веера."
+            : "Покадровые показатели: нет актуального снимка.";
+        _dynamicDetail = $"Режим: {transport}, {batching} ({execution}). {frameMetrics} " +
+            "GPU-время отдельных этапов здесь недоступно.";
     }
 
     private void Recalculate()
@@ -177,15 +195,35 @@ public sealed class LightingCostWindow : ToolWindow
             _heaviestRaySteps = System.Math.Max(_heaviestRaySteps, sample.RayStepCount);
             _rows.Add(
                 $"К{sample.Index}  {sample.DirectionCount} напр  {sample.ProbeWidth}×{sample.ProbeHeight}  " +
-                $"шагов {sample.StepCount}  ·  {Millions(sample.RayStepCount)} шагов луча");
+                $"оценка {sample.StepCount} шагов на луч  ·  {Millions(sample.RayStepCount)} шагов луча");
         }
 
         _summary =
-            $"{Millions(_totalRaySteps)} шагов луча  +  {Millions(_totalMergeTaps)} выборок атласа " +
-            $"за одно полное решение";
-        _solveMix =
-            $"за секунду: статических {_telemetry.LightingStaticSolveCount}, " +
-            $"динамических {_telemetry.LightingDynamicSolveCount}";
+            $"верхняя оценка на полное решение: {Millions(_totalRaySteps)} шагов луча  +  " +
+            $"{Millions(_totalMergeTaps)} выборок атласа; это не GPU-замер";
+    }
+
+    private void UpdateSolveMix(double nowSeconds)
+    {
+        int staticSolveCount = _telemetry.LightingStaticSolveCount;
+        int dynamicSolveCount = _telemetry.LightingDynamicSolveCount;
+        if (_hasSolveSample && nowSeconds > _lastSolveSampleTime &&
+            staticSolveCount >= _lastStaticSolveCount && dynamicSolveCount >= _lastDynamicSolveCount)
+        {
+            double elapsedSeconds = nowSeconds - _lastSolveSampleTime;
+            double staticPerSecond = (staticSolveCount - _lastStaticSolveCount) / elapsedSeconds;
+            double dynamicPerSecond = (dynamicSolveCount - _lastDynamicSolveCount) / elapsedSeconds;
+            _solveMix = $"решений/с за {elapsedSeconds:F1} с: статических {staticPerSecond:F1}, динамических {dynamicPerSecond:F1}";
+        }
+        else
+        {
+            _solveMix = "решений/с: нет интервала для расчёта";
+        }
+
+        _lastStaticSolveCount = staticSolveCount;
+        _lastDynamicSolveCount = dynamicSolveCount;
+        _lastSolveSampleTime = nowSeconds;
+        _hasSolveSample = true;
     }
 
     private static string Millions(long value) =>
@@ -256,16 +294,7 @@ public sealed class LightingCostWindow : ToolWindow
         }
         GUILayout.Label("Сравнивай режимы на одной сцене при одинаковых настройках и источниках света.", MutedLabelStyle);
 
-        bool batchDynamicLights = GUILayout.Toggle(
-            LightingQualityTuningController.BatchDynamicLights,
-            "Батчить несколько фонарей",
-            ToolTheme.SegmentedButton);
-        if (batchDynamicLights != LightingQualityTuningController.BatchDynamicLights)
-        {
-            LightingQualityTuningController.SetBatchDynamicLights(batchDynamicLights);
-        }
-        GUILayout.Label("Группирует совместимые compute dispatch’и; результат должен совпадать с серийным путём.",
-            MutedLabelStyle);
+        GUILayout.Label("Батчинг нескольких фонарей включён постоянно.", MutedLabelStyle);
         bool acceleratedTransport = LightingQualityTuningController.DynamicTransportMode ==
             DynamicLightingTransportMode.AcceleratedUniformRegions;
         bool sdfTransport = LightingQualityTuningController.DynamicTransportMode ==
@@ -296,7 +325,7 @@ public sealed class LightingCostWindow : ToolWindow
                 MutedLabelStyle);
         }
 
-        int field = DrawPowerOfTwo("Перенос: материал и свечение · пикс/клетку", _draft.FieldPixelsPerCell, s_densityLabels, 1);
+        int field = LightingQualitySelectionControls.DrawPowerOfTwo("Перенос: материал и свечение · пикс/клетку", _draft.FieldPixelsPerCell, s_densityLabels, 1);
         _draft = _draft with
         {
             FieldPixelsPerCell = field,
@@ -309,15 +338,15 @@ public sealed class LightingCostWindow : ToolWindow
         _draft = _draft with
         {
             LightPixelsPerCell = System.Math.Min(field,
-                DrawPowerOfTwo("Карта света · пикс/клетку", _draft.LightPixelsPerCell, s_densityLabels, 1)),
+                LightingQualitySelectionControls.DrawPowerOfTwo("Карта света · пикс/клетку", _draft.LightPixelsPerCell, s_densityLabels, 1)),
         };
         GUILayout.Label("Приёмники static/dynamic direct и итоговая карта света; не больше переноса. " +
             "Уменьшение вдвое сокращает число приёмников в четыре раза.", MutedLabelStyle);
         _draft = _draft with
         {
             CascadeProbePixelsPerCell = System.Math.Min(field,
-                DrawPowerOfTwo("Статика · проб/клетку", _draft.CascadeProbePixelsPerCell, s_probeLabels, 1)),
-            MaximumStaticCascadeDirections = DrawPowerOfTwo("Статика · предел направлений",
+                LightingQualitySelectionControls.DrawPowerOfTwo("Статика · проб/клетку", _draft.CascadeProbePixelsPerCell, s_probeLabels, 1)),
+            MaximumStaticCascadeDirections = LightingQualitySelectionControls.DrawPowerOfTwo("Статика · предел направлений",
                 _draft.MaximumStaticCascadeDirections, s_staticAngleLabels, 4),
         };
         GUILayout.Label("Плотность и направления применяются точно. Если поле или атлас " +
@@ -335,10 +364,10 @@ public sealed class LightingCostWindow : ToolWindow
             MutedLabelStyle);
         _draft = _draft with
         {
-            DynamicAngularSampleCount = DrawDiscreteSamples("Динамика · выборок на пиксель",
+            DynamicAngularSampleCount = LightingQualitySelectionControls.DrawDiscreteSamples("Динамика · выборок на пиксель",
                 _draft.DynamicAngularSampleCount, s_sampleLabels, s_sampleValues),
             DynamicEmitterPointsPerAxis = 1 + DrawEmitterIndex(),
-            DynamicPolarDirectionCount = DrawPowerOfTwo("Динамика · углов веера на точку",
+            DynamicPolarDirectionCount = LightingQualitySelectionControls.DrawPowerOfTwo("Динамика · углов веера на точку",
                 _draft.DynamicPolarDirectionCount, s_polarLabels, 4),
         };
         GUILayout.Label("Цена веера растёт с числом углов и квадратом числа точек по оси. " +
@@ -411,30 +440,6 @@ public sealed class LightingCostWindow : ToolWindow
         GUILayout.Label("Динамика · точки источника", WrappedLabelStyle);
         return GUILayout.SelectionGrid(_draft.DynamicEmitterPointsPerAxis - 1,
             s_emitterLabels, 4, ToolTheme.SegmentedButton);
-    }
-
-    private static int DrawPowerOfTwo(string label, int value, string[] labels, int first)
-    {
-        GUILayout.Label(label, ToolTheme.WrappedLabel);
-        int index = -1;
-        for (int candidate = 0; candidate < labels.Length; candidate++)
-        {
-            if ((first << candidate) == value)
-            {
-                index = candidate;
-                break;
-            }
-        }
-        int selected = GUILayout.SelectionGrid(index, labels, 3, ToolTheme.SegmentedButton);
-        return selected < 0 ? value : first << selected;
-    }
-
-    private static int DrawDiscreteSamples(string label, int value, string[] labels, int[] values)
-    {
-        GUILayout.Label(label, ToolTheme.WrappedLabel);
-        int selectedIndex = System.Array.IndexOf(values, value);
-        int selected = GUILayout.SelectionGrid(selectedIndex, labels, 3, ToolTheme.SegmentedButton);
-        return selected < 0 ? value : values[selected];
     }
 
     private void DrawCascadeRows()

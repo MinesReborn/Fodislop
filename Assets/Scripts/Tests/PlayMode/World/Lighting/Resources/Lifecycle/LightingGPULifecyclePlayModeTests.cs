@@ -23,10 +23,11 @@ using Kern.AssetPipeline.Loading;
 using Kern.Bootstrap.Scenes;
 using Kern.Game.Entities.Robots;
 using Kern.Game.Player.Cameras;
-using Kern.Game.VisualEffects.Cells;
+using Kern.Game.Visual.Effects.Cells;
 using Kern.Rendering.Display;
 using Kern.UI.Menu;
 
+using Kern.Diagnostics.Artifacts;
 using Kern.Diagnostics.World;
 
 namespace Kern.Tests.PlayMode;
@@ -89,7 +90,7 @@ public sealed class LightingGPULifecyclePlayModeTests
     {
         Assume.That(SystemInfo.supportsComputeShaders, Is.True, "Lighting needs compute shader support.");
         _authentication = DummyAuthenticationScope.Seed(TestDummyToken);
-        yield return PlayModeHarness.StartAtGateway();
+        yield return PlayModeHarness.StartAtMainMenu();
         _bootstrap = PlayModeHarness.FindBootstrap()!;
         _config = _bootstrap.Container.Resolve<IClientConfigManager>();
         _originalPreset = _config.Config.GraphicsPreset;
@@ -237,7 +238,7 @@ public sealed class LightingGPULifecyclePlayModeTests
         var clip = new CellDestructionClip();
         Vector3 source = _walkingProbeCamera.transform.position;
         source.z = 0;
-        var effect = new CellDestructionEffect(SFX.Destroy, source, clip,
+        var effect = new CellDestructionEffect(AudioEventType.Destroy, source, clip,
             PlayModeHarness.RequireInGame<ISceneObjectFactory>(), lighting);
         effect.Advance(0.16666667f); // The pale cloud in the reported screenshot.
         // Independent original-source integral for frame 5. World illumination
@@ -337,8 +338,7 @@ public sealed class LightingGPULifecyclePlayModeTests
             for (int i = 0; i < pixels.Length; i++) { pixels[i] = pixels[i].gamma; }
             image.SetPixels(pixels);
             image.Apply();
-            string directory = System.IO.Path.Combine(Application.dataPath, "../Logs/Diagnostics/cell-destruction");
-            System.IO.Directory.CreateDirectory(directory);
+            string directory = DiagnosticArtifactPaths.GetDirectory("cell-destruction");
             System.IO.File.WriteAllBytes(System.IO.Path.Combine(directory, name + ".png"), image.EncodeToPNG());
         }
         finally
@@ -376,7 +376,7 @@ public sealed class LightingGPULifecyclePlayModeTests
         var clip = new CellDestructionClip();
         Vector3 source = _walkingProbeCamera.transform.position;
         source.z = 0;
-        var effect = new CellDestructionEffect(SFX.Destroy, source, clip,
+        var effect = new CellDestructionEffect(AudioEventType.Destroy, source, clip,
             PlayModeHarness.RequireInGame<ISceneObjectFactory>(), _walkingProbeLighting);
         try
         {

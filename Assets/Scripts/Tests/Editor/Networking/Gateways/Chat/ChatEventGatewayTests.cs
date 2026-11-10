@@ -107,8 +107,6 @@ public class ChatEventGatewayTests
         Assert.AreEqual(0, calls);
     }
 
-    // ─── E2-C: счётчик непрочитанных ───
-
     private static ChatMessageListPacket MakeMessages(string tag, int count, long firstId = 1)
     {
         var messages = new ChatMessagePacket[count];
@@ -196,7 +194,6 @@ public class ChatEventGatewayTests
         gateway.SetFocusedTag("FED");
         Assert.AreEqual(2, notifications);
 
-        // Фокусный канал не копит непрочитанных — событие не срабатывает.
         gateway.Publish(MakeMessages("FED", 2));
         Assert.AreEqual(2, notifications);
     }

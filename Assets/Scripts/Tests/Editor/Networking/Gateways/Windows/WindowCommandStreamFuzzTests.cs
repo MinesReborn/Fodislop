@@ -2,6 +2,7 @@
 
 using Kern.Networking;
 using MinesServer.Networking.Server.Packets.GUI;
+using MinesServer.Networking.Server.Packets.GUI.Components.Visual;
 using NUnit.Framework;
 
 using Kern.Networking.Gateways;
@@ -65,7 +66,7 @@ public sealed class WindowCommandStreamFuzzTests
             switch (random.Next(3))
             {
                 case 0:
-                    stream.PublishOpenWindow(new OpenWindowPacket("window", 100, 100, null));
+                    stream.PublishOpenWindow(new OpenWindowPacket("window", 100, 100, new TextPacket()));
                     expectedOpens++;
                     break;
                 case 1:
@@ -88,6 +89,7 @@ public sealed class WindowCommandStreamFuzzTests
     public void Modal_DoesNotChangeServerVisibility()
     {
         var stream = new WindowCommandStream();
+        stream.ModalRequested += _ => { };
         stream.SetServerWindowVisibility(true);
         stream.PublishModalWindow(new ModalWindowPacket("title", "body", "ok", ""));
 

@@ -173,16 +173,33 @@ namespace Kern.AssetPipeline.Loading
                 CancellationTokenSource.CreateLinkedTokenSource(
                     cancellationToken,
                     destroyCancellationToken);
-            string cleanFilename = filename.TrimStart('/').ToLowerInvariant();
-            if (AssetBatchDispatcher.IsAudioBank(cleanFilename) && _dispatcher.IsKnownMissing(cleanFilename))
+            if (AssetBatchDispatcher.IsAudioBank(filename) && _dispatcher.IsKnownMissing(filename))
             {
                 return null;
             }
 
             return await Cache.GetBytesAsync(
-                cleanFilename,
+                filename,
                 linkedCancellation.Token,
                 timeoutSeconds);
+        }
+
+        public async UniTask<byte[]?> GetAssetBytesAsync(
+            string filename,
+            string expectedETag,
+            CancellationToken cancellationToken = default,
+            int timeoutSeconds = AssetStreamingLimits.AssetRequestTimeoutSeconds)
+        {
+            ThrowIfDestroyed(cancellationToken);
+            using CancellationTokenSource linkedCancellation =
+                CancellationTokenSource.CreateLinkedTokenSource(
+                    cancellationToken,
+                    destroyCancellationToken);
+            return await LoadBytesFromServer(
+                filename,
+                linkedCancellation.Token,
+                timeoutSeconds,
+                expectedETag);
         }
 
         public async UniTask<string> GetAssetPathAsync(
@@ -190,28 +207,27 @@ namespace Kern.AssetPipeline.Loading
             CancellationToken cancellationToken = default,
             int timeoutSeconds = AssetStreamingLimits.AssetRequestTimeoutSeconds)
         {
-            var cleanFilename = filename.TrimStart('/').ToLowerInvariant();
-            if (AssetBatchDispatcher.IsAudioBank(cleanFilename) && _dispatcher.IsKnownMissing(cleanFilename))
+            if (AssetBatchDispatcher.IsAudioBank(filename) && _dispatcher.IsKnownMissing(filename))
             {
                 throw new FileNotFoundException(
-                    $"Optional audio asset '{cleanFilename}' is unavailable.",
-                    cleanFilename);
+                    $"Optional audio asset '{filename}' is unavailable.",
+                    filename);
             }
 
-            byte[]? bytes = await GetAssetBytesAsync(cleanFilename, cancellationToken, timeoutSeconds);
-            if (bytes == null || bytes.Length == 0 || !_persistentCache.HasAsset(cleanFilename))
+            byte[]? bytes = await GetAssetBytesAsync(filename, cancellationToken, timeoutSeconds);
+            if (bytes == null || bytes.Length == 0 || !_persistentCache.HasAsset(filename))
             {
-                if (AssetBatchDispatcher.IsAudioBank(cleanFilename))
+                if (AssetBatchDispatcher.IsAudioBank(filename))
                 {
-                    _dispatcher.MarkMissing(cleanFilename);
+                    _dispatcher.MarkMissing(filename);
                 }
 
                 throw new FileNotFoundException(
-                    $"Required asset '{cleanFilename}' could not be loaded or persisted.",
-                    cleanFilename);
+                    $"Required asset '{filename}' could not be loaded or persisted.",
+                    filename);
             }
 
-            return _persistentCache.GetAssetPath(cleanFilename);
+            return _persistentCache.GetAssetPath(filename);
         }
 
         public bool IsKnownMissing(string filename) =>
@@ -276,6 +292,20 @@ namespace Kern.AssetPipeline.Loading
                 "ClientAssetLoader was destroyed while an asset request was active.",
                 cancellationToken);
         }
+        public event Action<IReadOnlyCollection<string>>? AssetsChanged;
+
+        public void ReplaceAssets(IReadOnlyCollection<string> filenames)
+        {
+            if (filenames.Count == 0)
+            {
+                return;
+            }
+
+            _cache?.Invalidate(filenames);
+            _dispatcher.ClearMissing();
+            AssetsChanged?.Invoke(filenames);
+        }
+
         public void ClearCache()
         {
             _cache?.Clear();
@@ -283,10 +313,15 @@ namespace Kern.AssetPipeline.Loading
             _dispatcher.ClearReportedFailures();
         }
 
-        private async UniTask<byte[]?> LoadBytesFromServer(string filename, CancellationToken ct, int timeoutSeconds)
-        {
-            filename = filename.TrimStart('/').ToLowerInvariant();
+        private UniTask<byte[]?> LoadBytesFromServer(string filename, CancellationToken ct, int timeoutSeconds) =>
+            LoadBytesFromServer(filename, ct, timeoutSeconds, expectedETag: null);
 
+        private async UniTask<byte[]?> LoadBytesFromServer(
+            string filename,
+            CancellationToken ct,
+            int timeoutSeconds,
+            string? expectedETag)
+        {
             // 1. Check local RAM/disk cache first when offline
             var connectionService = ConnectionService;
             var isConnected = connectionService.IsConnected;
@@ -294,14 +329,15 @@ namespace Kern.AssetPipeline.Loading
             if (!isConnected)
             {
                 byte[]? cached = await _persistentCache.GetAssetAsync(filename);
-                if (cached != null && cached.Length > 0)
+                if (cached is { Length: > 0 } && MatchesExpectedETag(cached, expectedETag))
                 {
                     return cached;
                 }
             }
 
             // 2. Check local TextureStorageManager if available
-            if (AssetBatchDispatcher.IsTextureFile(filename))
+            if (AssetBatchDispatcher.IsTextureFile(filename) &&
+                (!isConnected || string.IsNullOrEmpty(expectedETag)))
             {
                 var tsm = TextureStorage;
                 bool tsmHas = tsm != null && tsm.HasTexture(filename);
@@ -310,9 +346,10 @@ namespace Kern.AssetPipeline.Loading
                     var localData = await tsm.GetTextureData(filename);
                     if (localData != null && localData.Length > 0)
                     {
-                        if (!_persistentCache.HasAsset(filename))
+                        if (!_persistentCache.HasAsset(filename) ||
+                            !MatchesExpectedETag(localData, expectedETag))
                         {
-                            await _persistentCache.SaveAssetAsync(filename, localData, string.Empty);
+                            await _persistentCache.SaveAssetAsync(filename, localData);
                         }
 
                         _dispatcher.RemoveReportedFailure(filename);
@@ -327,6 +364,17 @@ namespace Kern.AssetPipeline.Loading
                 string? etag = await _persistentCache.GetETagAsync(filename);
                 using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
                 cts.CancelAfter(TimeSpan.FromSeconds(timeoutSeconds));
+                using var progressWatch = CancellationTokenSource.CreateLinkedTokenSource(cts.Token);
+                if (connectionService is IAssetTransferProgress transferProgress)
+                {
+                    CancellationToken watchToken = progressWatch.Token;
+                    _operations.Run("asset_transfer_progress", async supervisorToken =>
+                    {
+                        using var linked = CancellationTokenSource.CreateLinkedTokenSource(watchToken, supervisorToken);
+                        await AssetBatchDispatcher.ExtendTimeoutWhileAssetsArriveAsync(
+                            transferProgress, cts, timeoutSeconds, linked.Token);
+                    });
+                }
 
                 try
                 {
@@ -362,11 +410,16 @@ namespace Kern.AssetPipeline.Loading
                         Debug.LogWarning($"[ClientAssetLoader] Error fetching asset {filename}: {ex.Message}");
                     }
                 }
+                finally
+                {
+                    progressWatch.Cancel();
+                }
             }
 
             // 4. Fallback to cached asset
             byte[]? cachedFallback = await _persistentCache.GetAssetAsync(filename);
-            if (cachedFallback != null && cachedFallback.Length > 0)
+            if (cachedFallback is { Length: > 0 } &&
+                MatchesExpectedETag(cachedFallback, expectedETag))
             {
                 _dispatcher.RemoveReportedFailure(filename);
                 return cachedFallback;
@@ -380,7 +433,7 @@ namespace Kern.AssetPipeline.Loading
                     var localData = await tsm.GetTextureData(filename);
                     if (localData != null && localData.Length > 0)
                     {
-                        await _persistentCache.SaveAssetAsync(filename, localData, string.Empty);
+                        await _persistentCache.SaveAssetAsync(filename, localData);
                         _dispatcher.RemoveReportedFailure(filename);
                         return localData;
                     }
@@ -394,6 +447,13 @@ namespace Kern.AssetPipeline.Loading
 
             return null;
         }
+
+        private static bool MatchesExpectedETag(byte[] contents, string? expectedETag) =>
+            string.IsNullOrEmpty(expectedETag) ||
+            string.Equals(
+                ETagCalculator.Calculate(contents),
+                expectedETag,
+                StringComparison.OrdinalIgnoreCase);
 
         private void OnPacketReceived(ServerPacket obj)
         {

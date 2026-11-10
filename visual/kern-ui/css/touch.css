@@ -29,7 +29,7 @@
 .frame.size-m {
   --tt: 52px; --pad: 168px; --mm: 150px; --col: 240px;
   --dig: 100px; --act: 64px; --peek-h: 52px;
-  --t-small: var(--t-4); --t-body: var(--t-6); --t-strong: var(--t-8); --t-title: var(--t-12);
+  --t-small: var(--t-4); --t-body: var(--t-6); --t-strong: var(--t-8); --t-title: var(--t-11);
 }
 /* Сенсорный ввод на большом экране (iPad Pro, сенсорный ноутбук): размеры пальцевых целей */
 .frame.in-touch:not(.compact) { --tt: 52px; --pad: 168px; --dig: 100px; --act: 64px; --edge: 12px; }
@@ -52,11 +52,14 @@
 .frame.compact .col-top, .frame.compact .col-bottom, .frame.compact .top-right, .frame.compact .player-row { position: static; }
 .frame.compact .sysbar { display: none; }
 .frame.compact .icon-btn { width: var(--tt); height: var(--tt); }
+/* Покупка кредитов на телефоне — в строку кошелька: клавиша 20 px, поле касания расширено вокруг неё, панель не растёт */
+.frame.compact .btn.wallet-buy { position: relative; height: 20px; margin: -2px 0; padding: 0 var(--sp-4); font-size: var(--t-2); }
+.frame.compact .btn.wallet-buy::before { content: ""; position: absolute; inset: calc((20px - var(--tt)) / 2) -6px; }
 
-.tbtn { height: var(--tt); min-width: var(--tt); padding: 0 var(--sp-6); display: grid; place-items: center; border-radius: var(--radius); background: var(--graphite);
+.tbtn { height: var(--tt); min-width: var(--tt); padding: 0 var(--sp-6); display: grid; place-items: center;
   border: 1px solid var(--seam); color: var(--bone); font-weight: var(--fw-semi); font-size: var(--t-body); white-space: nowrap; }
 .tbtn svg { width: 18px; height: 18px; }
-.tbtn[aria-pressed="true"] { border-color: var(--signal); background: var(--signal-pressed); color: var(--signal); }
+
 
 /* ── Левый верх: игрок и груз — строками «название · значение» ── */
 .frame.compact .col-top { display: flex; width: calc(var(--col) + 2 * var(--edge)); max-width: none; padding: var(--edge); gap: var(--sp-2); }
@@ -65,43 +68,47 @@
 .frame.compact .player-head { height: 18px; }
 .frame.compact .nick { font-size: var(--t-small); flex: none; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .frame.compact .hp { gap: var(--sp-3); }
-.frame.compact .hp .meter { height: 10px; border-radius: var(--r-s); }
-.frame.compact .hp-value { line-height: 16px; font-size: var(--t-small); min-width: 0; }
-.frame.compact .wallet { gap: 0; }
-.frame.compact .wallet dt { font-size: var(--t-3); }
+.frame.compact .hp-dots { min-width: 90px; gap: 1px; }
+.frame.compact :is(.hp-value, .cargo-head strong) b { font-size: var(--t-10); }
+
 .frame.compact .wallet dd { font-size: var(--t-small); line-height: 16px; }
-.frame.compact .geo { grid-column: 1 / 4; margin-top: var(--sp-1); padding-top: 3px; font-size: var(--t-small); line-height: 14px; }
-.frame.compact .geo svg { width: 14px; height: 14px; }
-.frame.compact .geo img { width: 14px; height: 14px; }
+.frame.compact .geo { grid-column: 1 / 4; margin-top: var(--sp-1); padding-top: var(--sp-2); }
+.frame.compact .geo-cells { height: 6px; }
+.frame.compact .geo-count { font-size: var(--t-small); }
+.frame.compact .geo-last { margin-top: var(--sp-2); }
 
 /* Кнопка бокса — справа на две строки: шапка «Груз» не растягивается до 44 dp, кристаллы идут сразу под ней */
-.frame.compact .cargo { width: var(--pcol, 100%); display: grid; grid-template-columns: auto auto 1fr auto; grid-template-rows: auto 1fr; align-items: center; column-gap: var(--sp-3); row-gap: var(--sp-1); padding: var(--sp-3) 0 var(--sp-3) var(--sp-5); }
+.frame.compact .cargo { width: var(--pcol, 100%); display: grid; grid-template-columns: auto auto 1fr auto; grid-template-rows: auto auto 1fr; align-items: center; column-gap: var(--sp-3); row-gap: var(--sp-1); padding: var(--sp-3) 0 var(--sp-3) var(--sp-5); }
 .frame.compact .cargo-head { display: contents; }
-.frame.compact .cargo-head span, .frame.compact .cargo-head strong { font-size: var(--t-small); }
-.frame.compact .cargo-head .icon-btn { grid-column: 4; grid-row: 1 / span 2; align-self: start; margin: -6px 0 0; }
-.frame.compact .cargo .meter { grid-column: 3; grid-row: 1; margin: 0; }
-.frame.compact .crystals { grid-column: 1 / 4; grid-row: 2; align-self: start; margin: 0; gap: 0; }
-.frame.compact .crystals li { font-size: var(--t-small); line-height: 16px; white-space: nowrap; }
+
+.frame.compact .cargo-head .icon-btn { grid-column: 4; grid-row: 1 / span 3; align-self: start; margin: -6px 0 0; }
+/* Полоса груза — в строке шапки, шкала 0/50/100 — сразу под ней */
+.frame.compact .cargo-cells { grid-column: 3; grid-row: 1; align-self: end; height: 8px; gap: 1px; }
+.frame.compact .cargo-scale { grid-column: 3; grid-row: 2; align-self: start; margin: 0; }
+.frame.compact .crystals { grid-column: 1 / -1; grid-row: 3; align-self: start; margin: 0; column-gap: var(--sp-2); }
+.frame.compact .crystals li > span { font-size: var(--t-3); }
 .frame.compact .crystals img { width: 14px; height: 14px; }
-.frame.size-m .crystals li { line-height: 20px; }
 .frame.size-m .crystals img { width: 16px; height: 16px; }
 
 /* ── Правый верх: миникарта (касание — карта мира), левее — бонусы, «Сказать», чат, ☰ ── */
 .frame.compact .minimap { position: absolute; top: var(--edge); right: var(--edge); width: calc(var(--mm) + 10px); height: calc(var(--mm) + 10px); padding: var(--sp-2); }
 .frame.compact .coords { left: 8px; top: 8px; padding: 0 var(--sp-2); font-size: var(--t-small); }
+/* Режим карты — плашкой внизу миникарты: сверху стоят координаты */
+.frame.compact .minimap .mm-mode { top: auto; bottom: var(--sp-2); left: var(--sp-2); right: var(--sp-2); height: 16px; padding: 0 var(--sp-2); justify-content: center;
+  background: rgb(var(--rgb-well) / .82); font-size: var(--t-0); letter-spacing: .04em; overflow: hidden; text-overflow: ellipsis; }
 .frame.compact .touch-sys { position: absolute; top: var(--edge); right: calc(var(--edge) + var(--mm) + 10px + 6px); display: grid; grid-template-columns: repeat(2, var(--tt)); gap: var(--sp-2); }
 .frame.compact .touch-sys > * { width: var(--tt); height: var(--tt); padding: var(--sp-1) 0; display: flex; flex-direction: column; justify-content: center; gap: var(--sp-1); }
 .frame.compact .touch-sys span { font-size: var(--t-2); line-height: 12px; letter-spacing: -.1px; color: var(--mist); }
 .frame.compact .touch-sys svg { width: 17px; height: 17px; }
 /* Игровые функции с ПК-ряда — в этом же блоке и с той же подложкой */
-.frame.compact .touch-sys .icon-btn { background: var(--graphite); border: 1px solid var(--seam); border-radius: var(--radius); color: var(--bone); place-items: center; align-content: center; }
+.frame.compact .touch-sys .icon-btn { border: 1px solid var(--seam); color: var(--bone); place-items: center; align-content: center; }
 .frame.compact .bonus { position: static; }
 
 /* ── Верхняя полоса между ними: состояние, строки чата, миссия и состояния ── */
 .frame.compact .status-bar { top: var(--edge); font-size: var(--t-3); padding: 0 var(--sp-4); line-height: 16px;
   left: calc(var(--band-l) + var(--band-w) / 2); max-width: var(--band-w); overflow: hidden; }
 .frame.compact .chat-peek { position: absolute; left: var(--band-l); top: var(--band-t); bottom: auto; width: min(460px, var(--band-w)); max-width: none; height: var(--peek-h);
-  padding: 3px var(--sp-4); gap: var(--sp-4); align-items: flex-start; overflow: hidden; }
+  padding: var(--sp-2) var(--sp-4); gap: var(--sp-4); align-items: flex-start; overflow: hidden; }
 .frame.compact .hud[data-chat="2"] .chat-peek { display: flex; }
 .frame.compact .chat-peek ol { min-width: 0; gap: 0; }
 .frame.compact .chat-peek li { font-size: var(--t-small); line-height: 18px; max-width: none; }
@@ -109,11 +116,11 @@
 .frame.size-s .chat-peek li:first-child:nth-last-child(3) { display: none; }
 .frame.size-m .chat-peek li { line-height: 15px; }
 .frame.compact .mission { position: absolute; top: calc(var(--band-t) + var(--peek-h) + 6px); left: var(--band-l); width: calc(min(460px, var(--band-w)) * .52); min-width: 0; padding: 0 var(--sp-5) var(--sp-2); }
-.frame.compact .mission .meter { margin: 0 -10px var(--sp-2); }
+
 .frame.compact .mission-title { font-size: var(--t-body); line-height: 16px; }
 .frame.compact .mission-title, .frame.compact .mission-text { min-width: 0; overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1; overflow-wrap: anywhere; }
 .frame.compact .mission-text { -webkit-line-clamp: 2; }
-.frame.compact .mission-text { line-height: 13px; font-size: var(--t-small); }
+.frame.compact .mission-text { font-size: var(--t-small); }
 .frame.compact .mission-progress { white-space: nowrap; font-size: var(--t-small); }
 /* На планшете места хватает: текст миссии от сервера целиком, обрезка — только на телефоне */
 .frame.size-m .mission-title, .frame.size-m .mission-text { display: block; overflow: visible; }
@@ -127,7 +134,7 @@
   background: rgb(var(--rgb-well) / .45); border: 1px solid var(--seam); pointer-events: auto; touch-action: none; }
 /* Кольцо — граница зон: ручка внутри — поворот, ручка у кольца — ходьба */
 .pad-ring { position: absolute; left: 50%; top: 50%; width: 82%; height: 82%; transform: translate(-50%, -50%); border-radius: var(--r-round); border: 1px solid rgb(var(--rgb-bone) / .22); }
-.pad-knob { position: absolute; left: 50%; top: 50%; width: 54px; height: 54px; margin: -27px 0 0 -27px; border-radius: var(--r-round); background: var(--seam); border: 2px solid var(--ash); }
+.pad-knob { position: absolute; left: 50%; top: 50%; width: 54px; height: 54px; margin: -27px 0 0 -27px; border-radius: var(--r-round); }
 .frame.in-touch:not(.size-s) .pad-knob { width: 68px; height: 68px; margin: -34px 0 0 -34px; }
 
 /* ── Середина низа: хотбар, над ним «Бег», программатор и рост навыков ── */
@@ -168,7 +175,7 @@
 .act-arc .tbtn--dig { position: absolute; right: 0; bottom: 0; width: var(--dig); height: var(--dig); border-radius: var(--r-round); padding: 0; font-size: var(--t-strong);
   background: var(--signal); border-color: var(--signal); color: var(--on-signal); box-shadow: var(--shadow-float); }
 .act-arc > :is(.act, #autodig) { position: absolute; left: 0; top: 0; width: var(--tt); height: var(--tt); min-width: 0;
-  margin: 0; padding: 0; border-radius: var(--radius);
+  margin: 0; padding: 0;
   display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--sp-1);
   background: var(--graphite); border: 1px solid var(--seam-strong); color: var(--bone); box-shadow: var(--shadow-float);
 }
@@ -177,20 +184,20 @@
 .act-arc #touchHeal { left: 0; }
 .act-arc #touchGeo { left: calc(var(--tt) + 6px); top: calc(var(--tt) + 8px); }
 .act-arc #autodig :is(.lbl, .dot, kbd) { display: none; }
-.act-arc :is(.ico-only, img) { display: block; width: 20px; height: 20px; flex: none; image-rendering: pixelated; border-radius: var(--r-xs); }
+.act-arc :is(.ico-only, img) { display: block; width: 20px; height: 20px; flex: none; image-rendering: pixelated; }
 .frame.in-touch:not(.size-s) .act-arc :is(.ico-only, img) { width: 26px; height: 26px; }
 .frame.in-touch .cap { display: block; font-size: var(--t-3); line-height: 12px; font-weight: var(--fw-semi); color: var(--mist); }
 .frame.in-touch #touchGeo .cap { font-size: var(--t-2); }
 .frame.in-touch:not(.size-s) .cap { font-size: var(--t-3); line-height: 12px; }
-.frame.in-touch :is(.act, #autodig, .build, .fast-move)[aria-pressed="true"] { border-color: var(--signal); background: var(--signal-pressed); }
-.frame.in-touch :is(.act, #autodig, .build, .fast-move)[aria-pressed="true"] .cap { color: var(--signal); }
+
+
 
 /* Веер типов блоков — над дугой, пока выбирается тип */
 .build-fan { position: absolute; right: 0; bottom: calc(2 * var(--tt) + 16px); display: flex; gap: var(--sp-2); padding: var(--sp-2); }
 .build-fan[hidden] { display: none; }
 .build-fan .build { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--sp-1); width: var(--act); height: var(--act); padding: 0;
   box-shadow: inset 0 -3px 0 var(--c); }
-.build-fan img { width: 22px; height: 22px; image-rendering: pixelated; border-radius: var(--r-xs); }
+.build-fan img { width: 22px; height: 22px; image-rendering: pixelated; }
 .build-fan kbd { display: none; }
 
 /* HUD — в безопасной области при любом размере (у мониторов она нулевая) */
@@ -219,7 +226,7 @@
    Вкладки и закрытие — шапкой, под ними поле ввода, ниже лента: новые сверху. */
 .frame.compact .hud[data-chat="1"] .chat-column { display: flex; }
 .frame.compact .chat-column { z-index: var(--z-chat); flex-direction: column; left: var(--band-l); right: auto; top: var(--band-t); bottom: auto; width: min(460px, var(--band-w));
-  height: min(300px, calc(100% - var(--band-t) - 128px)); border: 1px solid var(--seam); border-radius: var(--radius); }
+  height: min(300px, calc(100% - var(--band-t) - 128px)); border: 1px solid var(--seam); }
 /* Телефон: сетка навыков стоит под полосой чата — чат заканчивается над её верхним рядом */
 .frame.size-s { --skill-rows: 1; }
 .frame.size-s:has(.mini-skill:nth-child(5)) { --skill-rows: 2; }
@@ -232,15 +239,15 @@
 .frame.compact .chat-tab.is-on { color: var(--signal); }
 .frame.compact .chat-tab:focus-visible { outline-offset: -4px; }
 .frame.compact .chat-form { order: 2; flex: none; padding: 0; border-top: 0; border-bottom: 1px solid var(--seam); display: flex; align-items: center; }
-.frame.compact .chat-input { flex: 1; min-width: 0; height: var(--tt); margin: 0; border: 0; border-radius: 0; background: var(--well); text-overflow: ellipsis; }
+.frame.compact .chat-input { flex: 1; min-width: 0; height: var(--tt); margin: 0; border: 0; background: var(--well); text-overflow: ellipsis; }
 .frame.compact .chat-send { flex: none; color: var(--signal); }
 .frame.compact .chat-log { order: 3; flex: 1; min-height: 0; flex-direction: column-reverse; justify-content: flex-end; padding: var(--sp-3) var(--sp-5); gap: var(--sp-2); }
 .frame.compact .chat-log li { line-height: 1.35; }
 
 /* «Сказать» и подсказка предмета — на месте строк чата */
 .frame.compact .say:not([hidden]) { position: absolute; z-index: var(--z-chat); top: var(--band-t); left: var(--band-l); width: min(460px, var(--band-w)); display: flex; gap: var(--sp-2); padding: 0; pointer-events: auto; }
-.frame.compact .say .chat-input { height: var(--tt); margin: 0; border-width: 1px; border-radius: var(--r-s); }
-.frame.compact .say .icon-btn { flex: none; background: var(--graphite); border: 1px solid var(--seam); border-radius: var(--radius); }
+.frame.compact .say .chat-input { height: var(--tt); margin: 0; border-width: 1px; }
+.frame.compact .say .icon-btn { flex: none; background: var(--graphite); border: 1px solid var(--seam); }
 .frame.compact .item-hint { z-index: var(--z-float); top: var(--band-t); left: var(--band-l); transform: none; max-width: var(--band-w); font-size: var(--t-small); white-space: normal; }
 
 /* ── Окна: во всю безопасную область ───────────────────────── */
@@ -257,9 +264,8 @@
 .frame.size-s .skills { width: 100%; height: 100%; display: grid; grid-template-columns: auto minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr); min-width: 0; overflow: hidden; }
 .frame.size-s .skills-body { display: contents; }
 .frame.size-s .robot { --s: 1.15; --pad: 12px; grid-column: 1; grid-row: 1 / span 2; align-self: center; }
-.frame.size-s .skills-head { grid-column: 2; grid-row: 1; flex-wrap: wrap; gap: 0 var(--sp-4); padding: 0 0 var(--sp-2) var(--sp-6); border-left: 1px solid var(--seam); }
-.frame.size-s .skills-head .icon-btn { margin-left: auto; }
-.frame.size-s .skills-slots { order: 3; flex-basis: 100%; margin: 0; }
+/* Шапка — одной строкой, как на мониторе: заголовок, плашка слотов, крестик; поля со всех сторон — крестик не попадает под срез угла */
+.frame.size-s .skills-head { grid-column: 2; grid-row: 1; gap: var(--sp-4); padding: var(--sp-4) var(--sp-4) var(--sp-4) var(--sp-6); border-left: 1px solid var(--seam); }
 .frame.size-s .skill-info { grid-column: 2; grid-row: 2; }
 .frame.size-s .skill-tools { flex-wrap: wrap; gap: var(--sp-2); }
 .frame.size-s .skill-tools .btn--primary { flex-basis: 100%; }
@@ -275,14 +281,14 @@
 .frame.compact .btn--big { height: var(--ctl-xl); font-size: var(--t-strong); }
 
 /* Вход: две колонки — бренд слева, действия справа */
-.frame.compact .gate { width: min(820px, var(--free-w)); max-height: var(--free-h); padding: var(--sp-10) 28px; display: grid; grid-template-columns: 34% 1fr; column-gap: var(--sp-12); row-gap: var(--sp-5); align-content: center; }
+.frame.compact .gate { width: min(820px, var(--free-w)); max-height: var(--free-h); padding: var(--sp-10) var(--sp-14); display: grid; grid-template-columns: 34% 1fr; column-gap: var(--sp-12); row-gap: var(--sp-5); align-content: center; }
 .frame.compact .gate > :not(.brand) { grid-column: 2; }
 .frame.compact .gate .brand { grid-column: 1; grid-row: 1 / span 4; margin: 0; padding-right: var(--sp-12); border-right: 1px solid var(--seam); align-self: stretch; justify-content: center; }
 .frame.compact .auth-form { gap: var(--sp-4); }
 /* На телефоне под полем места нет: ошибка — справа в строке поля */
 .frame.compact .fld-err { top: 50%; left: auto; right: 14px; transform: translateY(-50%); pointer-events: none; }
 .frame.compact .fld .check + .fld-err { right: 0; }
-.frame.compact .brand--stacked .wordmark { font-size: var(--t-15); }
+.frame.compact .brand--stacked .wordmark { font-size: var(--t-14); }
 
 /* Онбординг: карточка во весь экран, середина листается */
 .frame.compact .onb { width: min(820px, var(--free-w)); max-height: var(--free-h); }
@@ -299,23 +305,25 @@
 /* Меню: шапка и подвал по 52, колонка слева (листается, если не влезла), иконки справа */
 .frame.compact .menu-top { height: 52px; padding: 0 calc(var(--sr) + var(--sp-12)) 0 calc(var(--sl) + var(--sp-12)); }
 .frame.compact .menu-top img { width: var(--ctl-xs); height: var(--ctl-xs); }
-.frame.compact .menu-top .wordmark { font-size: var(--t-12); }
+.frame.compact .menu-top .wordmark { font-size: var(--t-11); }
 .frame.compact .menu-main { left: calc(var(--sl) + 32px); top: calc(52px + var(--st)); bottom: calc(52px + var(--sb)); transform: none; width: min(56%, 460px);
   justify-content: safe center; gap: var(--sp-5); overflow-y: auto; padding: var(--sp-4) 0; }
 .frame.size-m .menu-main { width: min(52%, 580px); gap: var(--sp-8); }
-.frame.compact .menu-title { font-size: var(--t-13); }
-.frame.size-m .menu-title { font-size: var(--t-16); }
+.frame.compact .menu-title { font-size: var(--t-12); }
+.frame.size-m .menu-title { font-size: var(--t-15); }
 .frame.compact .menu-lead { font-size: var(--t-5); }
 .frame.size-m .menu-lead { font-size: var(--t-body); }
 .frame.compact .menu-actions, .frame.compact .descent-progress, .frame.compact .phases { width: 100%; margin-top: 0; }
 .frame.compact .btn--hero { height: 52px; font-size: var(--t-strong); flex: none; }
 .frame.compact .btn--wide { height: var(--tt); flex: none; }
-.frame.compact .phases { gap: var(--sp-1); font-size: var(--t-small); }
+.frame.compact .phases { gap: var(--sp-1); }
 .frame.size-m .phases { gap: var(--sp-4); font-size: var(--t-body); }
 .frame.compact .descent-progress { gap: var(--sp-2); }
-.frame.compact .descent .menu-title { font-size: var(--t-14); }
+.frame.compact .descent .menu-title { font-size: var(--t-13); }
 .frame.compact .descent-explain { font-size: var(--t-5); min-height: 0; }
 .frame.compact .descent { gap: var(--sp-4); }
+/* Столбец прокручивается — строки не сжимаются в ноль (подпись налезала на полосу) */
+.frame.compact .descent > * { flex: none; }
 .frame.compact .phases { font-size: var(--t-4); }
 .frame.compact .descent .btn--wide { width: 200px; margin-top: 0; }
 .frame.compact .menu-rail { right: calc(var(--sr) + 24px); top: calc(56px + var(--st)); bottom: calc(56px + var(--sb)); transform: none; justify-content: center; gap: var(--sp-3); }
@@ -326,6 +334,7 @@
 .frame.compact .rail-sep { margin: 0 var(--sp-4); flex: none; }
 .frame.compact .menu-foot { left: var(--sl); right: var(--sr); bottom: var(--sb); height: 52px; padding: 0 var(--sp-12); gap: var(--sp-8); font-size: var(--t-2); }
 .frame.compact .menu-meta { gap: var(--sp-3); }
+/* Новость на телефоне — в две строки: места под одну строку рядом с метками нет, а обрезанный заголовок теряет смысл */
 /* Телефон: иконка навыка — в строку с названием, чтобы кнопки поместились без прокрутки */
 .frame.size-s .skill-info { display: grid; grid-template-columns: 28px minmax(0, 1fr); align-content: start; column-gap: var(--sp-4); }
 .frame.size-s .skill-info > :not(.big, h3) { grid-column: 1 / -1; }
@@ -335,19 +344,17 @@
 .frame.size-s .skill-info h3 { font-size: var(--t-4); white-space: nowrap; }
 /* Окно обновления не выше экрана: список листается, кнопки всегда видны */
 .frame.compact .upd { max-height: 100%; overflow-y: auto; width: min(480px, 100%); padding-bottom: 0; }
-.frame.compact .upd .dialog-actions { position: sticky; bottom: 0; margin: 0 -20px; padding: var(--sp-5) var(--sp-10) var(--sp-6); background: var(--graphite); border-top: 1px solid var(--seam); }
+.frame.compact .upd .dialog-actions { position: sticky; bottom: 0; margin: 0 -20px; padding: var(--sp-5) var(--sp-10) var(--sp-6); }
 .frame.compact .upd-box { padding: var(--sp-4) var(--sp-6); }
 /* Телефон: шесть кнопок меню не входят в высоту — вторая колонка встаёт левее */
-.frame.size-s .menu-rail { flex-wrap: wrap-reverse; align-content: flex-start; justify-content: flex-start; column-gap: var(--sp-4); }
+.frame.size-s .menu-rail { flex-wrap: wrap-reverse; justify-content: flex-start; column-gap: var(--sp-4); }
 .frame.size-s .menu-main { width: calc(100% - var(--sl) - var(--sr) - 306px); }
 .frame.size-s .menu-rail { display: grid; grid-template-columns: repeat(2, 110px); grid-template-rows: repeat(3, var(--tt)); gap: var(--sp-4); align-content: center; }
 .frame.size-s .menu-rail .rail-sep { display: none; }
-.frame.size-s .menu-rail .rail-btn { width: 110px; padding: 0 7px; gap: var(--sp-3); }
+.frame.size-s .menu-rail .rail-btn { width: 110px; padding: 0 var(--sp-4); gap: var(--sp-3); }
 .frame.size-s .menu-rail .control-label { font-size: var(--t-3); }
 .frame.size-s .menu-rail .rail-btn img { width: 18px; height: 18px; }
-.frame.size-s .menu-rail #railHealth { grid-column: 1; grid-row: 1; }
-.frame.size-s .menu-rail #railHealth .control-label { white-space: normal; }
-.frame.size-s .menu-rail [title="Выход из игры"] { grid-column: 1; grid-row: 2; }
+.frame.size-s .menu-rail [title="Выход из игры"] { grid-column: 1; grid-row: 1; }
 .frame.size-s .menu-rail [title="Discord"] { grid-column: 2; grid-row: 1; }
 .frame.size-s .menu-rail [title="Telegram"] { grid-column: 2; grid-row: 2; }
 .frame.size-s .menu-rail [title="ВКонтакте"] { grid-column: 2; grid-row: 3; }
@@ -363,7 +370,7 @@
 .pause-sys { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--sp-3); }
 .pause-sys:empty { display: none; }
 .pause-sys button { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: var(--sp-2); width: auto; height: var(--ctl-xxl);
-  border: 1px solid var(--seam); border-radius: var(--radius); background: var(--plate); color: var(--bone); font-size: var(--t-small); font-weight: var(--fw-normal); }
+  border: 1px solid var(--seam); background: var(--plate); color: var(--bone); font-size: var(--t-small); font-weight: var(--fw-normal); }
 .pause-sys button::after { content: attr(title); }
 .pause-sys .control-label { display: none; }
 .pause-sys .tbtn { padding: 0; }
@@ -384,3 +391,5 @@
 .pause #pauseExit { margin-top: var(--sp-2); }
 /* Окно предметов на весь экран — ячеек в ряд сколько влезет */
 .frame.compact .inv-window-grid { grid-template-columns: repeat(auto-fill, 56px); }
+/* Текст миссии на узкой полосе: перенос по слогам, а не посреди буквы — слово рвётся только если не влезает и по слогам */
+.frame.compact .mission-text { overflow-wrap: break-word; hyphens: auto; }

@@ -51,7 +51,7 @@ Key.D, Key.A
         _runInBackground = Application.runInBackground;
         Application.runInBackground = true;
         _authentication = DummyAuthenticationScope.Seed(TestDummyToken);
-        yield return PlayModeHarness.StartAtGateway();
+        yield return PlayModeHarness.StartAtMainMenu();
         _bootstrap = PlayModeHarness.FindBootstrap()!;
     }
 

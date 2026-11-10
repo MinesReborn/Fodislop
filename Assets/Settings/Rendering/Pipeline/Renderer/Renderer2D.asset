@@ -25,9 +25,8 @@ MonoBehaviour:
     probeSamplingDebugTexture: {fileID: 2800000, guid: 24ec0e140fb444a44ab96ee80844e18e, type: 3}
     probeVolumeBlendStatesCS: {fileID: 0}
   m_RendererFeatures:
-  - {fileID: 11400001}
   - {fileID: 1615106795361753387}
-  m_RendererFeatureMap: 41f3ad00000000002b59dbbb12036a1665d3d1e7d1bcefec
+  m_RendererFeatureMap: 41f3ad00000000002b59dbbb12036a1665d3d1e7d1bcefecl
   m_LayerMask:
     serializedVersion: 2
     m_Bits: 4294967295
@@ -57,22 +56,6 @@ MonoBehaviour:
   m_PostProcessData: {fileID: 11400000, guid: 41439944d30ece34e96484bdb6645b55, type: 2}
   m_DefaultMaterialType: 0
   m_DefaultCustomMaterial: {fileID: 2100000, guid: a97c105638bdf8b4a8650670310a4cd3, type: 2}
---- !u!114 &11400001
-MonoBehaviour:
-  m_ObjectHideFlags: 3
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 0}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 4a67bf8a30b9b6d49a3b2fa63d95e9b0, type: 3}
-  m_Name: EffekseerURPRenderPassFeature
-  m_EditorClassIdentifier: 
-  m_Active: 1
-  LayerMask:
-    serializedVersion: 2
-    m_Bits: 4294967295
 --- !u!114 &1615106795361753387
 MonoBehaviour:
   m_ObjectHideFlags: 1
@@ -88,6 +71,3 @@ MonoBehaviour:
   m_Active: 1
   _settings:
     _computeShader: {fileID: 7200000, guid: ecfe5b42adad24aae884f167627e0af8, type: 3}
-    _renderPassEvent: 500
-    _runInSceneView: 1
-    _runInPreviewCameras: 0

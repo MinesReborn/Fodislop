@@ -6,6 +6,7 @@ using Kern.Rendering.PostProcessing;
 using NUnit.Framework;
 using System;
 using System.IO;
+using System.Threading.Tasks;
 using UnityEngine;
 
 using Kern.AssetPipeline.Loading;
@@ -18,26 +19,21 @@ namespace Kern.Tests.Core;
 public sealed class RuntimeAssetPathsTests
 {
     [Test]
-    public void RuntimeAssetPaths_UsesPersistentOverrideAndCaseInsensitiveBundledLookup()
+    public async Task RuntimeAssetPaths_LoadsTextureBytesByPublishedName()
     {
         string root = Path.Combine(Path.GetTempPath(), $"kern-paths-{Guid.NewGuid():N}");
-        string bundled = Path.Combine(root, "bundled");
-        string persistent = Path.Combine(root, "persistent");
-        Directory.CreateDirectory(Path.Combine(bundled, "Skin"));
-        Directory.CreateDirectory(Path.Combine(persistent, "skin"));
-        File.WriteAllText(Path.Combine(bundled, "Skin/Bee.png"), "bundled");
-        File.WriteAllText(Path.Combine(persistent, "skin/bee.png"), "persistent");
+        Directory.CreateDirectory(Path.Combine(root, "Skin"));
+        byte[] expected = [1, 2, 3];
+        File.WriteAllBytes(Path.Combine(root, "Skin/Bee.png"), expected);
 
         try
         {
-            var paths = new RuntimeAssetPaths(bundled, persistent);
+            var paths = new RuntimeAssetPaths(root);
+            await paths.EnsureReadyAsync();
 
-            Assert.That(
-                paths.FindBundledTextureFile("skin/bee.png"),
-                Is.EqualTo(Path.Combine(bundled, "Skin/Bee.png")));
-            Assert.That(
-                paths.FindTextureFile("Skin/Bee.png"),
-                Is.EqualTo(Path.Combine(persistent, "skin/bee.png")));
+            Assert.That(paths.GetTextureBytes("Skin/Bee.png"), Is.EqualTo(expected));
+            Assert.That(paths.GetTextureBytes("Skin/Bee"), Is.EqualTo(expected));
+            Assert.That(paths.GetTextureBytes("skin/bee.png"), Is.Null);
         }
         finally
         {
@@ -55,8 +51,8 @@ public sealed class RuntimeAssetPathsTests
 
         try
         {
-            var paths = new RuntimeAssetPaths(root, root);
-            Assert.Throws<ArgumentException>(() => paths.FindBundledTextureFile(relativePath));
+            var paths = new RuntimeAssetPaths(root);
+            Assert.Throws<ArgumentException>(() => paths.GetTextureBytes(relativePath));
         }
         finally
         {

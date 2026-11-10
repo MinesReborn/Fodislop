@@ -10,6 +10,7 @@ using UnityEngine;
 using UnityEngine.UIElements;
 
 using Kern.AssetPipeline.Loading;
+using Kern.UI.Controls;
 
 namespace Kern.UI.ServerWindows;
 public class ImagePacketBuilder : PacketUIBuilderBase<ImagePacket>
@@ -39,7 +40,7 @@ public class ImagePacketBuilder : PacketUIBuilderBase<ImagePacket>
         // Пустой URI — договорённость «картинки нет» (так уходит SliderPacket.Knob
         // без арта ручки): запрос по пустому имени сервер отвечает пустыми байтами,
         // и каждая отрисовка окна сыплет лог ошибками. Загрузку не планируем вовсе.
-        if (string.IsNullOrWhiteSpace(uri))
+        if (string.IsNullOrEmpty(uri))
         {
             return element;
         }
@@ -79,16 +80,15 @@ public class ImagePacketBuilder : PacketUIBuilderBase<ImagePacket>
         Texture2D? texture;
         try
         {
-            texture = await GetTexture(uri, loader, webLoader, token);
+            texture = await ServerImageSource.LoadAsync(loader, webLoader, uri, token);
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException) when (token.IsCancellationRequested)
         {
             return;
         }
         catch (Exception exception)
         {
-            Debug.LogError($"[PacketUI] Image '{uri}' failed to load: {exception}");
-            return;
+            throw new InvalidOperationException($"[PacketUI] Image '{uri}' failed to load.", exception);
         }
 
         if (token.IsCancellationRequested)
@@ -98,9 +98,7 @@ public class ImagePacketBuilder : PacketUIBuilderBase<ImagePacket>
 
         if (texture == null)
         {
-            Debug.LogWarning(
-                $"[ImagePacketBuilder] Optional image '{uri}' returned no texture; skipped.");
-            return;
+            throw new InvalidOperationException($"[PacketUI] Image '{uri}' returned no texture.");
         }
 
         if (element != null)
@@ -109,18 +107,4 @@ public class ImagePacketBuilder : PacketUIBuilderBase<ImagePacket>
         }
     }
 
-    private static async UniTask<Texture2D?> GetTexture(
-        string uri,
-        IAssetLoader loader,
-        IWebAssetLoader webLoader,
-        CancellationToken token)
-    {
-        if (!Uri.TryCreate(uri, UriKind.Absolute, out Uri? absolute) ||
-            (absolute.Scheme != Uri.UriSchemeHttp && absolute.Scheme != Uri.UriSchemeHttps))
-        {
-            return await loader.GetTextureAsync(uri, token);
-        }
-
-        return await webLoader.GetTextureAsync(uri, token);
-    }
 }

@@ -4,12 +4,10 @@
     "references": [
         "UniTask",
         "Kern.Contracts",
-        "Kern.Persistence",
-        "Kern.World",
+        "Kern.AssetPipeline",
         "MinesServer.Data",
         "MinesServer.Networking",
         "MinesServer.Networking.Connection",
-        "MinesServer.Networking.Connection.Client",
         "VContainer",
         "Kern.Diagnostics",
         "Kern.Core"

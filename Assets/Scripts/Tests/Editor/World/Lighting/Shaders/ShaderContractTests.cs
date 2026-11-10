@@ -22,8 +22,8 @@ public sealed class ShaderContractTests
     {
         string[] forbiddenStageFiles =
         {
-            Path.Combine(s_shaderDirectory, "Cascades/CascadeResolve.hlsl"),
-            Path.Combine(s_shaderDirectory, "Dynamic/DynamicLightTrace.hlsl"),
+            Path.Combine(s_shaderDirectory, "Cascades/Resolve/CascadeResolve.hlsl"),
+            Path.Combine(s_shaderDirectory, "Dynamic/Trace/DynamicLightTrace.hlsl"),
             Path.Combine(s_shaderDirectory, "Composite/CompositeLighting.hlsl"),
         };
 
@@ -54,7 +54,7 @@ public sealed class ShaderContractTests
     [Test]
     public void ComputeBinderProperties_AllDeclaredInComputeShader()
     {
-        string computeFile = Path.Combine(s_shaderDirectory, "WorldLighting.compute");
+        string computeFile = Path.Combine(s_shaderDirectory, "Pipeline/WorldLighting.compute");
         Assert.That(File.Exists(computeFile), Is.True);
 
         string allShaderText = LoadShaderWithIncludes(computeFile);

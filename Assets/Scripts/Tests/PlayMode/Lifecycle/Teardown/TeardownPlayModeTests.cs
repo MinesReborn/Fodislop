@@ -58,7 +58,7 @@ public sealed class TeardownPlayModeTests
         List<string> persistentBefore = PersistentRootNames();
         List<string> renderTexturesBefore = GameRenderTextures();
 
-        yield return PlayModeHarness.StartAtGateway();
+        yield return PlayModeHarness.StartAtMainMenu();
         BootstrapLifetimeScope bootstrap = PlayModeHarness.FindBootstrap()!;
         var operations = (AsyncOperationSupervisor)bootstrap.Container.Resolve<IAsyncOperationSupervisor>();
         yield return PlayModeHarness.EnterMainGame(bootstrap);
@@ -141,7 +141,7 @@ public sealed class TeardownPlayModeTests
     [UnityTest]
     public IEnumerator LeavingWorld_LetsTheGameSessionBeCollected()
     {
-        yield return PlayModeHarness.StartAtGateway();
+        yield return PlayModeHarness.StartAtMainMenu();
         BootstrapLifetimeScope bootstrap = PlayModeHarness.FindBootstrap()!;
         yield return PlayModeHarness.EnterMainGame(bootstrap);
 
