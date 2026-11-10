@@ -341,7 +341,7 @@ namespace Kern.World
             string textureName;
             try
             {
-                textureName = _mapManager.GetCellConfig(cellType).TextureName;
+                textureName = _mapManager.GetCellTextureName(cellType);
             }
             catch (InvalidOperationException)
             {
@@ -727,7 +727,7 @@ namespace Kern.World
 
         private async UniTask LoadTexture(CellType cellType, CancellationToken cancellationToken)
         {
-            string filename = _mapManager.GetCellConfig(cellType).TextureName;
+            string filename = _mapManager.GetCellTextureName(cellType);
 
             if (_textureCache.TryGetTexture(cellType, out CellTextureInfo cachedTextureInfo))
             {

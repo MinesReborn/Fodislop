@@ -21,8 +21,6 @@ internal static class CellPacket
                 : CellConfigProperties.None,
             DrawLayer: drawLayer,
             Outline: outline,
-            TextureName: string.Empty,
-            DecalTextureName: string.Empty,
             ReliefGroup: reliefGroup,
             AnimationType: animationType,
             AnimationPalette: 0,

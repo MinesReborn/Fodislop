@@ -218,11 +218,13 @@ internal sealed class DummyWorldStartupResponder
         _sendPacket(new ServerPacket(new LoadingTipPacket(
             DummyLoadingTips.Tips[_clock.Random.Next(0, DummyLoadingTips.Tips.Length)])));
         CellConfigurationPacket[] cellConfigurations = (CellConfigurationPacket[])world.CellConfigurations.Clone();
+        CellDecalEntry[] decalMap = DummyCellConfigurationFactory.CreateDecalMap();
         AssetsDefinitionPacket[] assetManifest =
             await DummyCellConfigurationFactory.CreateAssetManifestAsync(
                 _textureStorage,
                 _assetPaths,
-                cellConfigurations);
+                cellConfigurations,
+                decalMap);
         _sendPacket(new ServerPacket(new WorldInitPacket(
             worldCodeName,
             "Pallada",
@@ -230,7 +232,8 @@ internal sealed class DummyWorldStartupResponder
             (ushort)world.Height,
             cellConfigurations,
             DummyCellConfigurationFactory.CreateTileGroups(),
-            assetManifest)));
+            assetManifest,
+            decalMap)));
         _sendPacket(new ServerPacket(new PlayerInfoPacket(DummyPlayerIdentity.PlayerId, playerBotId, playerName)));
         _sendPacket(new ServerPacket(new RobotInfoPacket(
             playerBotId,

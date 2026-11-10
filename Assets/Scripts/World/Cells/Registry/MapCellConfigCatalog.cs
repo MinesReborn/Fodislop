@@ -25,7 +25,8 @@ public sealed class MapCellConfigCatalog
     public void LoadConfigurations(
         CellConfigurationPacket[]? configurations,
         byte[][]? tileGroups,
-        AssetsDefinitionPacket[]? assetManifest = null)
+        AssetsDefinitionPacket[]? assetManifest = null,
+        CellDecalMap? decals = null)
     {
         ValidateCellConfigurations(configurations);
 
@@ -44,11 +45,8 @@ public sealed class MapCellConfigCatalog
             }
         }
 
-        var decalTextureNames = configurations!
-            .Select(configuration => configuration.DecalTextureName)
-            .Where(name => !string.IsNullOrWhiteSpace(name))
-            .Distinct(StringComparer.Ordinal)
-            .ToArray();
+        CellDecalMap decalMap = decals ?? CellDecalMap.Empty;
+        string[] decalTextureNames = decalMap.TextureNames.ToArray();
         long textureArrayBytes = (long)TerrainDecalFactory.TextureWidth *
             TerrainDecalFactory.TextureHeight * (decalTextureNames.Length + 1) * 4;
         if (textureArrayBytes > 64L * 1024 * 1024)
@@ -56,20 +54,28 @@ public sealed class MapCellConfigCatalog
             throw new InvalidDataException("World decal texture array exceeds the 64 MiB client limit.");
         }
 
-        foreach (CellConfigurationPacket configuration in configurations!)
+        // Манифеста нет (standalone-вызовы и тесты) — сверять имена не с чем.
+        if (assetManifest != null)
         {
-            if (!string.IsNullOrEmpty(configuration.TextureName) &&
-                !assetsByName.ContainsKey(configuration.TextureName))
+            for (int index = 0; index < configurations!.Length; index++)
             {
-                throw new InvalidDataException(
-                    $"Cell configuration references texture '{configuration.TextureName}', which is absent from WorldInitPacket.AssetsManifest.");
+                // Имя основной текстуры в пакете не приходит: оно выводится из типа клетки.
+                string textureName = BlockRegistry.Get((CellType)index).TextureName;
+                if (!string.IsNullOrEmpty(textureName) &&
+                    !assetsByName.ContainsKey(textureName))
+                {
+                    throw new InvalidDataException(
+                        $"Cell '{(CellType)index}' references texture '{textureName}', which is absent from WorldInitPacket.AssetsManifest.");
+                }
             }
 
-            if (!string.IsNullOrEmpty(configuration.DecalTextureName) &&
-                !assetsByName.ContainsKey(configuration.DecalTextureName))
+            foreach (string decalTextureName in decalTextureNames)
             {
-                throw new InvalidDataException(
-                    $"Cell configuration references decal texture '{configuration.DecalTextureName}', which is absent from WorldInitPacket.AssetsManifest.");
+                if (!assetsByName.ContainsKey(decalTextureName))
+                {
+                    throw new InvalidDataException(
+                        $"Decal texture '{decalTextureName}' is absent from WorldInitPacket.AssetsManifest.");
+                }
             }
         }
 
