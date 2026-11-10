@@ -66,12 +66,13 @@ public sealed class LocalChatContractTests
     public void GlobalChannelTag_MatchesServerSeededChannel()
     {
         string globalController = ReadAsset("Scripts/UI/Chat/Window/Presentation/GlobalChatUI.cs");
+        string globalChannels = ReadAsset("Scripts/UI/Chat/Window/Channels/GlobalChatChannelPresenter.cs");
 
         Assert.That(
             ChatProtocolLimits.GlobalChannelTag,
             Is.EqualTo("FED"),
             "Server seeds its only global channel with Tag = \"FED\" (World.CheckGlobalChats).");
-        Assert.That(globalController, Does.Contain("ChatProtocolLimits.GlobalChannelTag"));
+        Assert.That(globalChannels, Does.Contain("ChatProtocolLimits.GlobalChannelTag"));
         Assert.That(globalController, Does.Not.Contain("\"global\""));
     }
 

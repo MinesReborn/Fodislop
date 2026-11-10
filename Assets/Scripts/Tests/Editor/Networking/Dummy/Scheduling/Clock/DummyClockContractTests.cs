@@ -18,8 +18,9 @@ public sealed class DummyClockContractTests
         "Scheduling/Clock/DummyClock.cs",
         "World/Maps/Archives/DummyWorldMapArchive.cs",
         "World/State/DummyWorldSimulationState.cs",
-        "World/Streaming/DummyWorldStreamingCoordinator.cs",
-        "World/Streaming/DummyMapStreamer.cs",
+        "World/Maps/Files/Transactions/DummyMapArchiveFiles.cs",
+        "World/Streaming/Coordination/DummyWorldStreamingCoordinator.cs",
+        "World/Streaming/Regions/DummyMapStreamer.cs",
 
     };
 

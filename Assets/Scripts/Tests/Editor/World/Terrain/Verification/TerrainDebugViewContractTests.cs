@@ -38,7 +38,10 @@ public sealed class TerrainDebugViewContractTests
             string includePath = match.Groups[1].Value;
             string projectPath = Path.Combine(Directory.GetParent(Application.dataPath)!.FullName, includePath);
             string localPath = Path.Combine(Path.GetDirectoryName(path)!, includePath);
-            return ExpandShaderIncludes(File.Exists(projectPath) ? projectPath : localPath);
+            // Platform branches of package shaders are resolved only by the
+            // compiler; a missing branch must not break source inspection.
+            string resolved = File.Exists(projectPath) ? projectPath : localPath;
+            return File.Exists(resolved) ? ExpandShaderIncludes(resolved) : string.Empty;
         });
     }
 

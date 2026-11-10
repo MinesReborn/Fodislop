@@ -38,8 +38,22 @@ public class SliderPacketBuilder : PacketUIBuilderBase<SliderPacket>
         // свой ползунок, стандартную отрисовку Unity надо убрать из-под него.
         slider.AddToClassList("packet-slider");
 
+        bool hasRange = packet.MaxValue > packet.MinValue;
+        if (hasRange)
+        {
+            slider.AddToClassList("packet-slider--filled");
+        }
+
         VisualElement dragger = slider.Q(className: "unity-base-slider__dragger") ??
             throw new InvalidOperationException($"[PacketUI] Slider '{packet.Name}' has no dragger element.");
+
+        // Слайдер без диапазона не имеет ползунка: перетаскивание бессмысленно,
+        // поэтому элемент скрыт и не перехватывает указатель.
+        if (!hasRange)
+        {
+            dragger.style.display = DisplayStyle.None;
+            dragger.pickingMode = PickingMode.Ignore;
+        }
 
         // Дорожка по умолчанию: тонкая линия во всю ширину слайдера. Кладётся
         // первым ребёнком, чтобы ручка с кнобом рисовались поверх неё. Свой
