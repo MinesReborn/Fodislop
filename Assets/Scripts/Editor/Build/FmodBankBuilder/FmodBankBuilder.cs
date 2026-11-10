@@ -14,6 +14,10 @@ public sealed class FmodBankBuilder : IPreprocessBuildWithReport
 {
     private const string FmodSourceBuildPath = "KernAudio/Build/Desktop";
     private const string StreamingAssetsAudioPath = "Assets/StreamingAssets/Audio";
+
+    // Явный режим CI: банки уже лежат в KernAudio/Build/Desktop, FMOD Studio
+    // на агенте нет, поэтому компиляция проекта пропускается осознанно.
+    private const string SkipCompileEnvironmentVariable = "KERN_FMOD_SKIP_COMPILE";
     private static readonly string[] s_requiredBanks = new[] {
 "Master.bank", "Master.strings.bank"
  };
@@ -42,7 +46,14 @@ public sealed class FmodBankBuilder : IPreprocessBuildWithReport
         var sourceDir = Path.Combine(projectRoot, FmodSourceBuildPath);
         var targetDir = Path.Combine(projectRoot, StreamingAssetsAudioPath);
 
-        TryCompileFmodStudioProject(fsproPath);
+        if (Environment.GetEnvironmentVariable(SkipCompileEnvironmentVariable) == "1")
+        {
+            Log($"[FmodBankBuilder] {SkipCompileEnvironmentVariable}=1: using committed banks without compiling.");
+        }
+        else
+        {
+            TryCompileFmodStudioProject(fsproPath);
+        }
 
         Log($"Starting FMOD Banks sync from '{sourceDir}' to '{targetDir}'...");
 

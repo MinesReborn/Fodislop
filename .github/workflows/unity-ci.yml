@@ -106,6 +106,8 @@ jobs:
           UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
           UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
           UNITY_SERIAL: ${{ secrets.UNITY_SERIAL }}
+          # На агенте нет FMOD Studio: используем банки, закоммиченные в KernAudio/Build/Desktop.
+          KERN_FMOD_SKIP_COMPILE: "1"
         with:
           unityVersion: auto
           customImage: ${{ vars.UNITY_CI_IMAGE }}
