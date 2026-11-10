@@ -47,8 +47,6 @@ internal static class DummyCellConfigurationFactory
                 Properties: ToProperties(def),
                 DrawLayer: (CellRenderLayer)def.DrawLayer,
                 Outline: (CellOutlineKind)def.Outline,
-                TextureName: def.TextureName,
-                DecalTextureName: def.DecalTextureName ?? string.Empty,
                 ReliefGroup: def.ReliefGroup,
                 AnimationType: def.AnimationType,
                 AnimationPalette: def.AnimationPalette,
@@ -58,6 +56,18 @@ internal static class DummyCellConfigurationFactory
         }
 
         return configs;
+    }
+
+    public static CellDecalEntry[] CreateDecalMap()
+    {
+        return BlockRegistry.Blocks
+            .Where(pair => !string.IsNullOrWhiteSpace(pair.Value.DecalTextureName))
+            .GroupBy(pair => pair.Value.DecalTextureName!, StringComparer.Ordinal)
+            .OrderBy(group => group.Key, StringComparer.Ordinal)
+            .Select(group => new CellDecalEntry(
+                WithPngExtension(group.Key),
+                group.Select(pair => (byte)pair.Key).OrderBy(cell => cell).ToArray()))
+            .ToArray();
     }
 
     private static CellConfigProperties ToProperties(BlockDefinition definition)
@@ -79,7 +89,8 @@ internal static class DummyCellConfigurationFactory
     public static async UniTask<AssetsDefinitionPacket[]> CreateAssetManifestAsync(
         ITextureStorageService textureStorage,
         IRuntimeAssetPaths assetPaths,
-        CellConfigurationPacket[] cellConfigurations)
+        CellConfigurationPacket[] cellConfigurations,
+        CellDecalEntry[] decalMap)
     {
         var assets = new Dictionary<string, AssetsDefinitionPacket>(StringComparer.Ordinal);
         var audioAssets = new List<AssetsDefinitionPacket>();
@@ -116,38 +127,32 @@ internal static class DummyCellConfigurationFactory
 
         for (int cellId = 0; cellId < cellConfigurations.Length; cellId++)
         {
-            // Одно имя на файл: везде с расширением, как в манифесте (клиент сверяет имена точно)
-            CellConfigurationPacket configuration = cellConfigurations[cellId] with
+            // Одно имя на файл: везде с расширением, как в манифесте (клиент сверяет имена точно).
+            // Имя основной текстуры выводится из типа клетки, в пакете его нет.
+            string textureName = WithPngExtension(BlockRegistry.Get((CellType)cellId).TextureName);
+            if (!string.IsNullOrWhiteSpace(textureName))
             {
-                TextureName = WithPngExtension(cellConfigurations[cellId].TextureName),
-                DecalTextureName = WithPngExtension(cellConfigurations[cellId].DecalTextureName),
-            };
-            cellConfigurations[cellId] = configuration;
-            if (!string.IsNullOrWhiteSpace(configuration.TextureName))
-            {
-                byte[]? contents = await textureStorage.GetTextureData(configuration.TextureName);
+                byte[]? contents = await textureStorage.GetTextureData(textureName);
                 if (contents == null || contents.Length == 0)
                 {
-                    cellConfigurations[cellId] = configuration with { TextureName = string.Empty };
-                }
-                else
-                {
-                    assets[configuration.TextureName] = CreateAssetDefinition(configuration.TextureName, contents);
-                }
-            }
-
-            if (!string.IsNullOrWhiteSpace(configuration.DecalTextureName))
-            {
-                byte[]? decalContents = await textureStorage.GetTextureData(configuration.DecalTextureName);
-                if (decalContents == null || decalContents.Length == 0)
-                {
                     throw new InvalidOperationException(
-                        $"Cell '{(CellType)cellId}' requires decal texture '{configuration.DecalTextureName}', but it is missing.");
+                        $"Cell '{(CellType)cellId}' requires texture '{textureName}', but it is missing.");
                 }
 
-                assets[configuration.DecalTextureName] =
-                    CreateAssetDefinition(configuration.DecalTextureName, decalContents);
+                assets[textureName] = CreateAssetDefinition(textureName, contents);
             }
+        }
+
+        foreach (CellDecalEntry decal in decalMap)
+        {
+            byte[]? decalContents = await textureStorage.GetTextureData(decal.TextureName);
+            if (decalContents == null || decalContents.Length == 0)
+            {
+                throw new InvalidOperationException(
+                    $"Decal texture '{decal.TextureName}' is missing.");
+            }
+
+            assets[decal.TextureName] = CreateAssetDefinition(decal.TextureName, decalContents);
         }
 
         // Сначала визуал, потом аудио: файлы качаются в порядке манифеста

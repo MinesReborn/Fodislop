@@ -31,11 +31,11 @@ public sealed class ArtMetricRule : IRule
     // кратность клетке, точный размер или единый размер набора.
     private static readonly (string Root, int? Multiple, int? Width, int? Height, bool Uniform)[] Families =
     {
-        ("Assets/Textures/Cells", 32, null, null, false),
-        ("Assets/Textures/Pack", 32, null, null, false),
+        ("Assets/Textures/Server/Cells", 32, null, null, false),
+        ("Assets/Textures/Server/Pack", 32, null, null, false),
         ("Assets/Textures/Items", null, 42, 42, false),
         ("Assets/Resources/UI/HUD/Player/Skills/Icons", null, 73, 73, false),
-        ("Assets/Textures/Crystals", null, null, null, true),
+        ("Assets/Textures/Server/Crystals", null, null, null, true),
     };
 
     // Слова состояний. Имя контрола берётся как остаток после токена, поэтому

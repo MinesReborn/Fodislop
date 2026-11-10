@@ -68,6 +68,7 @@
     <Compile Include="$(Game)/World/Cells/Contracts/CellVisualProtocol.cs" Link="Game/CellVisualProtocolContracts.cs" />
     <Compile Include="$(Game)/World/Textures/Decals/Configuration/TerrainDecalFactory.cs" Link="Game/TerrainDecalFactory.cs" />
     <Compile Include="$(Game)/World/Cells/Palette/MapBlockColors.cs" Link="Game/MapBlockColors.cs" />
+    <Compile Include="$(Game)/World/Cells/Registry/CellDecalMap.cs" Link="Game/CellDecalMap.cs" />
     <Compile Include="$(Game)/World/Cells/Registry/BlockRegistry.cs" Link="Game/BlockRegistry.cs" />
     <Compile Include="$(Game)/World/Cells/Registry/MapCellConfigCatalog.cs" Link="Game/MapCellConfigCatalog.cs" />
     <!-- TerrainCellMaskCalculator трогает оба каталога: без них CPU-набор не собирался. -->

@@ -240,8 +240,9 @@ namespace Kern.World
         // не оставляет другой новым
         private void LoadCellContent(WorldInitPacket packet)
         {
-            BlockRegistry.Update blocks = BlockRegistry.Prepare(packet.Cells);
-            _cellCatalog.LoadConfigurations(packet.Cells, packet.TileGroups, packet.AssetsManifest);
+            CellDecalMap decals = CellDecalMap.FromEntries(packet.DecalMap);
+            BlockRegistry.Update blocks = BlockRegistry.Prepare(packet.Cells, decals);
+            _cellCatalog.LoadConfigurations(packet.Cells, packet.TileGroups, packet.AssetsManifest, decals);
             BlockRegistry.Commit(blocks);
         }
 
@@ -314,6 +315,15 @@ namespace Kern.World
         public float GetMinMoveCooldown() => _cellCatalog.GetMinMoveCooldown();
 
         public CellConfigurationPacket GetCellConfig(CellType type) => _cellCatalog.GetCellConfig(type);
+
+        // Имя основной текстуры выводится из типа клетки: пакет его не присылает,
+        // поэтому путь всегда Visual/Cells/<тип>.png и не зависит от данных сервера.
+        public string GetCellTextureName(CellType type)
+        {
+            // Тип должен быть описан сервером: иначе клетки в мире нет.
+            _ = _cellCatalog.GetCellConfig(type);
+            return BlockRegistry.Get(type).TextureName ?? string.Empty;
+        }
 
         public bool TryGetAssetDefinition(string? filename, out AssetsDefinitionPacket definition) =>
             _cellCatalog.TryGetAssetDefinition(filename, out definition);

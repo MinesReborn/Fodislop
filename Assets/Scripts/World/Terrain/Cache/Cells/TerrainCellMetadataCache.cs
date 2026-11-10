@@ -108,7 +108,8 @@ public sealed class TerrainCellMetadataCache : ITerrainMetadataLookup
             _resolvedPass[idx] = _passId;
         }
 
-        var config = mm.GetCellConfig(type);
+        // Тип должен быть описан сервером: иначе клетки в мире нет.
+        _ = mm.GetCellConfig(type);
 
         int atlasIndex = -1;
         for (int i = 0; i < atlases.Count; i++)
@@ -132,7 +133,7 @@ public sealed class TerrainCellMetadataCache : ITerrainMetadataLookup
             AtlasRect = atlasRect,
             HasTileGroup = mm.TryGetTileGroup(type, out int gid),
             TileGroupId = gid,
-            DecalTextureIndex = TerrainDecalCatalog.TextureIndex(config.DecalTextureName),
+            DecalTextureIndex = TerrainDecalCatalog.TextureIndex(block.DecalTextureName),
             ReliefGroup = block.ReliefGroup,
             AnimationFrameCount = frameCount,
             IsTextureReady = atlasIndex >= 0 && atlasRect.z > 0f,

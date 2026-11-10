@@ -77,8 +77,13 @@ public sealed class BlockRegistry : IBlockRegistry
     /// тайлов в описании не едут и остаются прежними. Пустое описание (всё по умолчанию) типа не создаёт.
     /// Ничего не меняет: упавшая проверка оставляет прежнюю таблицу.
     /// </summary>
-    public static Update Prepare(CellConfigurationPacket[] cells)
+    public static Update Prepare(CellConfigurationPacket[] cells, CellDecalMap decals)
     {
+        if (decals == null)
+        {
+            throw new ArgumentNullException(nameof(decals));
+        }
+
         BlockDefinition[] array = (BlockDefinition[])s_blockArray.Clone();
         var blocks = new Dictionary<CellType, BlockDefinition>(s_blocks);
         int count = Math.Min(cells.Length, array.Length);
@@ -97,10 +102,10 @@ public sealed class BlockRegistry : IBlockRegistry
                 MovementCooldownMs: previous.MovementCooldownMs,
                 DrawLayer: (CellDrawLayer)cell.DrawLayer,
                 Outline: (CellOutline)cell.Outline,
-                TextureName: cell.TextureName ?? string.Empty,
+                TextureName: previous.TextureName ?? string.Empty,
                 TextureAnchor: (CellTextureAnchor)cell.TextureAnchor,
                 TileGroup: previous.TileGroup,
-                DecalTextureName: string.IsNullOrEmpty(cell.DecalTextureName) ? null : cell.DecalTextureName,
+                DecalTextureName: decals.TryGet(type, out string? decalName) ? decalName : null,
                 ReliefGroup: cell.ReliefGroup,
                 AnimationType: cell.AnimationType,
                 AnimationPalette: cell.AnimationPalette,
@@ -127,8 +132,6 @@ public sealed class BlockRegistry : IBlockRegistry
         (cell.Properties & CellConfigProperties.Passable) == 0 &&
         (int)cell.DrawLayer == 0 &&
         (int)cell.Outline == 0 &&
-        string.IsNullOrEmpty(cell.TextureName) &&
-        string.IsNullOrEmpty(cell.DecalTextureName) &&
         cell.ReliefGroup == 0 &&
         (int)cell.AnimationType == 0 &&
         cell.AnimationPalette == 0 &&
