@@ -110,11 +110,12 @@ jobs:
           unityVersion: auto
           customImage: ${{ vars.UNITY_CI_IMAGE }}
           targetPlatform: StandaloneWindows64
+          buildMethod: Kern.Editor.BuildScript.BuildWindows
 
       - name: Upload build
         if: success()
         uses: actions/upload-artifact@v4
         with:
           name: build-StandaloneWindows64
-          path: build/StandaloneWindows64
+          path: Build/Windows
           if-no-files-found: ignore
