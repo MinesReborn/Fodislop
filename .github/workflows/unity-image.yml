@@ -1,0 +1,83 @@
+name: Unity editor image
+
+# Builds a game-ci compatible editor image for a Unity version that has no
+# published unityci/editor tag (the project uses a 6000.7 beta), and pushes it
+# to GHCR for the Unity CI workflow to consume via the UNITY_CI_IMAGE variable.
+on:
+  workflow_dispatch:
+    inputs:
+      unityVersion:
+        description: Unity editor version
+        required: true
+        default: 6000.7.0b4
+      changeSet:
+        description: Editor changeset (see ProjectSettings/ProjectVersion.txt)
+        required: true
+        default: 9debfb8362db
+      module:
+        description: Unity module installed into the image
+        required: true
+        default: linux-mono
+
+permissions:
+  contents: read
+  packages: write
+
+concurrency:
+  group: unity-image-${{ inputs.unityVersion }}-${{ inputs.module }}
+  cancel-in-progress: false
+
+jobs:
+  build-image:
+    name: Build and push editor image
+    runs-on: ubuntu-latest
+    steps:
+      # The editor is ~4 GB compressed and ~9 GB installed, plus build layers.
+      - name: Free disk space
+        uses: jlumbroso/free-disk-space@main
+        with:
+          tool-cache: true
+          android: true
+          dotnet: true
+          haskell: true
+          large-packages: true
+          docker-images: true
+          swap-storage: true
+
+      - name: Checkout game-ci docker
+        uses: actions/checkout@v4
+        with:
+          repository: game-ci/docker
+          path: game-ci-docker
+
+      - name: Set up buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GHCR
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Compute image name
+        run: echo "IMAGE=ghcr.io/${GITHUB_REPOSITORY_OWNER,,}/unity-${{ inputs.unityVersion }}" >> "$GITHUB_ENV"
+
+      - name: Build base
+        run: docker build game-ci-docker/images/ubuntu/base -t unityci/base:local
+
+      - name: Build hub
+        run: docker build game-ci-docker/images/ubuntu/hub --build-arg baseImage=unityci/base:local -t unityci/hub:local
+
+      - name: Build editor
+        run: >
+          docker build game-ci-docker/images/ubuntu/editor
+          --build-arg baseImage=unityci/base:local
+          --build-arg hubImage=unityci/hub:local
+          --build-arg version=${{ inputs.unityVersion }}
+          --build-arg changeSet=${{ inputs.changeSet }}
+          --build-arg module=${{ inputs.module }}
+          -t "${IMAGE}:${{ inputs.module }}"
+
+      - name: Push
+        run: docker push "${IMAGE}:${{ inputs.module }}"
