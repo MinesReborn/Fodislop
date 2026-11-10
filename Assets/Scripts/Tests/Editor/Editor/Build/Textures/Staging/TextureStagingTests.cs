@@ -57,6 +57,6 @@ public sealed class TextureStagingTests
             Assert.That(catalog.ContainsKey(relative), Is.True, relative);
         }
 
-        Assert.That(catalog["Cells/Crystals/Blue/Blue.png"], Is.EqualTo("Cells/Blue.png"));
+        Assert.That(catalog["Server/Cells/Crystals/Blue/Blue.png"], Is.EqualTo("Visual/Cells/Blue.png"));
     }
 }
