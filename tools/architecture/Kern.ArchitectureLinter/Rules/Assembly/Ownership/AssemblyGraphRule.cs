@@ -197,8 +197,8 @@ public sealed class AssemblyGraphRule : IRule
 
     private static bool IsReachable(string from, string to, List<(string Name, string Dir, List<string> Refs)> asmdefs, Dictionary<string, HashSet<string>> graph)
     {
-        var fromAsm = asmdefs.FirstOrDefault(a => from.StartsWith(a.Dir.Replace('\\', '/'), StringComparison.OrdinalIgnoreCase));
-        var toAsm = asmdefs.FirstOrDefault(a => to.StartsWith(a.Dir.Replace('\\', '/'), StringComparison.OrdinalIgnoreCase));
+        var fromAsm = asmdefs.FirstOrDefault(a => IsOwnedBy(from, a.Dir));
+        var toAsm = asmdefs.FirstOrDefault(a => IsOwnedBy(to, a.Dir));
         if (fromAsm.Name == toAsm.Name) return true;
         if (!graph.ContainsKey(fromAsm.Name)) return false;
         var reachable = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
@@ -218,5 +218,15 @@ public sealed class AssemblyGraphRule : IRule
             }
         }
         return false;
+    }
+
+    // Nearest asmdef or asmref owns a source file; separators differ between platforms,
+    // so both sides are normalized before the prefix comparison.
+    private static bool IsOwnedBy(string path, string directory)
+    {
+        string normalizedPath = path.Replace('\\', '/');
+        string normalizedDirectory = directory.Replace('\\', '/').TrimEnd('/');
+        return normalizedPath.Equals(normalizedDirectory, StringComparison.OrdinalIgnoreCase) ||
+            normalizedPath.StartsWith(normalizedDirectory + "/", StringComparison.OrdinalIgnoreCase);
     }
 }

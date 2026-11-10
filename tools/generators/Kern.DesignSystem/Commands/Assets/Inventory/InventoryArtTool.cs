@@ -20,10 +20,10 @@ internal static class InventoryArtTool
 
     private static readonly Dictionary<string, (string Kind, object? Value)> Metrics = new(StringComparer.Ordinal)
     {
-        ["Assets/Textures/Cells"] = ("multiple", 32),
+        ["Assets/Textures/Server/Cells"] = ("multiple", 32),
         ["Assets/Textures/Items"] = ("exact", (42, 42)),
-        ["Assets/Textures/Crystals"] = ("uniform", null),
-        ["Assets/Textures/Pack"] = ("multiple", 32),
+        ["Assets/Textures/Server/Crystals"] = ("uniform", null),
+        ["Assets/Textures/Server/Pack"] = ("multiple", 32),
         ["Assets/Resources/UI/HUD/Player/Skills/Icons"] = ("exact", (73, 73)),
     };
 

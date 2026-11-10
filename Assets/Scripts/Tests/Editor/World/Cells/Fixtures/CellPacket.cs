@@ -16,7 +16,9 @@ internal static class CellPacket
         float frameAnimationSpeed = 0f,
         int mapColor = 0) =>
         new(
-            Passable: passable ?? drawLayer != CellRenderLayer.Foreground,
+            Properties: (passable ?? drawLayer != CellRenderLayer.Foreground)
+                ? CellConfigProperties.Passable
+                : CellConfigProperties.None,
             DrawLayer: drawLayer,
             Outline: outline,
             TextureName: string.Empty,

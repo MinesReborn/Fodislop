@@ -17,7 +17,7 @@ internal static class HudSnapshotFill
     {
         var stats = new PlayerStatsModel();
         stats.SetNickname("ШАХТЁР-774");
-        stats.SetPlayerId(10482);
+        stats.PlayerId = 10482;
         stats.SetLevel(14);
         stats.SetHealth(113, 136);
         stats.SetCurrency(14850, 340);

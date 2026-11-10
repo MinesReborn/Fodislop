@@ -18,7 +18,7 @@ public sealed class TerrainDecalAtlasBoundsTests
     public void AuthoredDecalsFitCellAtMaximumTranslation(string filename, float translationPixels)
     {
         byte[] bytes = System.IO.File.ReadAllBytes(System.IO.Path.Combine(
-            Application.dataPath, "Textures", "World", "Terrain", "Decals", filename));
+            Application.dataPath, "Textures", "Server", "World", "Terrain", "Decals", filename));
         Texture2D? atlas = RuntimeTextureFactory.DecodeEncodedImageToRGBA32NoMip(
             bytes, "DecalPaddingProof", RuntimeTextureColorSpace.Srgb,
             FilterMode.Point, TextureWrapMode.Clamp, makeNoLongerReadable: false);

@@ -6,7 +6,7 @@
       "Delivery": "Embedded"
     },
     {
-      "Source": "World/Terrain/Decals/terrain-decals.png",
+      "Source": "Server/World/Terrain/Decals/terrain-decals.png",
       "Published": "Visual/World/Terrain/Decals/terrain-decals.png",
       "Delivery": "DummyWorld"
     },
@@ -16,7 +16,7 @@
       "Delivery": "Embedded"
     },
     {
-      "Source": "World/Terrain/Decals/terrain-decals-rock.png",
+      "Source": "Server/World/Terrain/Decals/terrain-decals-rock.png",
       "Published": "Visual/World/Terrain/Decals/terrain-decals-rock.png",
       "Delivery": "DummyWorld"
     },
@@ -66,397 +66,397 @@
       "Delivery": "Embedded"
     },
     {
-      "Source": "Skin/Standard/Standard.png",
+      "Source": "Server/Skin/Standard/Standard.png",
       "Published": "Visual/Skin/Standard.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Cells/Boulders/MetalBoulder/MetalBoulder1.png",
+      "Source": "Server/Cells/Boulders/MetalBoulder/MetalBoulder1.png",
       "Published": "Visual/Cells/MetalBoulder1.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Cells/Liquids/Lava/Lava.png",
+      "Source": "Server/Cells/Liquids/Lava/Lava.png",
       "Published": "Visual/Cells/Lava.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Cells/Sand/DeepLazurite/DeepLazuriteSand.png",
+      "Source": "Server/Cells/Sand/DeepLazurite/DeepLazuriteSand.png",
       "Published": "Visual/Cells/DeepLazuriteSand.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Cells/Sand/DarkRusty/DarkRustySand.png",
+      "Source": "Server/Cells/Sand/DarkRusty/DarkRustySand.png",
       "Published": "Visual/Cells/DarkRustySand.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Cells/Biological/Violet/AliveViol.png",
+      "Source": "Server/Cells/Biological/Violet/AliveViol.png",
       "Published": "Visual/Cells/AliveViol.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Cells/Construction/Support/Support.png",
+      "Source": "Server/Cells/Construction/Support/Support.png",
       "Published": "Visual/Cells/Support.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Cells/Boulders/MetalBoulder/MetalBoulder2.png",
+      "Source": "Server/Cells/Boulders/MetalBoulder/MetalBoulder2.png",
       "Published": "Visual/Cells/MetalBoulder2.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Cells/Buildings/Road/BuildingRoad.png",
+      "Source": "Server/Cells/Buildings/Road/BuildingRoad.png",
       "Published": "Visual/Cells/BuildingRoad.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Cells/Construction/YellowBlock/YellowBlock.png",
+      "Source": "Server/Cells/Construction/YellowBlock/YellowBlock.png",
       "Published": "Visual/Cells/YellowBlock.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Cells/Rock/Heavy/HeavyRock.png",
+      "Source": "Server/Cells/Rock/Heavy/HeavyRock.png",
       "Published": "Visual/Cells/HeavyRock.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Cells/Rock/Deep/DeepRock.png",
+      "Source": "Server/Cells/Rock/Deep/DeepRock.png",
       "Published": "Visual/Cells/DeepRock.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Cells/Boulders/MetalBoulder/MetalBoulder3.png",
+      "Source": "Server/Cells/Boulders/MetalBoulder/MetalBoulder3.png",
       "Published": "Visual/Cells/MetalBoulder3.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Cells/Biological/Black/AliveBlack.png",
+      "Source": "Server/Cells/Biological/Black/AliveBlack.png",
       "Published": "Visual/Cells/AliveBlack.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Cells/Boulders/BlackBoulder/BlackBoulder1.png",
+      "Source": "Server/Cells/Boulders/BlackBoulder/BlackBoulder1.png",
       "Published": "Visual/Cells/BlackBoulder1.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Cells/Rock/GRock/GRock.png",
+      "Source": "Server/Cells/Rock/GRock/GRock.png",
       "Published": "Visual/Cells/GRock.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Cells/Backgrounds/WithHeavyTraces/BackgroundWithHeavyTraces.png",
+      "Source": "Server/Cells/Backgrounds/WithHeavyTraces/BackgroundWithHeavyTraces.png",
       "Published": "Visual/Cells/BackgroundWithHeavyTraces.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Cells/Liquids/Acid/Gray/GrayAcid.png",
+      "Source": "Server/Cells/Liquids/Acid/Gray/GrayAcid.png",
       "Published": "Visual/Cells/GrayAcid.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Cells/Rock/DeepRainbow/DeepRainbowRock.png",
+      "Source": "Server/Cells/Rock/DeepRainbow/DeepRainbowRock.png",
       "Published": "Visual/Cells/DeepRainbowRock.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Cells/Backgrounds/WithLightTraces/BackgroundWithLightTraces.png",
+      "Source": "Server/Cells/Backgrounds/WithLightTraces/BackgroundWithLightTraces.png",
       "Published": "Visual/Cells/BackgroundWithLightTraces.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Cells/Construction/MilitaryBlockFrame/MilitaryBlockFrame.png",
+      "Source": "Server/Cells/Construction/MilitaryBlockFrame/MilitaryBlockFrame.png",
       "Published": "Visual/Cells/MilitaryBlockFrame.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Cells/Boulders/BlackBoulder/BlackBoulder2.png",
+      "Source": "Server/Cells/Boulders/BlackBoulder/BlackBoulder2.png",
       "Published": "Visual/Cells/BlackBoulder2.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Cells/Construction/QuadBlock/QuadBlock.png",
+      "Source": "Server/Cells/Construction/QuadBlock/QuadBlock.png",
       "Published": "Visual/Cells/QuadBlock.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Cells/Crystals/Violet/XViolet.png",
+      "Source": "Server/Cells/Crystals/Violet/XViolet.png",
       "Published": "Visual/Cells/XViolet.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Cells/Boulders/BlackBoulder/BlackBoulder3.png",
+      "Source": "Server/Cells/Boulders/BlackBoulder/BlackBoulder3.png",
       "Published": "Visual/Cells/BlackBoulder3.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Cells/Sand/Blue/BlueSand.png",
+      "Source": "Server/Cells/Sand/Blue/BlueSand.png",
       "Published": "Visual/Cells/BlueSand.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Cells/State/Empty/Empty.png",
+      "Source": "Server/Cells/State/Empty/Empty.png",
       "Published": "Visual/Cells/Empty.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Cells/Rock/Acid/AcidRock.png",
+      "Source": "Server/Cells/Rock/Acid/AcidRock.png",
       "Published": "Visual/Cells/AcidRock.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Cells/Sand/DarkBlack/DarkBlackSand.png",
+      "Source": "Server/Cells/Sand/DarkBlack/DarkBlackSand.png",
       "Published": "Visual/Cells/DarkBlackSand.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Cells/Liquids/Acid/Passive/PassiveAcid.png",
+      "Source": "Server/Cells/Liquids/Acid/Passive/PassiveAcid.png",
       "Published": "Visual/Cells/PassiveAcid.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Cells/Roads/Standard/Road.png",
+      "Source": "Server/Cells/Roads/Standard/Road.png",
       "Published": "Visual/Cells/Road.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Cells/Rock/Black/BlackRock.png",
+      "Source": "Server/Cells/Rock/Black/BlackRock.png",
       "Published": "Visual/Cells/BlackRock.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Cells/Crystals/Green/XGreen.png",
+      "Source": "Server/Cells/Crystals/Green/XGreen.png",
       "Published": "Visual/Cells/XGreen.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Cells/Sand/DarkWhite/DarkWhiteSand.png",
+      "Source": "Server/Cells/Sand/DarkWhite/DarkWhiteSand.png",
       "Published": "Visual/Cells/DarkWhiteSand.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Cells/Roads/Golden/GoldenRoad.png",
+      "Source": "Server/Cells/Roads/Golden/GoldenRoad.png",
       "Published": "Visual/Cells/GoldenRoad.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Cells/Construction/MilitaryBlock/MilitaryBlock.png",
+      "Source": "Server/Cells/Construction/MilitaryBlock/MilitaryBlock.png",
       "Published": "Visual/Cells/MilitaryBlock.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Cells/Crystals/Blue/Blue.png",
+      "Source": "Server/Cells/Crystals/Blue/Blue.png",
       "Published": "Visual/Cells/Blue.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Cells/Crystals/Blue/XBlue.png",
+      "Source": "Server/Cells/Crystals/Blue/XBlue.png",
       "Published": "Visual/Cells/XBlue.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Cells/Biological/Blue/AliveBlue.png",
+      "Source": "Server/Cells/Biological/Blue/AliveBlue.png",
       "Published": "Visual/Cells/AliveBlue.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Cells/State/Unloaded/Unloaded.png",
+      "Source": "Server/Cells/State/Unloaded/Unloaded.png",
       "Published": "Visual/Cells/Unloaded.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Cells/Rock/Standard/Rock.png",
+      "Source": "Server/Cells/Rock/Standard/Rock.png",
       "Published": "Visual/Cells/Rock.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Cells/Biological/Red/AliveRed.png",
+      "Source": "Server/Cells/Biological/Red/AliveRed.png",
       "Published": "Visual/Cells/AliveRed.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Cells/Rock/DeepObsidian/DeepObsidian.png",
+      "Source": "Server/Cells/Rock/DeepObsidian/DeepObsidian.png",
       "Published": "Visual/Cells/DeepObsidianRock.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Cells/Rock/Golden/GoldenRock.png",
+      "Source": "Server/Cells/Rock/Golden/GoldenRock.png",
       "Published": "Visual/Cells/GoldenRock.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Cells/Rock/LivingBlack/LivingBlackRock.png",
+      "Source": "Server/Cells/Rock/LivingBlack/LivingBlackRock.png",
       "Published": "Visual/Cells/LivingBlackRock.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Cells/Rock/DeepStriped/DeepStripedRock.png",
+      "Source": "Server/Cells/Rock/DeepStriped/DeepStripedRock.png",
       "Published": "Visual/Cells/DeepStripedRock.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Cells/Sand/Yellow/YellowSand.png",
+      "Source": "Server/Cells/Sand/Yellow/YellowSand.png",
       "Published": "Visual/Cells/YellowSand.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Cells/Crystals/Violet/Violet.png",
+      "Source": "Server/Cells/Crystals/Violet/Violet.png",
       "Published": "Visual/Cells/Violet.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Cells/Backgrounds/Volcano/VolcanoBackground.png",
+      "Source": "Server/Cells/Backgrounds/Volcano/VolcanoBackground.png",
       "Published": "Visual/Cells/VolcanoBackground.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Cells/Buildings/Corner/BuildingCorner.png",
+      "Source": "Server/Cells/Buildings/Corner/BuildingCorner.png",
       "Published": "Visual/Cells/BuildingCorner.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Cells/Crystals/Green/Green.png",
+      "Source": "Server/Cells/Crystals/Green/Green.png",
       "Published": "Visual/Cells/Green.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Cells/Crystals/Red/XRed.png",
+      "Source": "Server/Cells/Crystals/Red/XRed.png",
       "Published": "Visual/Cells/XRed.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Cells/Biological/White/AliveWhite.png",
+      "Source": "Server/Cells/Biological/White/AliveWhite.png",
       "Published": "Visual/Cells/AliveWhite.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Cells/Roads/Polymer/PolymerRoad.png",
+      "Source": "Server/Cells/Roads/Polymer/PolymerRoad.png",
       "Published": "Visual/Cells/PolymerRoad.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Cells/Sand/Rusty/RustySand.png",
+      "Source": "Server/Cells/Sand/Rusty/RustySand.png",
       "Published": "Visual/Cells/RustySand.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Cells/Crystals/Cyan/Cyan.png",
+      "Source": "Server/Cells/Crystals/Cyan/Cyan.png",
       "Published": "Visual/Cells/Cyan.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Cells/Boulders/Boulder/Boulder2.png",
+      "Source": "Server/Cells/Boulders/Boulder/Boulder2.png",
       "Published": "Visual/Cells/Boulder2.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Cells/Sand/DarkBlue/DarkBlueSand.png",
+      "Source": "Server/Cells/Sand/DarkBlue/DarkBlueSand.png",
       "Published": "Visual/Cells/DarkBlueSand.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Cells/Liquids/Acid/Purple/PurpleAcid.png",
+      "Source": "Server/Cells/Liquids/Acid/Purple/PurpleAcid.png",
       "Published": "Visual/Cells/PurpleAcid.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Cells/Boulders/Boulder/Boulder3.png",
+      "Source": "Server/Cells/Boulders/Boulder/Boulder3.png",
       "Published": "Visual/Cells/Boulder3.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Cells/Crystals/Cyan/XCyan.png",
+      "Source": "Server/Cells/Crystals/Cyan/XCyan.png",
       "Published": "Visual/Cells/XCyan.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Cells/Biological/Cyan/AliveCyan.png",
+      "Source": "Server/Cells/Biological/Cyan/AliveCyan.png",
       "Published": "Visual/Cells/AliveCyan.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Cells/Rock/DeepTurquoise/DeepTurquoiseRock.png",
+      "Source": "Server/Cells/Rock/DeepTurquoise/DeepTurquoiseRock.png",
       "Published": "Visual/Cells/DeepTurquoiseRock.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Cells/Boulders/Boulder/Boulder1.png",
+      "Source": "Server/Cells/Boulders/Boulder/Boulder1.png",
       "Published": "Visual/Cells/Boulder1.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Cells/Boulders/DeepMagmaBoulder/DeepMagmaBoulder.png",
+      "Source": "Server/Cells/Boulders/DeepMagmaBoulder/DeepMagmaBoulder.png",
       "Published": "Visual/Cells/DeepMagmaBoulder.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Cells/Construction/GreenBlock/GreenBlock.png",
+      "Source": "Server/Cells/Construction/GreenBlock/GreenBlock.png",
       "Published": "Visual/Cells/GreenBlock.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Cells/Sand/DarkYellow/DarkYellowSand.png",
+      "Source": "Server/Cells/Sand/DarkYellow/DarkYellowSand.png",
       "Published": "Visual/Cells/DarkYellowSand.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Cells/Buildings/Wall/BuildingWall.png",
+      "Source": "Server/Cells/Buildings/Wall/BuildingWall.png",
       "Published": "Visual/Cells/BuildingWall.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Cells/Sand/MilitaryBlock/MilitaryBlockSand.png",
+      "Source": "Server/Cells/Sand/MilitaryBlock/MilitaryBlockSand.png",
       "Published": "Visual/Cells/MilitaryBlockSand.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Cells/Structures/Storage/Box.png",
+      "Source": "Server/Cells/Structures/Storage/Box.png",
       "Published": "Visual/Cells/Box.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Cells/Sand/White/WhiteSand.png",
+      "Source": "Server/Cells/Sand/White/WhiteSand.png",
       "Published": "Visual/Cells/WhiteSand.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Cells/Crystals/White/White.png",
+      "Source": "Server/Cells/Crystals/White/White.png",
       "Published": "Visual/Cells/White.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Cells/Rock/Red/RedRock.png",
+      "Source": "Server/Cells/Rock/Red/RedRock.png",
       "Published": "Visual/Cells/RedRock.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Cells/State/WorldEdge/WorldEdge.png",
+      "Source": "Server/Cells/State/WorldEdge/WorldEdge.png",
       "Published": "Visual/Cells/WorldEdge.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Cells/Crystals/Red/Red.png",
+      "Source": "Server/Cells/Crystals/Red/Red.png",
       "Published": "Visual/Cells/Red.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Cells/Buildings/Door/BuildingDoor.png",
+      "Source": "Server/Cells/Buildings/Door/BuildingDoor.png",
       "Published": "Visual/Cells/BuildingDoor.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Cells/Construction/RedBlock/RedBlock.png",
+      "Source": "Server/Cells/Construction/RedBlock/RedBlock.png",
       "Published": "Visual/Cells/RedBlock.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Cells/Sand/Black/BlackSand.png",
+      "Source": "Server/Cells/Sand/Black/BlackSand.png",
       "Published": "Visual/Cells/BlackSand.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Clan/1/1.png",
+      "Source": "Server/Clan/1/1.png",
       "Published": "Visual/Clan/1.png",
       "Delivery": "DummyWorld"
     },
@@ -486,72 +486,72 @@
       "Delivery": "Embedded"
     },
     {
-      "Source": "Tail/Default/Default.png",
+      "Source": "Server/Tail/default/default.png",
       "Published": "Visual/Tail/Default.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Tail/Red/Red.png",
+      "Source": "Server/Tail/red/Red.png",
       "Published": "Visual/Tail/Red.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Tail/Blue/Blue.png",
+      "Source": "Server/Tail/blue/Blue.png",
       "Published": "Visual/Tail/Blue.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Tail/Green/Green.png",
+      "Source": "Server/Tail/green/Green.png",
       "Published": "Visual/Tail/Green.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Tail/Violet/Violet.png",
+      "Source": "Server/Tail/violet/Violet.png",
       "Published": "Visual/Tail/Violet.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Tail/Gold/Gold.png",
+      "Source": "Server/Tail/gold/Gold.png",
       "Published": "Visual/Tail/Gold.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Visual/bz/bz.png",
+      "Source": "Server/Visual/bz/bz.png",
       "Published": "Visual/Effects/bz.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Visual/death/death.png",
+      "Source": "Server/Visual/death/death.png",
       "Published": "Visual/Effects/death.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Crystals/blue/blue.png",
+      "Source": "Server/Crystals/blue/blue.png",
       "Published": "Visual/Crystals/blue.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Crystals/violet/violet.png",
+      "Source": "Server/Crystals/violet/violet.png",
       "Published": "Visual/Crystals/violet.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Crystals/green/green.png",
+      "Source": "Server/Crystals/green/green.png",
       "Published": "Visual/Crystals/green.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Crystals/cyan/cyan.png",
+      "Source": "Server/Crystals/cyan/cyan.png",
       "Published": "Visual/Crystals/cyan.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Crystals/white/white.png",
+      "Source": "Server/Crystals/white/white.png",
       "Published": "Visual/Crystals/white.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Crystals/red/red.png",
+      "Source": "Server/Crystals/red/red.png",
       "Published": "Visual/Crystals/red.png",
       "Delivery": "DummyWorld"
     },
@@ -816,182 +816,182 @@
       "Delivery": "Embedded"
     },
     {
-      "Source": "Pack/Clans/0/0.png",
+      "Source": "Server/Pack/Clans/0/0.png",
       "Published": "Visual/Pack/Clans/0.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Pack/Craft/0/0.png",
+      "Source": "Server/Pack/Craft/0/0.png",
       "Published": "Visual/Pack/Craft/0.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Pack/Science/0/0.png",
+      "Source": "Server/Pack/Science/0/0.png",
       "Published": "Visual/Pack/Science/0.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Pack/Teleport/0/0.png",
+      "Source": "Server/Pack/Teleport/0/0.png",
       "Published": "Visual/Pack/Teleport/0.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Pack/Resp/0/0.png",
+      "Source": "Server/Pack/Resp/0/0.png",
       "Published": "Visual/Pack/Resp/0.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Pack/Resp/1/1.png",
+      "Source": "Server/Pack/Resp/1/1.png",
       "Published": "Visual/Pack/Resp/1.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Pack/Storage/0/0.png",
+      "Source": "Server/Pack/Storage/0/0.png",
       "Published": "Visual/Pack/Storage/0.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Pack/Up/0/0.png",
+      "Source": "Server/Pack/Up/0/0.png",
       "Published": "Visual/Pack/Up/0.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Pack/Gun/0/0.png",
+      "Source": "Server/Pack/Gun/0/0.png",
       "Published": "Visual/Pack/Gun/0.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Pack/Gun/1/1.png",
+      "Source": "Server/Pack/Gun/1/1.png",
       "Published": "Visual/Pack/Gun/1.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Pack/Gun/2/2.png",
+      "Source": "Server/Pack/Gun/2/2.png",
       "Published": "Visual/Pack/Gun/2.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Pack/Gun/3/3.png",
+      "Source": "Server/Pack/Gun/3/3.png",
       "Published": "Visual/Pack/Gun/3.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Pack/Gun/4/4.png",
+      "Source": "Server/Pack/Gun/4/4.png",
       "Published": "Visual/Pack/Gun/4.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Pack/Jobs/0/0.png",
+      "Source": "Server/Pack/Jobs/0/0.png",
       "Published": "Visual/Pack/Jobs/0.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Pack/Observatory/0/0.png",
+      "Source": "Server/Pack/Observatory/0/0.png",
       "Published": "Visual/Pack/Observatory/0.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Pack/Storage/1/1.png",
+      "Source": "Server/Pack/Storage/1/1.png",
       "Published": "Visual/Pack/Storage/1.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Pack/Storage/2/2.png",
+      "Source": "Server/Pack/Storage/2/2.png",
       "Published": "Visual/Pack/Storage/2.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Pack/Storage/3/3.png",
+      "Source": "Server/Pack/Storage/3/3.png",
       "Published": "Visual/Pack/Storage/3.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Pack/Storage/4/4.png",
+      "Source": "Server/Pack/Storage/4/4.png",
       "Published": "Visual/Pack/Storage/4.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Pack/Storage/5/5.png",
+      "Source": "Server/Pack/Storage/5/5.png",
       "Published": "Visual/Pack/Storage/5.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Pack/Storage/6/6.png",
+      "Source": "Server/Pack/Storage/6/6.png",
       "Published": "Visual/Pack/Storage/6.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Pack/Storage/7/7.png",
+      "Source": "Server/Pack/Storage/7/7.png",
       "Published": "Visual/Pack/Storage/7.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Pack/Teleport/1/1.png",
+      "Source": "Server/Pack/Teleport/1/1.png",
       "Published": "Visual/Pack/Teleport/1.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Pack/Market/0/0.png",
+      "Source": "Server/Pack/Market/0/0.png",
       "Published": "Visual/Pack/Market/0.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Skin/Capsule/Capsule.png",
+      "Source": "Server/Skin/Capsule/Capsule.png",
       "Published": "Visual/Skin/Capsule.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Skin/DarkCapsule/DarkCapsule.png",
+      "Source": "Server/Skin/DarkCapsule/DarkCapsule.png",
       "Published": "Visual/Skin/DarkCapsule.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Skin/Fatty/Fatty.png",
+      "Source": "Server/Skin/Fatty/Fatty.png",
       "Published": "Visual/Skin/Fatty.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Skin/Medic/Medic.png",
+      "Source": "Server/Skin/Medic/Medic.png",
       "Published": "Visual/Skin/Medic.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Skin/Mosquito/Mosquito.png",
+      "Source": "Server/Skin/Mosquito/Mosquito.png",
       "Published": "Visual/Skin/Mosquito.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Skin/Widow/Widow.png",
+      "Source": "Server/Skin/Widow/Widow.png",
       "Published": "Visual/Skin/Widow.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Skin/GreenSkin/GreenSkin.png",
+      "Source": "Server/Skin/greenSkin/greenSkin.png",
       "Published": "Visual/Skin/GreenSkin.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Skin/OrangeSkin/OrangeSkin.png",
+      "Source": "Server/Skin/orangeSkin/orangeSkin.png",
       "Published": "Visual/Skin/OrangeSkin.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Skin/PurpleSkin/PurpleSkin.png",
+      "Source": "Server/Skin/purpleSkin/purpleSkin.png",
       "Published": "Visual/Skin/PurpleSkin.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Skin/RedSkin/RedSkin.png",
+      "Source": "Server/Skin/redSkin/redSkin.png",
       "Published": "Visual/Skin/RedSkin.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Cells/Liquids/Acid/Blue/BlueAcid.png",
+      "Source": "Server/Cells/Liquids/Acid/Blue/BlueAcid.png",
       "Published": "Visual/Cells/Pearl.png",
       "Delivery": "DummyWorld"
     },
     {
-      "Source": "Cells/Liquids/Acid/Yellow/YellowAcid.png",
+      "Source": "Server/Cells/Liquids/Acid/Yellow/YellowAcid.png",
       "Published": "Visual/Cells/YellowAcid.png",
       "Delivery": "DummyWorld"
     }

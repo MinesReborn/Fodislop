@@ -29,13 +29,6 @@ public sealed class RobotAssetLoader
 
     public static string ClanPath(byte clanId) => $"Visual/Clan/{clanId}.png";
 
-    // Капсула — состояние AFK, а не косметика: сервер надевает её, когда игрок
-    // офлайн и программа не запущена. Легаси-клиент в этом состоянии прятал
-    // хвост, поэтому здесь он тоже не грузится.
-    public static bool IsCapsuleSkin(string skinPath) =>
-        !string.IsNullOrEmpty(skinPath) &&
-        skinPath.Contains("capsule", StringComparison.OrdinalIgnoreCase);
-
     public void Cancel()
     {
         _cts?.Cancel();

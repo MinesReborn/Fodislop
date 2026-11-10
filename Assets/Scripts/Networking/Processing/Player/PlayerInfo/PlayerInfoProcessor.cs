@@ -61,7 +61,7 @@ public sealed class PlayerInfoProcessor :
     {
         _robotManager.SetLocalPlayerBotId(packet.BotId);
         _playerStats.SetNickname(packet.Nickname);
-        _playerStats.SetPlayerId(packet.PlayerId);
+        _playerStats.PlayerId = packet.PlayerId;
 
         var player = _localPlayer.Current;
         if (player != null)

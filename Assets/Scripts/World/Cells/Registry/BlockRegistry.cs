@@ -93,7 +93,7 @@ public sealed class BlockRegistry : IBlockRegistry
             }
 
             var definition = new BlockDefinition(
-                Passable: cell.Passable,
+                Passable: (cell.Properties & CellConfigProperties.Passable) != 0,
                 MovementCooldownMs: previous.MovementCooldownMs,
                 DrawLayer: (CellDrawLayer)cell.DrawLayer,
                 Outline: (CellOutline)cell.Outline,
@@ -105,7 +105,7 @@ public sealed class BlockRegistry : IBlockRegistry
                 AnimationType: cell.AnimationType,
                 AnimationPalette: cell.AnimationPalette,
                 FrameAnimationSpeed: cell.FrameAnimationSpeed,
-                Emission: cell.Emission,
+                Emission: (cell.Properties & CellConfigProperties.Glowing) != 0,
                 MapColor: UnpackColor(cell.MapColor));
             array[index] = definition;
             blocks[type] = definition;
@@ -124,7 +124,7 @@ public sealed class BlockRegistry : IBlockRegistry
 
     // Описание, в котором нет ничего, кроме цвета карты: сервер шлёт такие на неопределённые номера
     private static bool IsEmpty(in CellConfigurationPacket cell) =>
-        !cell.Passable &&
+        (cell.Properties & CellConfigProperties.Passable) == 0 &&
         (int)cell.DrawLayer == 0 &&
         (int)cell.Outline == 0 &&
         string.IsNullOrEmpty(cell.TextureName) &&
@@ -133,7 +133,7 @@ public sealed class BlockRegistry : IBlockRegistry
         (int)cell.AnimationType == 0 &&
         cell.AnimationPalette == 0 &&
         cell.FrameAnimationSpeed == 0f &&
-        !cell.Emission &&
+        (cell.Properties & CellConfigProperties.Glowing) == 0 &&
         (int)cell.TextureAnchor == 0;
 
     private static Color32 UnpackColor(int argb) =>

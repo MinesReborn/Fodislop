@@ -44,7 +44,7 @@ internal static class DummyCellConfigurationFactory
             BlockDefinition def = BlockRegistry.Get(type);
 
             configs[i] = new CellConfigurationPacket(
-                Passable: def.Passable,
+                Properties: ToProperties(def),
                 DrawLayer: (CellRenderLayer)def.DrawLayer,
                 Outline: (CellOutlineKind)def.Outline,
                 TextureName: def.TextureName,
@@ -54,11 +54,26 @@ internal static class DummyCellConfigurationFactory
                 AnimationPalette: def.AnimationPalette,
                 FrameAnimationSpeed: def.FrameAnimationSpeed,
                 MapColor: MapBlockColors.GetPackedColor(type),
-                Emission: def.Emission,
                 TextureAnchor: (CellTextureAnchorKind)def.TextureAnchor);
         }
 
         return configs;
+    }
+
+    private static CellConfigProperties ToProperties(BlockDefinition definition)
+    {
+        CellConfigProperties properties = CellConfigProperties.None;
+        if (definition.Passable)
+        {
+            properties |= CellConfigProperties.Passable;
+        }
+
+        if (definition.Emission)
+        {
+            properties |= CellConfigProperties.Glowing;
+        }
+
+        return properties;
     }
 
     public static async UniTask<AssetsDefinitionPacket[]> CreateAssetManifestAsync(

@@ -54,7 +54,20 @@ public sealed class PlayerStatsModel : IPlayerStats, IBatchAwareProcessor
 
     public bool IsReady => MaxHealth > 0 && BasketCapacity > 0 && !string.IsNullOrEmpty(Nickname) && Level > 0;
     public string Nickname { get; private set; } = string.Empty;
-    public uint PlayerId { get; private set; }
+    public uint PlayerId
+    {
+        get => _playerId;
+        set
+        {
+            if (_playerId == value)
+            {
+                return;
+            }
+
+            _playerId = value;
+            NotifyStatsChanged();
+        }
+    }
     public long Level { get; private set; }
     public int Health { get; private set; }
     public int MaxHealth { get; private set; }
@@ -97,6 +110,7 @@ public sealed class PlayerStatsModel : IPlayerStats, IBatchAwareProcessor
     public event Action? OnMissionArrowChanged;
 
     private int _batchDepth;
+    private uint _playerId;
     private bool _hasPendingStatsChanged;
     private bool _hasPendingStatusLinesChanged;
     private PendingNotifications _pendingNotifications;
@@ -246,17 +260,6 @@ public sealed class PlayerStatsModel : IPlayerStats, IBatchAwareProcessor
 
         Nickname = nickname;
         Notify(PendingNotifications.Nickname, OnNicknameChanged);
-        NotifyStatsChanged();
-    }
-
-    public void SetPlayerId(uint playerId)
-    {
-        if (PlayerId == playerId)
-        {
-            return;
-        }
-
-        PlayerId = playerId;
         NotifyStatsChanged();
     }
 

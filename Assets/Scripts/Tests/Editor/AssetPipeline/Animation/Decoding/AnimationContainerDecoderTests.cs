@@ -156,7 +156,7 @@ public sealed class AnimationContainerDecoderTests
     [Test]
     public void DecodeAnimationSprites_ActualPngCell_SuccessfullyDecodes()
     {
-        string cellPath = Path.Combine(Application.dataPath, "Textures/Cells/Structures/Storage/Box.png");
+        string cellPath = Path.Combine(Application.dataPath, "Textures/Server/Cells/Structures/Storage/Box.png");
         if (!File.Exists(cellPath))
         {
             Assert.Ignore($"Asset not found at {cellPath}");
@@ -178,7 +178,7 @@ public sealed class AnimationContainerDecoderTests
     [Test]
     public void DecodeAnimationSprites_ActualPngVisualEffect_SuccessfullyDecodes()
     {
-        string visualEffectPath = Path.Combine(Application.dataPath, "Textures/Visual/bz/bz.png");
+        string visualEffectPath = Path.Combine(Application.dataPath, "Textures/Server/Visual/bz/bz.png");
         if (!File.Exists(visualEffectPath))
         {
             Assert.Ignore($"Asset not found at {visualEffectPath}");
@@ -202,7 +202,7 @@ public sealed class AnimationContainerDecoderTests
     [Test]
     public void TextureFirstMiningDecode_PreservesEmissionMetadataBeforeDroppingCpuPixels()
     {
-        string path = Path.Combine(Application.dataPath, "Textures/Visual/bz/bz.png");
+        string path = Path.Combine(Application.dataPath, "Textures/Server/Visual/bz/bz.png");
         Assert.That(File.Exists(path), Is.True);
         var result = AssetCacheDecoder.DecodeTexture(File.ReadAllBytes(path), "Visual/Effects/bz");
         try

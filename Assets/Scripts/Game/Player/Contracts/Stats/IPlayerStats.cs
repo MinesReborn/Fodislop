@@ -15,7 +15,7 @@ public interface IPlayerStats
     float HealthPercent { get; }
     string Nickname { get; }
     /// <summary>ID игрока (PlayerInfoPacket); 0 — ещё не пришёл.</summary>
-    uint PlayerId { get; }
+    uint PlayerId { get; set; }
     long Level { get; }
     long Money { get; }
     long Credits { get; }
@@ -48,7 +48,6 @@ public interface IPlayerStats
     void SetCurrency(long money, long credits);
     void SetGeology(int current, int max, CellType cell, string text);
     void SetNickname(string nickname);
-    void SetPlayerId(uint playerId);
     void SetClanId(int clanId);
     void SetMaxDepth(int depth);
     void SetSkillProgress(SkillType skill, long current, long max);

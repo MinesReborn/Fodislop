@@ -129,8 +129,8 @@ public sealed class ServerVisualEvent : IServerWorldEffect
     private const int BeamSortingOrder = -600;
     private const string BeamShaderName = "Kern/UnlitGunShot";
 
-    // Опциональный ассет: если его нет, рисуется процедурный маркер.
-    private const string PlaceDenyVisualPath = "Visual/placedeny.png";
+    // Опциональный ассет: если сервер его не прислал, рисуется процедурный маркер.
+    private const string PlaceDenyVisualName = "placedeny";
 
     private bool _beamMode;
     private GameObject? _beamObject;
@@ -324,7 +324,7 @@ public sealed class ServerVisualEvent : IServerWorldEffect
 
             // Маркер запрета установки пака (VisualEffect.PlaceDeny): значение приходит
             // проводом сырым байтом — в клиентском пакете MinesServer.Data
-            // этот член enum не объявлен. Опциональный ассет "Visual/placedeny.png",
+            // этот член enum не объявлен. Ассет берётся из серверного манифеста,
             // иначе процедурный красный круг, как в легаси-клиенте.
             if ((byte)_effectType == PlaceDenyVisualEffectValue)
             {
@@ -682,12 +682,13 @@ public sealed class ServerVisualEvent : IServerWorldEffect
         _ => "g",
     };
 
-    // Маркер запрета установки пака: опциональный ассет "Visual/placedeny.png"
+    // Маркер запрета установки пака: опциональный ассет из серверного манифеста
     // (тот же конвейер: анимация → статичная текстура), иначе
     // процедурный красный круг с чертой — как в легаси-клиенте.
     private async UniTask LoadPlaceDenyVisualAsync(CancellationToken token)
     {
-        if (await TryLoadNamedVisualAsync(PlaceDenyVisualPath, token))
+        string filename = _mapManager.ResolveAssetName(PlaceDenyVisualName);
+        if (await TryLoadNamedVisualAsync(filename, token))
         {
             return;
         }
