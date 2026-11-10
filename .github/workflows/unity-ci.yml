@@ -73,7 +73,7 @@ jobs:
           if-no-files-found: ignore
 
   build:
-    name: Build (StandaloneLinux64)
+    name: Build (StandaloneWindows64)
     runs-on: ubuntu-latest
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     steps:
@@ -109,12 +109,12 @@ jobs:
         with:
           unityVersion: auto
           customImage: ${{ vars.UNITY_CI_IMAGE }}
-          targetPlatform: StandaloneLinux64
+          targetPlatform: StandaloneWindows64
 
       - name: Upload build
         if: success()
         uses: actions/upload-artifact@v4
         with:
-          name: build-StandaloneLinux64
-          path: build/StandaloneLinux64
+          name: build-StandaloneWindows64
+          path: build/StandaloneWindows64
           if-no-files-found: ignore

@@ -17,7 +17,7 @@ on:
       module:
         description: Unity module installed into the image
         required: true
-        default: linux-mono
+        default: windows-mono
 
 permissions:
   contents: read
