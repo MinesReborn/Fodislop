@@ -120,11 +120,24 @@ internal sealed class WorldLayerFile<T>
                 return null;
             }
 
+            // Смещение за концом файла означает повреждённую таблицу: чанк
+            // восстанавливается нулями, а не считается сбоем диска.
+            if (offset >= _fileStream.Length)
+            {
+                corrupted = true;
+                return new T[chunkArea];
+            }
+
             _fileStream.Seek(offset, SeekOrigin.Begin);
             _reader ??= new BinaryReader(_fileStream, System.Text.Encoding.UTF8, leaveOpen: true);
             try
             {
                 return WorldChunkV2Codec.DecodeChunk<T>(_reader, chunkArea, index);
+            }
+            catch (EndOfStreamException)
+            {
+                corrupted = true;
+                return new T[chunkArea];
             }
             catch (InvalidDataException)
             {

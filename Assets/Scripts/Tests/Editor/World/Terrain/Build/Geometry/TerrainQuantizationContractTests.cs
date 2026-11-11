@@ -139,15 +139,21 @@ public sealed class TerrainQuantizationContractTests
     [Test]
     public void ShaderSourceUsesOneCoverageContractAndPerCellGeometry()
     {
-        string terrain = ReadRepoFile("Assets", "Shaders", "Terrain", "Rendering", "Shader", "Terrain.shader");
+        // Coverage is consumed by the forward, material-field, depth and contour
+        // passes; Terrain.shader itself only declares properties and passes.
+        string terrain = ReadRepoFile("Assets", "Shaders", "Terrain", "Rendering", "Shader", "Terrain.shader") +
+            ReadRepoFile("Assets", "Shaders", "Terrain", "Rendering", "Passes", "Forward", "TerrainForwardPass.hlsl") +
+            ReadRepoFile("Assets", "Shaders", "Terrain", "Rendering", "Passes", "MaterialField", "TerrainMaterialFieldPass.hlsl") +
+            ReadRepoFile("Assets", "Shaders", "Terrain", "Geometry", "TerrainDepth.hlsl") +
+            ReadRepoFile("Assets", "Shaders", "Terrain", "Geometry", "TerrainContour.hlsl");
         string contour = ReadRepoFile("Assets", "Shaders", "Terrain", "Geometry", "TerrainContour.hlsl");
         string geometry = ReadRepoFile("Assets", "Shaders", "Terrain", "Geometry", "TerrainGeometry.hlsl");
         string geometryContract = ReadRepoFile("Assets", "Shaders", "Terrain", "Geometry", "TerrainGeometryContract.hlsl");
-        string cellData = ReadRepoFile("Assets", "Shaders", "Terrain", "Cells", "Assembly", "TerrainCellData.hlsl");
+        string cellVertices = ReadRepoFile("Assets", "Shaders", "Terrain", "Cells", "Vertices", "TerrainCellVertexLoader.hlsl");
         string cellGeometry = ReadRepoFile("Assets", "Scripts", "Tests", "Editor", "World", "Terrain", "Reference", "Cells", "TerrainCellGeometry.cs");
         string buffers = ReadRepoFile("Assets", "Scripts", "World", "Terrain", "GPU", "Cells", "TerrainCellBuffers.cs");
 
-        Assert.That(CountOccurrences(terrain, "EvaluateTerrainCellCoverage("), Is.EqualTo(2));
+        Assert.That(CountOccurrences(terrain, "EvaluateTerrainCellCoverage("), Is.EqualTo(4));
         // The production path clips the visible pass, two lighting-debug
         // views, foreground identity diagnostics, the regular debug path, and the lighting field pass.
         Assert.That(CountOccurrences(terrain, "clip(cellCoverage - 0.5);"), Is.EqualTo(6));
@@ -162,13 +168,13 @@ public sealed class TerrainQuantizationContractTests
         Assert.That(geometry, Does.Contain("KERN_TERRAIN_GEOMETRY_EPSILON"));
         Assert.That(contour, Does.Contain("TerrainGeometryCoverage("));
         Assert.That(contour, Does.Not.Contain("edgeMargins"));
-        Assert.That(cellData, Does.Contain("float2 node00 = TerrainNodeCells(TerrainNode(gridX, unityY,"));
+        Assert.That(cellVertices, Does.Contain("float2 node00 = TerrainNodeCells(TerrainNode(gridX, unityY,"));
         Assert.That(cellGeometry, Does.Not.Contain("Quantize("));
         Assert.That(geometryContract, Does.Contain("TerrainGeometryRawCorner"));
-        Assert.That(cellData, Does.Contain("occluded = occluded && TerrainOpaqueMassCell(neighbourRows[m]);"));
-        Assert.That(cellData, Does.Contain("bool anchored = foreground && foregroundAnchored;"));
+        Assert.That(cellVertices, Does.Contain("occluded = occluded && TerrainOpaqueMassCell(neighbourRows[m]);"));
+        Assert.That(cellVertices, Does.Contain("bool anchored = foreground && foregroundAnchored;"));
         Assert.That(terrain, Does.Contain("applyGeometry = input.isForeground"));
-        Assert.That(cellData, Does.Contain("v.atlasIndex = -1.0"));
+        Assert.That(cellVertices, Does.Contain("v.atlasIndex = -1.0"));
         // Геометрия — часть того же uint, что и остальной слой клетки: одна
         // выгрузка и одна привязка, разойтись им негде.
         Assert.That(buffers, Does.Contain("_cellBuffer!.SetData(_words"));

@@ -154,11 +154,11 @@ public sealed class DummyWorldSimulationStateTests
         BlockDefinition green = DummyCellConfigurationFactory.GetBlockDefinition(CellType.Green);
         Assert.That(green.Passable, Is.False);
         Assert.That(green.Outline, Is.EqualTo(CellOutline.Wavy));
-        Assert.That(green.MapColor, Is.EqualTo(new Color32(0x08, 0xD7, 0x64, 0xFF)));
+        Assert.That(green.MapColor, Is.EqualTo(new Color32(0x1E, 0x28, 0x5C, 0xFF)));
 
         BlockDefinition road = DummyCellConfigurationFactory.GetBlockDefinition(CellType.Road);
         Assert.That(road.Passable, Is.True);
-        Assert.That(road.MapColor, Is.EqualTo(new Color32(0x44, 0x44, 0x44, 0xFF)));
+        Assert.That(road.MapColor, Is.EqualTo(new Color32(0x1C, 0x1B, 0x1D, 0xFF)));
 
         BlockDefinition buildingRoad = DummyCellConfigurationFactory.GetBlockDefinition(CellType.BuildingRoad);
         Assert.That(buildingRoad.Outline, Is.EqualTo(CellOutline.Rigid));

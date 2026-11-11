@@ -392,7 +392,7 @@ namespace Kern.Game.Player.Cameras
                         desiredPosition - cameraTransform.position,
                         _camera.aspect))
                     {
-                        cameraTransform.position = _zoomController!.SnapToPixelGrid(desiredPosition);
+                        cameraTransform.position = _zoomController?.SnapToPixelGrid(desiredPosition) ?? desiredPosition;
                         _hasSnappedToServerPosition = true;
                         _followVelocity = Vector3.zero;
                     }

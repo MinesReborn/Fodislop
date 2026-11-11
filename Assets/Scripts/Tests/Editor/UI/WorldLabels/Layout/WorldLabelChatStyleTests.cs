@@ -159,7 +159,7 @@ public sealed class WorldLabelChatStyleTests
         Assert.That(
             worldLabels,
             Does.Contain("Vector3 offset = _kind == WorldLabelKind.ChatBubble"));
-        Assert.That(worldLabels, Does.Contain(": position;"));
+        Assert.That(worldLabels, Does.Contain(": new Vector3(position.x, position.y - size.y * _lastScale);"));
 
         // Прежняя схема нижнего центра для облака больше не существует.
         Assert.That(worldLabels, Does.Not.Contain("position.x - (size.x * 0.5f)"));

@@ -89,8 +89,8 @@ public sealed class TerrainCellDataTests
         Assert.That(row.AtlasXY, Is.EqualTo(0x03200100u));
         Assert.That(row.AtlasWH, Is.EqualTo(0x04400080u));
         // слот 2, блок (бит пола 0), непрозрачен 10 и 20, по миру 40, угол 5 << 7,
-        // тип Faceted 12 << 19, decal ID 2 << 23.
-        Assert.That(row.Look, Is.EqualTo(0x016002F2u));
+        // тип Faceted 5 << 19, decal ID 2 << 23.
+        Assert.That(row.Look, Is.EqualTo(0x012802F2u));
         // скорость 1.5 в half — 3E00, свечение 255 << 16, тайлгруппа (3 + 1) << 24.
         Assert.That(row.SpeedGlowTile, Is.EqualTo(0x04FF3E00u));
     }
@@ -129,8 +129,8 @@ public sealed class TerrainCellDataTests
         // кадров 1 << 24; прямоугольника нет.
         Assert.That(row.AtlasXY, Is.EqualTo(0x01000000u));
         Assert.That(row.AtlasWH, Is.Zero);
-        // проходим 8, стена 4 << 7, палитра 5 << 14, тип Prismatic 13 << 19.
-        Assert.That(row.Look, Is.EqualTo(0x00694208u));
+        // проходим 8, стена 4 << 7, палитра 5 << 14, тип Prismatic 6 << 19.
+        Assert.That(row.Look, Is.EqualTo(0x00314208u));
         // скорость 50 в half — 5240, свечения нет; номер тайлгруппы без
         // самой группы не пишется.
         Assert.That(row.SpeedGlowTile, Is.EqualTo(0x5240u));

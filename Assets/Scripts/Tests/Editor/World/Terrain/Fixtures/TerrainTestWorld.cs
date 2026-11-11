@@ -2,6 +2,7 @@
 
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Cysharp.Threading.Tasks;
 using Kern.Core.Interfaces;
 using Kern.World;
@@ -37,6 +38,15 @@ public sealed class TerrainTestWorld
     public TerrainTestWorld()
     {
         _storage = new FakeStorage(_layer);
+
+        // Декали берутся из BlockDefinition, поэтому каталог должен их знать.
+        TerrainDecalCatalog.Configure(BlockRegistry.Blocks.Values
+            .Select(definition => definition.DecalTextureName)
+            .Where(name => !string.IsNullOrWhiteSpace(name))
+            .Select(name => name!)
+            .Distinct(StringComparer.Ordinal)
+            .OrderBy(name => name, StringComparer.Ordinal)
+            .ToArray());
     }
 
     public IWorldDataStorage Storage => _storage;

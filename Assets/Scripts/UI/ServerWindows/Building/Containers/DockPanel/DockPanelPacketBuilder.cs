@@ -38,6 +38,7 @@ public class DockPanelPacketBuilder : PacketUIBuilderBase<DockPanelPacket>
         {
             var strip = new VisualElement();
             strip.AddToClassList("row");
+            strip.AddToClassList("jc-center");
             foreach (IGUIComponentPacket child in children)
             {
                 VisualElement built = builder.Build(child);

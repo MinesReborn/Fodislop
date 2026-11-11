@@ -15,6 +15,9 @@ public sealed class ArchitectureHygieneTests
     private static readonly Regex s_fileScopedNamespacePattern =
         new(@"^\s*namespace\s+[A-Za-z0-9_.]+\s*;", RegexOptions.Multiline | RegexOptions.Compiled);
 
+    private static readonly Regex s_genericConstraintLine =
+        new(@"^\s*where\s+.*$", RegexOptions.Multiline | RegexOptions.Compiled);
+
     private static readonly Regex s_unityObjectTypePattern =
         new(@":\s*(MonoBehaviour|ScriptableObject|ScriptableRendererFeature|VolumeComponent)\b", RegexOptions.Compiled);
 
@@ -35,7 +38,9 @@ public sealed class ArchitectureHygieneTests
             }
 
             string text = File.ReadAllText(file);
-            if (s_unityObjectTypePattern.IsMatch(text))
+            // where T : MonoBehaviour — ограничение обобщения, а не наследование.
+            string inherited = s_genericConstraintLine.Replace(text, string.Empty);
+            if (s_unityObjectTypePattern.IsMatch(inherited))
             {
                 if (s_fileScopedNamespacePattern.IsMatch(text))
                 {

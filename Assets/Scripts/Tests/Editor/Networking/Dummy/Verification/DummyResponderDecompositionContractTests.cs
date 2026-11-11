@@ -40,7 +40,7 @@ public sealed class DummyResponderDecompositionContractTests
         string connection = ReadDummySource("Connection/Session/DummyConnection.cs");
         string responder = ReadDummySource("Protocol/WorldStartup/DummyWorldStartupResponder.cs");
 
-        Assert.That(connection, Does.Contain("_worldStartup.InitializeAsync("));
+        Assert.That(connection, Does.Contain("_worldStartup.OnClientReady()"));
         Assert.That(connection, Does.Not.Contain("new WorldInitPacket("));
         Assert.That(connection, Does.Not.Contain("dummy_ping_loop"));
         Assert.That(responder, Does.Contain("new WorldInitPacket("));
