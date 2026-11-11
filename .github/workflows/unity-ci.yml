@@ -62,6 +62,8 @@ jobs:
           unityVersion: auto
           customImage: ${{ vars.UNITY_CI_IMAGE }}
           testMode: ${{ matrix.testMode }}
+          # Soak-тесты держат одночасовые таймауты и не годятся для PR-прогона.
+          testCategory: ${{ matrix.testMode == 'playmode' && '!Soak' || '' }}
           artifactsPath: artifacts/${{ matrix.testMode }}
           githubToken: ${{ secrets.GITHUB_TOKEN }}
           checkName: ${{ matrix.testMode }} test results
