@@ -297,6 +297,11 @@ namespace Kern.Networking.Connection
         private void OnConnected()
         {
             _isConnectionAttemptPending = false;
+            // Hello обязан быть первым пакетом на проводе: PreAuth-фильтр сервера
+            // рвёт соединение за любой не-hello пакет до авторизации, а UI (чат)
+            // начинает слать запросы сразу при загрузке сцены — раньше, чем
+            // отложенная отправка из пайплайна.
+            SendClientHelloIfNeeded();
             _operations.Run("complete_connection", CompleteConnectionAsync);
         }
 
