@@ -66,8 +66,9 @@ jobs:
           customImage: ${{ vars.UNITY_CI_IMAGE }}
           testMode: ${{ matrix.testMode }}
           artifactsPath: artifacts/${{ matrix.testMode }}
-          githubToken: ${{ secrets.GITHUB_TOKEN }}
-          checkName: ${{ matrix.testMode }} test results
+          # Без githubToken/checkName: game-ci создаёт check run с conclusion=neutral
+          # даже для успешного прогона, и в списке проверок он выглядит как «нет результата».
+          # Результат отдаёт сам job и NUnit-артефакт ниже.
 
       - name: Upload test results
         if: always()
