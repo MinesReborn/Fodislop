@@ -34,11 +34,6 @@ public sealed class InterfaceSettings
     [SettingConsumer(SettingConsumerTarget.Gameplay, "PlayerStepSelector.Select")]
     public bool MovementAssist = DefaultMovementAssist;
 
-    [SettingUnbounded("Тумблер автовхода в воротах авторизации.")]
-    [SettingLabel("gateway.auth.auto_login")]
-    [SettingConsumer(SettingConsumerTarget.UserInterface, "AuthGate auto sign-in toggle")]
-    public bool AutoLogin;
-
     [SettingUnbounded("Флаг пройденного онбординга; внутреннего тумблера нет.")]
     [SettingConsumer(SettingConsumerTarget.UserInterface, "MenuGate onboarding gate")]
     public bool OnboardingDone;

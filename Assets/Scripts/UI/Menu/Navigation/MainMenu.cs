@@ -14,8 +14,8 @@ using VContainer;
 using Stopwatch = System.Diagnostics.Stopwatch;
 
 using Kern.Networking.Gateways;
-using Kern.UI.Gateway;
 using Kern.Networking.Status;
+using Kern.UI.Gateway;
 using Kern.UI.Localization;
 using Kern.UI.Screens;
 
@@ -61,7 +61,11 @@ namespace Kern.UI.Menu
         [Inject]
         private ILoadingTip _loadingTip = null!;
         [Inject]
-        private MenuGate _gate = null!;
+        private ILocalPlayerState _localPlayer = null!;
+        [Inject]
+        private Kern.UI.ServerWindows.ServerWindowPresenter _presenter = null!;
+        [Inject]
+        private Kern.UI.Gateway.MenuGate _gate = null!;
         [Inject]
         private IAudioSystem _audio = null!;
         [Inject]
@@ -77,7 +81,7 @@ namespace Kern.UI.Menu
             _identityPresenter = new MenuPlayerIdentityPresenter(_loc, _playerStats);
             _worldEntry = new MenuWorldEntryController(_loc, _sceneNavigator, _connection,
                 _worldEntryPreparation, _loadProgress, _operations, _windowCommands,
-                _loaderPanel, _modalManager,
+                _loaderPanel, _modalManager, _localPlayer, _presenter,
                 () => destroyCancellationToken);
         }
 
@@ -195,11 +199,11 @@ namespace Kern.UI.Menu
             ApplyLocalizedText();
             _built = true;
 
-            // Вход и онбординг — слой поверх меню (третьей сцены «ворот» больше нет).
-            // Пройденные в этой сцене ворота перестройка меню не открывает заново.
+            // Ворота (онбординг; авторизация — серверное окно поверх них)
+            // перестройка меню не открывает заново.
             if (!_gate.Passed)
             {
-                _gate.Open(_doc, _root, forceForm: false);
+                _gate.Open(_doc, _root);
             }
 
             Debug.Log($"[MainMenu] UI BUILT successfully: children={_root.childCount}");
@@ -290,7 +294,7 @@ namespace Kern.UI.Menu
             }
 
             _serverStatusPresenter.TickOnlineBadge(_worldEntry.IsLoading);
-            // Пока открыты ворота входа, клавиши меню (Enter — «Играть») не действуют.
+            // Пока открыты ворота (онбординг), клавиши меню (Enter — «Играть») не действуют.
             if (_gate.IsOpen)
             {
                 return;

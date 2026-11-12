@@ -33,3 +33,6 @@
 @import url("../../../../Resources/UI/Menu/Styles/MainMenu.uss");
 /* Сенсорная раскладка — последней: переопределяет правила экранов. */
 @import url("../../../../Resources/UI/Screen/Touch/Styles/Touch.uss");
+/* Kern-скин серверных окон — после Touch: его перекрытия целевых файлов не должны
+   обрываться на себе (проверка: онбординг-ворота без Auth.uss теряли стили). */
+@import url("../../../../Resources/UI/ServerWindows/Styles/PacketWindowKern.uss");

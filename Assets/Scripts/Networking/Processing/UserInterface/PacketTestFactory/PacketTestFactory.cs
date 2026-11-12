@@ -44,6 +44,45 @@ internal static class PacketTestFactory
         AttachedProperties = attachedProperties,
     };
 
+    internal static TextBoxPacket TextBox(
+        string name,
+        string placeholder = "",
+        bool isPassword = false,
+        ushort maxLength = 0,
+        params StringPairPacket[] attachedProperties) => new()
+    {
+        Name = name,
+        Placeholder = placeholder,
+        IsPassword = isPassword,
+        MaxLength = maxLength,
+        AttachedProperties = attachedProperties,
+    };
+
+    /// Стилизованный текст: цвета передаются аргументами примитивов, чтобы
+    /// тестовая сборка не тянула ссылку на System.Drawing (та же причина, что
+    /// у init-сеттеров выше).
+    internal static TextPacket StyledText(
+        string text,
+        string onClickContext,
+        int textColorArgb,
+        byte fontSize,
+        int fontId,
+        bool isBold,
+        byte letterSpacing,
+        int textAlign,
+        params StringPairPacket[] attachedProperties) => new()
+    {
+        Text = text,
+        OnClickContext = onClickContext,
+        TextColor = System.Drawing.Color.FromArgb(textColorArgb),
+        FontSize = fontSize,
+        FontId = (MinesServer.Data.FontId)fontId,
+        IsBold = isBold,
+        LetterSpacing = letterSpacing,
+        TextAlign = (MinesServer.Data.TextAlign)textAlign,
+        AttachedProperties = attachedProperties,
+    };
+
     internal static DockPanelPacket DockPanel(params IGUIComponentPacket[] children) => new()
     {
         Children = [.. children],
