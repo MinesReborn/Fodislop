@@ -113,17 +113,6 @@
     padding: 0 var(--sp-2);
 }
 
-/* Ссылка-действие (моно капс, сигналом): не жирная. Подчёркивание приносит
-   сам текст rich-text тегом <u> — по метрикам шрифта, без наезда на буквы.
-   Сервер помечает её FontId = Mono. */
-.packet-window--kern .packet-window-action.packet-font-mono {
-    -unity-font-style: normal;
-    background-color: rgba(0, 0, 0, 0);
-    border-width: 0;
-    padding: 0;
-    min-height: 0;
-}
-
 /* ── Некликабельный текст ── */
 .packet-window--kern .sci-fi-text-body {
     color: var(--bone);
@@ -131,8 +120,11 @@
     font-size: var(--t-body);
 }
 
-/* Гарнитуры серверного текста (TextStyler): Display и Mono перебивают
-   скиновую гарнитуру выше — специфичность та же, порядок позже. */
+/* Гарнитуры серверного текста (AttachedPropertyKeys.TextFont): сервер
+   помечает строку именем гарнитуры, сборщик кладёт класс packet-font-*.
+   Rich-text <font> парсер UITK 6000.7 не поддерживает, поэтому гарнитура
+   живёт в attached-свойстве, а не в теге строки. Правила стоят после
+   .sci-fi-text-body: при равной специфичности побеждает порядок. */
 .packet-window--kern .packet-font-display {
     -unity-font-definition: var(--face-display);
 }

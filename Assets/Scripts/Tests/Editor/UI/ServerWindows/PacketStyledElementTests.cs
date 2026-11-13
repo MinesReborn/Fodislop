@@ -18,9 +18,9 @@ using Kern.UI.ServerWindows;
 namespace Kern.Tests.UI;
 
 /// <summary>
-/// Контракт стилей, назначенных сервером в пакете: поле ввода с подсказкой
-/// и маской пароля, текст с серверной типографикой, размеры элемента без
-/// абсолютизации (Element.*) против геометрии канваса (Canvas.*).
+/// Контракт полей ввода и геометрии, назначенных сервером: поле с
+/// подсказкой и маской пароля, размеры элемента без абсолютизации
+/// (Element.*) против геометрии канваса (Canvas.*).
 /// </summary>
 [TestFixture]
 public class PacketStyledElementTests
@@ -92,14 +92,13 @@ public class PacketStyledElementTests
         new(new NullAssetLoader(), new NoOpOperations(), new NullWebLoader());
 
     [Test]
-    public void TextBox_WithPlaceholderPasswordLimit_AppliesInputTraits()
+    public void TextBox_WithPlaceholderAndPassword_AppliesInputTraits()
     {
         var field = (RegexTextField)Builder().Build(PacketTestFactory.TextBox(
-            "password", "Пароль", isPassword: true, maxLength: 16));
+            "password", "Пароль", isPassword: true));
 
         Assert.That(field.textEdition.placeholder, Is.EqualTo("Пароль"));
         Assert.That(field.isPasswordField, Is.True);
-        Assert.That(field.maxLength, Is.EqualTo(16));
     }
 
     [Test]
@@ -109,51 +108,6 @@ public class PacketStyledElementTests
 
         Assert.That(field.textEdition.placeholder, Is.EqualTo(string.Empty));
         Assert.That(field.isPasswordField, Is.False);
-        Assert.That(field.maxLength, Is.EqualTo(0), "0 = лимита нет");
-    }
-
-    [Test]
-    public void StyledText_AppliesServerTypography()
-    {
-        var label = (Label)Builder().Build(PacketTestFactory.StyledText(
-            "Project Kern", "",
-            unchecked((int)0xFFD8D5EE), 32, fontId: 1 /* Display */, isBold: true,
-            letterSpacing: 2, textAlign: 2 /* Center */));
-
-        Assert.That(label.style.color.value, Is.EqualTo(new Color(0xD8 / 255f, 0xD5 / 255f, 0xEE / 255f, 1f)));
-        Assert.That(label.style.fontSize.value.value, Is.EqualTo(32f));
-        Assert.That(label.ClassListContains("packet-font-display"), Is.True);
-        Assert.That(label.style.letterSpacing.value.value, Is.EqualTo(2f));
-        Assert.That(label.style.unityTextAlign.value, Is.EqualTo(TextAnchor.MiddleCenter));
-    }
-
-    [Test]
-    public void StyledButton_AppliesServerTypographyToo()
-    {
-        // Кликабельный текст — та же серверная типографика (кнопка «Войти»
-        // несёт кегль и цвет на-сигнале).
-        var button = Builder().Build(PacketTestFactory.StyledText(
-            "Войти", ".", unchecked((int)0xFF160602), 17, fontId: 0, isBold: true,
-            letterSpacing: 1, textAlign: 2));
-
-        Assert.That(button, Is.InstanceOf<Button>());
-        Assert.That(button.style.fontSize.value.value, Is.EqualTo(17f));
-        Assert.That(button.style.color.value, Is.EqualTo(new Color(0x16 / 255f, 0x06 / 255f, 0x02 / 255f, 1f)));
-    }
-
-    [Test]
-    public void DefaultText_LeavesSkinValuesUnset()
-    {
-        var label = (Label)Builder().Build(PacketTestFactory.StyledText(
-            "plain", "", textColorArgb: 0, fontSize: 0, fontId: 0, isBold: false,
-            letterSpacing: 0, textAlign: 0 /* Default */));
-
-        Assert.That(label.style.color.keyword, Is.EqualTo(StyleKeyword.Undefined),
-            "цвет скина клиента: инлайн-цвета нет");
-        Assert.That(label.style.fontSize.keyword, Is.EqualTo(StyleKeyword.Undefined),
-            "кегль скина клиента: инлайн-кегля нет");
-        Assert.That(label.ClassListContains("packet-font-display"), Is.False);
-        Assert.That(label.ClassListContains("packet-font-mono"), Is.False);
     }
 
     [Test]
@@ -177,5 +131,16 @@ public class PacketStyledElementTests
 
         Assert.That(element.style.width.value.value, Is.EqualTo(50f));
         Assert.That(element.ClassListContains("abs"), Is.True);
+    }
+
+    [Test]
+    public void TextFontMark_AddsSkinFontClass()
+    {
+        // Гарнитура приходит attached-свойством (UITK не парсит <font>):
+        // имя из пакета превращается в скин-класс packet-font-*.
+        var label = Builder().Build(PacketTestFactory.Text(
+            "метка", "", PacketTestFactory.Pair(AttachedPropertyKeys.TextFont, "Mono")));
+
+        Assert.That(label.ClassListContains("packet-font-mono"), Is.True);
     }
 }

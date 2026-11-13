@@ -34,7 +34,7 @@ public class TextPacketBuilder : PacketUIBuilderBase<TextPacket>
                 button.AddToClassList("packet-window-action--canvas");
             }
 
-            TextStyler.Apply(button, packet);
+            ApplyFontClass(button, packet);
             return button;
         }
 
@@ -45,8 +45,21 @@ public class TextPacketBuilder : PacketUIBuilderBase<TextPacket>
         // поверх кликабельных иконок канваса и не должны съедать их клики.
         label.pickingMode = PickingMode.Ignore;
         label.AddToClassList("packet-text--center");
-        TextStyler.Apply(label, packet);
+        ApplyFontClass(label, packet);
 
         return label;
+    }
+
+    // Гарнитура серверного текста (AttachedPropertyKeys.TextFont): имя из
+    // пакета становится скин-классом packet-font-*, правило PacketWindowKern.uss
+    // выбирает FontAsset темы. Rich-text <font> парсер UITK не поддерживает,
+    // поэтому гарнитура передаётся только этим attached-свойством.
+    private static void ApplyFontClass(VisualElement element, TextPacket packet)
+    {
+        string font = AttachedProperties.Find(packet, AttachedPropertyKeys.TextFont);
+        if (!string.IsNullOrEmpty(font))
+        {
+            element.AddToClassList($"packet-font-{font.ToLowerInvariant()}");
+        }
     }
 }
