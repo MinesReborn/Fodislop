@@ -17,7 +17,7 @@ public static class ResourcePaths
     public const string GraphicsStateCollection = "Rendering/Warmup/States/GraphicsStates";
     public const string MissionVirtualRingShader = "Shaders/UI/Missions/Arrow/MissionVirtualRing";
     public const string CellDestructionShader = "Shaders/Effects/Cells/Destruction/CellDestruction";
-    public const string GatewayUxml = "UI/Gateway/Templates/Gateway";
+    public const string GatewayUxml = "UI/Gateway/Templates/GatewayOnboarding";
     public const string MainMenuUxml = "UI/Menu/Templates/MainMenu";
     public const string AssetLoadingIndicatorUxml = "UI/Loading/Assets/Templates/AssetLoadingIndicator";
     public const string GlobalChatUxml = "UI/Chat/Global/Templates/GlobalChat";

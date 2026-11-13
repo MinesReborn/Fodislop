@@ -169,6 +169,12 @@ namespace Kern.AssetPipeline.Loading
             int timeoutSeconds = AssetStreamingLimits.AssetRequestTimeoutSeconds)
         {
             ThrowIfDestroyed(cancellationToken);
+            // Ответы ассетов диспетчатся только подписанному загрузчику:
+            // серверные окна до входа в мир грузят картинки раньше игровой
+            // фазы ассетов, поэтому подписка нужна с первого запроса, а не
+            // с игровой фазы. Идемпотентно; повторная установка игровой
+            // фазой ничего не меняет.
+            EnsureAssetSubscription();
             using CancellationTokenSource linkedCancellation =
                 CancellationTokenSource.CreateLinkedTokenSource(
                     cancellationToken,
@@ -322,6 +328,12 @@ namespace Kern.AssetPipeline.Loading
             int timeoutSeconds,
             string? expectedETag)
         {
+            // Ответы ассетов диспетчатся только подписанному загрузчику.
+            // Серверные окна до входа в мир грузят картинки раньше игровой
+            // фазы ассетов, поэтому подписка ставится на каждый запрос сети;
+            // идемпотентно, игровой фазе повтор не мешает.
+            EnsureAssetSubscription();
+
             // 1. Check local RAM/disk cache first when offline
             var connectionService = ConnectionService;
             var isConnected = connectionService.IsConnected;

@@ -7,6 +7,7 @@ using Kern.Core.Interfaces;
 using Kern.Core.Localization;
 using Kern.Networking;
 using Kern.Networking.Protocol;
+using MinesServer.Data;
 using MinesServer.Networking.Client.Packets.GUI;
 using MinesServer.Networking.Server.Packets.GUI;
 using MinesServer.Networking.Server.Packets.GUI.Components;
@@ -36,7 +37,7 @@ public sealed class ServerWindowPresenter : IDisposable
     private readonly WindowCommandStream _commands;
     private readonly ModalWindowHandler _modalWindowHandler;
     private readonly LinkDialogHandler _linkDialog;
-    private readonly IWorldPresentationState _presentationState;
+    private readonly IWorldPresentationState? _presentationState;
     private readonly List<ServerWindowState> _openWindows = [];
     private readonly Queue<Action> _pendingWindowCommands = new();
     private bool _isFlushingWindowCommands;
@@ -50,7 +51,7 @@ public sealed class ServerWindowPresenter : IDisposable
         WindowCommandStream commands,
         IAsyncOperationSupervisor operations,
         IWebAssetLoader webAssetLoader,
-        IWorldPresentationState presentationState)
+        IWorldPresentationState? presentationState = null)
     {
         _localization = localization;
         _assetLoader = assetLoader;
@@ -67,8 +68,10 @@ public sealed class ServerWindowPresenter : IDisposable
         _commands.ModalRequested += ShowModal;
         _linkDialog = new LinkDialogHandler(document, uiInputManager, localization);
         _commands.LinkRequested += ShowLink;
-        _presentationState.Changed += OnPresentationStateChanged;
-
+        if (_presentationState != null)
+        {
+            _presentationState.Changed += OnPresentationStateChanged;
+        }
     }
 
     public bool HasOpenWindows => _openWindows.Count > 0;
@@ -119,7 +122,10 @@ public sealed class ServerWindowPresenter : IDisposable
         _commands.CloseRequested -= Close;
         _commands.ModalRequested -= ShowModal;
         _commands.LinkRequested -= ShowLink;
-        _presentationState.Changed -= OnPresentationStateChanged;
+        if (_presentationState != null)
+        {
+            _presentationState.Changed -= OnPresentationStateChanged;
+        }
         _pendingWindowCommands.Clear();
 
         // Оверлей тоже убирается. Панель документа переживает сцену, и оставшийся
@@ -183,6 +189,18 @@ public sealed class ServerWindowPresenter : IDisposable
 
         frame.style.height = packet.Height;
 
+        // Тема окна выбирается сервером: Kern — скин главной темы поверх меню
+        // (окно авторизации), SciFi — текущий скин игровых окон. KernVector
+        // привязывается к оверлею сразу: векторный корпус панели (срез угла,
+        // засечки, зерно) рисуется при первом стайле, а не на ближайшем
+        // пересмотре дерева корня документа.
+        if (packet.Theme == WindowTheme.Kern)
+        {
+            element.AddToClassList("packet-window-overlay--kern");
+            frame.AddToClassList("packet-window--kern");
+            Screens.KernVector.Attach(element);
+        }
+
         element.Add(frame);
         var state = new ServerWindowState
         {
@@ -197,6 +215,22 @@ public sealed class ServerWindowPresenter : IDisposable
         // регистрация кликабельных.
         var openWatch = System.Diagnostics.Stopwatch.StartNew();
         BuildWindowContent(state);
+        // Клик по телу окна вне текстового поля забирает фокус себе: в UI
+        // Toolkit фокус не уходит при клике по некликабельному, и рамка
+        // сфокусированного поля авторизации висела бы постоянно.
+        frame.focusable = true;
+        frame.RegisterCallback<PointerDownEvent>(e =>
+        {
+            for (VisualElement? target = e.target as VisualElement; target != null; target = target.parent)
+            {
+                if (target is TextField)
+                {
+                    return;
+                }
+            }
+
+            frame.Focus();
+        });
         long buildMs = openWatch.ElapsedMilliseconds;
         int elementCount = 0;
         CountTree(element);
@@ -432,9 +466,33 @@ public sealed class ServerWindowPresenter : IDisposable
         }
     }
 
+    // Без состояния мира (хост окон в сцене меню) держать окна нечего: любое
+    // окно показывается сразу.
     private bool ShouldHoldWindowUpdates() =>
+        _presentationState != null &&
         _presentationState.HasPublishedView &&
         _presentationState.Current.Phase is not (WorldPresentationPhase.Stable or WorldPresentationPhase.Failed);
+
+    /// Закрыть все окна, не отписываясь от потока команд. Разрыв транспорта
+    /// (GatewayWindowProcessor) гасит окна, оставшиеся от сессии, которая уже
+    /// мертва: сервер после переподключения отрисовывает окна заново.
+    public void CloseAllWindows()
+    {
+        if (ShouldHoldWindowUpdates())
+        {
+            _pendingWindowCommands.Enqueue(CloseAllWindows);
+            return;
+        }
+
+        foreach (ServerWindowState state in _openWindows)
+        {
+            _uiInputManager.PopModal(state.Overlay);
+            state.Overlay.RemoveFromHierarchy();
+        }
+
+        _openWindows.Clear();
+        _commands.SetServerWindowVisibility(false);
+    }
 
     private void FlushPendingWindowUpdates()
     {

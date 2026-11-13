@@ -2,6 +2,7 @@
 
 using System;
 using Kern.Networking.Protocol;
+using MinesServer.Networking.Server.Packets.GUI;
 using MinesServer.Networking.Server.Packets.GUI.Components;
 using MinesServer.Networking.Server.Packets.GUI.Components.Visual;
 using UnityEngine;
@@ -25,14 +26,15 @@ public class TextPacketBuilder : PacketUIBuilderBase<TextPacket>
             // Кнопка канваса — тот же кликабельный текст, но с геометрией
             // (Canvas.X/Y/Width/Height задаёт сервер): фикс-минимум обычного
             // экшена сбрасывается, размер кнопки приходит из пакета.
-            if (AttachedProperties.Has(packet, "Canvas.X") ||
-                AttachedProperties.Has(packet, "Canvas.Y") ||
-                AttachedProperties.Has(packet, "Canvas.Width") ||
-                AttachedProperties.Has(packet, "Canvas.Height"))
+            if (AttachedProperties.Has(packet, AttachedPropertyKeys.CanvasX) ||
+                AttachedProperties.Has(packet, AttachedPropertyKeys.CanvasY) ||
+                AttachedProperties.Has(packet, AttachedPropertyKeys.CanvasWidth) ||
+                AttachedProperties.Has(packet, AttachedPropertyKeys.CanvasHeight))
             {
                 button.AddToClassList("packet-window-action--canvas");
             }
 
+            ApplyFontClass(button, packet);
             return button;
         }
 
@@ -43,7 +45,21 @@ public class TextPacketBuilder : PacketUIBuilderBase<TextPacket>
         // поверх кликабельных иконок канваса и не должны съедать их клики.
         label.pickingMode = PickingMode.Ignore;
         label.AddToClassList("packet-text--center");
+        ApplyFontClass(label, packet);
 
         return label;
+    }
+
+    // Гарнитура серверного текста (AttachedPropertyKeys.TextFont): имя из
+    // пакета становится скин-классом packet-font-*, правило PacketWindowKern.uss
+    // выбирает FontAsset темы. Rich-text <font> парсер UITK не поддерживает,
+    // поэтому гарнитура передаётся только этим attached-свойством.
+    private static void ApplyFontClass(VisualElement element, TextPacket packet)
+    {
+        string font = AttachedProperties.Find(packet, AttachedPropertyKeys.TextFont);
+        if (!string.IsNullOrEmpty(font))
+        {
+            element.AddToClassList($"packet-font-{font.ToLowerInvariant()}");
+        }
     }
 }

@@ -22,7 +22,6 @@ using VContainer.Unity;
 using Object = UnityEngine.Object;
 
 using Kern.Bootstrap.Scenes;
-using Kern.UI.Gateway;
 using Kern.Game.Entities.Robots;
 using Kern.Game.Session;
 using Kern.Networking.Dummy;
@@ -65,22 +64,6 @@ public sealed class SceneTransitionPlayModeTests
         Assert.That(HasNamedUIElement(menu, "MainMenuContainer"), Is.True);
         Assert.That(SceneManager.sceneCountInBuildSettings, Is.EqualTo(3));
         yield break;
-    }
-
-    [UnityTest]
-    public IEnumerator MenuGate_IsLayerOfMainMenuDocument()
-    {
-        Scene menu = SceneManager.GetSceneByName("MainMenu");
-        UIDocument document = PlayModeHarness.FindComponentInScene<UIDocument>(menu)!;
-        MenuGate gate = PlayModeHarness.FindComponentInScene<MainMenuLifetimeScope>(menu)!.Container.Resolve<MenuGate>();
-        gate.Open(document, document.rootVisualElement, forceForm: true);
-        yield return null;
-        Assert.That(gate.IsOpen, Is.True);
-        Assert.That(document.rootVisualElement.Q("GatewayRoot"), Is.Not.Null);
-        Assert.That(document.rootVisualElement.Q("MainMenuContainer"), Is.Not.Null);
-        gate.Dispose();
-        yield return null;
-        Assert.That(document.rootVisualElement.Q("GatewayRoot"), Is.Null);
     }
 
     [UnityTest]

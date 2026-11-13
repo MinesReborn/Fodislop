@@ -51,6 +51,9 @@ namespace Kern.Networking.Connection
 
         private readonly InboundPacketBuffer _inboundPackets = new();
         private InboundPacketDrain _packetDrain = null!;
+        // Сессионные пакеты, пришедшие под удержанием: буфер читающего потока
+        // -> главный тред (Update), как и основной буфер, но с приоритетом.
+        private readonly System.Collections.Concurrent.ConcurrentQueue<ServerPacket> _heldSessionPackets = new();
         private readonly ReconnectBackoff _reconnectBackoff = new();
 
         [Inject]
@@ -95,6 +98,10 @@ namespace Kern.Networking.Connection
 
         protected void Update()
         {
+            // Сессионные пакеты — всегда вперёд: и под удержанием (окно
+            // авторизации живёт до релиза), и сразу после снятия (токен и
+            // закрытие окна оседают до первого удержанного пакета мира).
+            DispatchHeldSessionPackets();
             if (!_inboundHeld)
             {
                 _packetDrain.Drain();
@@ -443,6 +450,10 @@ namespace Kern.Networking.Connection
         private void ClearPendingPackets()
         {
             int discardedCount = _inboundPackets.Clear();
+            while (_heldSessionPackets.TryDequeue(out _))
+            {
+                discardedCount++;
+            }
 
             if (discardedCount > 0)
             {
@@ -458,8 +469,66 @@ namespace Kern.Networking.Connection
                 return;
             }
 
+            // Пока удержание активно (спуск и старт игровой сцены), мир и
+            // геймплей копятся в очереди до релиза, но пакеты сессии обязаны
+            // диспетчиться сразу: окно авторизации, присланное до игровой
+            // сцены, обязано показаться, токен — сохраниться, разрыв — быть
+            // замеченным. Сессионная очередь дренируется в Update на главном
+            // треде — обработчикам Unity API нужен именно он.
+            if (_inboundHeld && !IsSessionPacket(obj.Payload))
+            {
+                _inboundPackets.Enqueue(obj);
+                return;
+            }
+            if (_inboundHeld)
+            {
+                _heldSessionPackets.Enqueue(obj);
+                return;
+            }
+
             _inboundPackets.Enqueue(obj);
         }
+
+        /// <summary>
+        /// Диспетчеризация сессионных пакетов, пришедших под удержанием.
+        /// Вызывается из Update (главный тред) и раньше обычного дрена при
+        /// снятии удержания — состояние сессии (окно, токен) оседает раньше,
+        /// чем в мир начинают стрелять удержанные пакеты.
+        /// </summary>
+        private void DispatchHeldSessionPackets()
+        {
+            while (_heldSessionPackets.TryDequeue(out var packet))
+            {
+                try
+                {
+                    OnPacketReceived?.Invoke(packet);
+                }
+                catch (Exception ex)
+                {
+                    Debug.LogException(
+                        new InvalidOperationException(
+                            "A session packet could not be processed. Disconnecting to avoid continuing with corrupted state.",
+                            ex));
+                    HandleServerDisconnect("Client session packet processing failed.");
+                    return;
+                }
+            }
+        }
+
+        // Пакеты сессии: они имеют смысл до входа в мир и после него, их
+        // потребители (окна, токен, пинг, разрывы, картинки окна) живут в
+        // каждой фазе.
+        private static bool IsSessionPacket(MinesServer.Networking.Server.IRootServerPacket? payload) => payload is
+            MinesServer.Networking.Server.Packets.GUI.OpenWindowPacket
+            or MinesServer.Networking.Server.Packets.GUI.CloseWindowPacket
+            or MinesServer.Networking.Server.Packets.GUI.ModalWindowPacket
+            or MinesServer.Networking.Server.Packets.Utilities.OpenURLPacket
+            or MinesServer.Networking.Server.Packets.Utilities.RuntimeAssetPacket
+            or MinesServer.Networking.Server.Packets.Connection.AuthTokenPacket
+            or MinesServer.Networking.Server.Packets.Connection.PingPacket
+            or MinesServer.Networking.Server.Packets.Connection.DisconnectPacket
+            or MinesServer.Networking.Server.Packets.Connection.ReconnectPacket
+            or MinesServer.Networking.Server.Packets.Connection.OutdatedClientPacket;
 
     }
 }

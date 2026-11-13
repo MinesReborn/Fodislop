@@ -15,6 +15,11 @@ public class TextBoxPacketBuilder : PacketUIBuilderBase<TextBoxPacket>
             isReadOnly = !packet.IsEnabled,
             Regex = packet.Regex,
         };
+        if (!string.IsNullOrEmpty(packet.Placeholder))
+        {
+            textField.textEdition.placeholder = packet.Placeholder;
+        }
+        textField.isPasswordField = packet.IsPassword;
         textField.SetEnabled(packet.IsEnabled);
         textField.AddToClassList("sci-fi-input");
         if (!string.IsNullOrEmpty(packet.Name))

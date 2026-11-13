@@ -1,0 +1,178 @@
+/* Kern-скин серверных окон. Включается сервером полем Theme=Kern в
+   OpenWindowPacket (ServerWindowPresenter вешает packet-window--kern на фрейм
+   и --kern на затемнение). Базовые классы PacketWindow.uss/SciFi.uss остаются:
+   этот файл перекрывает их при каскаде (импортируется позже). */
+
+/* Окно авторизации живёт поверх главного меню — фон вокруг карточки такой
+   же, как у экранов вне игры (Kern.uss .screen-space): виньетка и точечная
+   сетка. Точки рисует KernVector по --dots-* прямо на оверлее; меню под
+   окном скрыто непрозрачным фоном. */
+.packet-window-overlay--kern {
+    background-color: var(--void);
+    background-image: radial-gradient(ellipse farthest-side at 62% 50%, #14121d 0%, #06050a 100%);
+    --dots-color: rgba(216, 213, 238, 0.08);
+    --dots-step: 32;
+    --dots-size: 2;
+}
+
+/* Корпус панели рисует KernVector по --panel-*: срез правого верхнего угла,
+   Г-уголки, зерно и отсвет сверху — как .panel макета (Panel.uss). Поля окна
+   (внутренние отступы карточки) назначает сервер GUIStylePacket'ом. */
+.packet-window--kern {
+    padding: 0;
+    border-width: 0;
+    border-radius: 0;
+    background-color: rgba(0, 0, 0, 0);
+    color: var(--bone);
+    -unity-font-definition: var(--face-text);
+    font-size: var(--t-body);
+    --panel-fill: var(--graphite);
+    --panel-grain: rgba(216, 213, 238, 0.028);
+    --panel-edge: var(--seam);
+    --panel-highlight: rgba(216, 213, 238, 0.06);
+    --panel-notch: 10;
+    --panel-tick: 6;
+    --panel-tick-width: 1;
+    --panel-tick-color: rgba(216, 213, 238, 0.55);
+}
+
+/* Гарнитуры серверного текста (TextStyler) — правила перенесены в конец
+   файла: они обязаны перебивать скиновые переопределения .sci-fi-text-body и
+   .packet-window-action, у которых та же специфичность, но раньше порядок. */
+
+/* ── Поле (TextBoxPacket): углубление, шов, подсказка дымом, фокус сигналом ── */
+.packet-window--kern .sci-fi-input {
+    margin: 0;
+    padding: 0;
+    border-width: 0;
+    border-radius: 0;
+    background-color: rgba(0, 0, 0, 0);
+}
+
+.packet-window--kern .sci-fi-input > .unity-base-text-field__input {
+    height: var(--hit);
+    margin: 0;
+    padding: 0 var(--sp-7);
+    border-width: 1px;
+    border-radius: 0;
+    border-color: var(--seam-strong);
+    background-color: var(--well);
+    color: var(--bone);
+    -unity-font-definition: var(--face-text);
+    font-size: var(--t-body);
+    -unity-text-align: middle-left;
+}
+
+.packet-window--kern .sci-fi-input:focus > .unity-base-text-field__input {
+    border-color: var(--signal);
+    border-left-width: 3px;
+    padding-left: 12px;
+}
+
+.packet-window--kern .sci-fi-input .unity-text-element--placeholder {
+    color: var(--smoke);
+}
+
+.packet-window--kern .sci-fi-input .unity-base-text-field__input--placeholder {
+    color: var(--smoke);
+}
+
+.packet-window--kern .sci-fi-input.invalid > .unity-base-text-field__input {
+    border-color: var(--danger);
+}
+
+/* ── Кнопка действия (TextPacket с кликом): клавиша макета ──
+   Цвета состояния сервер может назначить GUIStylePacket'ом — инлайн
+   перебивает правила здесь. */
+.packet-window--kern .packet-window-action {
+    min-height: 0;
+    padding: 0 var(--sp-8);
+    border-width: 1px;
+    border-radius: 0;
+    border-color: var(--seam-strong);
+    background-color: var(--plate);
+    color: var(--bone);
+    -unity-font-definition: var(--face-text);
+    font-size: var(--t-body);
+    -unity-font-style: bold;
+    letter-spacing: 1px;
+    white-space: nowrap;
+}
+
+.packet-window--kern .packet-window-action:hover {
+    border-color: var(--ash);
+    background-color: var(--plate-hover);
+    color: var(--bone);
+}
+
+.packet-window--kern .packet-window-action:active {
+    background-color: var(--well);
+}
+
+.packet-window--kern .packet-window-action--canvas {
+    padding: 0 var(--sp-2);
+}
+
+/* ── Некликабельный текст ── */
+.packet-window--kern .sci-fi-text-body {
+    color: var(--bone);
+    -unity-font-definition: var(--face-text);
+    font-size: var(--t-body);
+}
+
+/* Гарнитуры серверного текста (AttachedPropertyKeys.TextFont): сервер
+   помечает строку именем гарнитуры, сборщик кладёт класс packet-font-*.
+   Rich-text <font> парсер UITK 6000.7 не поддерживает, поэтому гарнитура
+   живёт в attached-свойстве, а не в теге строки. Правила стоят после
+   .sci-fi-text-body: при равной специфичности побеждает порядок. */
+.packet-window--kern .packet-font-display {
+    -unity-font-definition: var(--face-display);
+}
+
+.packet-window--kern .packet-font-mono {
+    -unity-font-definition: var(--face-mono);
+}
+
+/* ── Полоса прокрутки макета: дорожка 6 px, бегунок без стрелок ── */
+.packet-window--kern .packet-scrollbar {
+    background-color: rgba(0, 0, 0, 0);
+}
+
+.packet-window--kern .packet-scrollbar .unity-slider__tracker {
+    background-color: var(--scroll-track);
+    border-width: 0;
+    border-radius: 0;
+}
+
+.packet-window--kern .packet-scrollbar .unity-slider__dragger {
+    background-color: var(--scroll-thumb);
+    border-width: 0;
+    border-radius: 0;
+}
+
+.packet-window--kern .packet-scrollbar .unity-slider__dragger:hover {
+    background-color: var(--ash);
+}
+
+.packet-window--kern .packet-scrollbar .unity-repeat-button {
+    display: none;
+}
+
+/* ── Главное действие (Button.Variant = "primary"): заливка сигналом со
+   срезом правого верхнего угла 8 px и состояния наведения — рисует
+   KernVector по --shape-* (systems.css .btn--primary). Фон не через
+   background-color: срез виден только когда заливку рисует форма. ── */
+.packet-window--kern .packet-window-action--primary {
+    background-color: rgba(0, 0, 0, 0);
+    border-width: 0;
+    --shape-color: var(--signal);
+    --shape-notch: 8;
+}
+
+.packet-window--kern .packet-window-action--primary:hover {
+    --shape-color: var(--signal-hover);
+}
+
+.packet-window--kern .packet-window-action--primary:active {
+    --shape-color: rgb(209, 74, 25);
+}
