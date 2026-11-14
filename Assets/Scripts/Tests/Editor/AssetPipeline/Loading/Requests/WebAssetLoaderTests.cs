@@ -39,7 +39,7 @@ public sealed class WebAssetLoaderTests
         int loadCount = 0;
         var gate = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
         var loader = new WebAssetLoader(
-            async (_, _, _) =>
+            async (_, _) =>
             {
                 Interlocked.Increment(ref loadCount);
                 await gate.Task.AsUniTask();
@@ -66,7 +66,7 @@ public sealed class WebAssetLoaderTests
         byte[] png = CreatePngBytes();
         int loadCount = 0;
         var loader = new WebAssetLoader(
-            (_, _, _) =>
+            (_, _) =>
             {
                 Interlocked.Increment(ref loadCount);
                 return UniTask.FromResult<byte[]?>(png);
@@ -88,7 +88,7 @@ public sealed class WebAssetLoaderTests
         byte[] png = CreatePngBytes();
         int loadCount = 0;
         var loader = new WebAssetLoader(
-            (_, _, _) =>
+            (_, _) =>
             {
                 Interlocked.Increment(ref loadCount);
                 return UniTask.FromResult<byte[]?>(png);

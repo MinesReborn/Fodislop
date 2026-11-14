@@ -298,6 +298,8 @@ public sealed class GameStartupPipeline
     // Инфраструктура (подписки на пакеты, ассеты, террейн) готова — соединение можно открывать, не дожидаясь презентации:
     // рукопожатие, вход и ответ мира идут по сети, пока свет и интерфейс инициализируются. Пакеты удержаны до
     // CompletePresentation: обработчики мира рассчитывают на готовый интерфейс.
+    // Соединение может быть уже открыто спуском (авторизация до входа в мир
+    // проходила в сцене меню): тогда просто продолжаем удержание до релиза.
     internal GameStartupReport InitializeInfrastructure()
     {
         var report = new GameStartupReport();
@@ -305,7 +307,10 @@ public sealed class GameStartupPipeline
         if (!report.HasCritical)
         {
             _connection.HoldInboundPackets();
-            _connection.Connect();
+            if (!_connection.IsConnected)
+            {
+                _connection.Connect();
+            }
         }
 
         return report;

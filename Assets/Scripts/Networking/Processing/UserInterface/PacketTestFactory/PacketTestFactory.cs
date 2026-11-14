@@ -44,6 +44,18 @@ internal static class PacketTestFactory
         AttachedProperties = attachedProperties,
     };
 
+    internal static TextBoxPacket TextBox(
+        string name,
+        string placeholder = "",
+        bool isPassword = false,
+        params StringPairPacket[] attachedProperties) => new()
+    {
+        Name = name,
+        Placeholder = placeholder,
+        IsPassword = isPassword,
+        AttachedProperties = attachedProperties,
+    };
+
     internal static DockPanelPacket DockPanel(params IGUIComponentPacket[] children) => new()
     {
         Children = [.. children],

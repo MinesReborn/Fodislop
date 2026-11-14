@@ -45,21 +45,18 @@ public class SliderPacketZeroRangeTests
 
         public UniTask<byte[]?> GetAssetBytesAsync(
             string filename,
-            CancellationToken cancellationToken = default,
-            int timeoutSeconds = AssetStreamingLimits.AssetRequestTimeoutSeconds) =>
+            CancellationToken cancellationToken = default) =>
             UniTask.FromResult<byte[]?>(null);
 
         public UniTask<byte[]?> GetAssetBytesAsync(
             string filename,
             string expectedETag,
-            CancellationToken cancellationToken = default,
-            int timeoutSeconds = AssetStreamingLimits.AssetRequestTimeoutSeconds) =>
+            CancellationToken cancellationToken = default) =>
             UniTask.FromResult<byte[]?>(null);
 
         public UniTask<string> GetAssetPathAsync(
             string filename,
-            CancellationToken cancellationToken = default,
-            int timeoutSeconds = AssetStreamingLimits.AssetRequestTimeoutSeconds) =>
+            CancellationToken cancellationToken = default) =>
             UniTask.FromResult(string.Empty);
 
         public UniTask<Texture2D?> GetTextureAsync(string filename, CancellationToken cancellationToken = default) =>

@@ -10,10 +10,11 @@ using Kern.Bootstrap.Scenes;
 using Kern.Core;
 using Kern.Core.Interfaces;
 using Kern.Networking.Gateways;
+
 using Kern.Rendering.PostProcessing;
 using Kern.UI.Chat;
-using Kern.UI.Input;
 using Kern.UI.Gateway;
+using Kern.UI.Input;
 using Kern.UI.Map;
 using Kern.UI.ServerWindows;
 using UnityEditor;
@@ -222,12 +223,11 @@ public static class GameSnapshotTool
         map.ToggleMapMode();
         ui.Dispose();
 
-        // Онбординг (слой ворот поверх меню) — последним: открытие ворот с формой входа сбрасывает вход,
-        // и после него мир уже не загрузить
+        // Меню — последним: возврат из мира и снимки главного экрана и спуска.
         UniTask back = bootstrap.TransitionAsync(SceneNames.MainMenu);
         yield return WaitUntil(() => back.Status != UniTaskStatus.Pending, MenuTimeoutSeconds, "возврат в меню");
         yield return Wait(2f);
-        yield return ShootOnboarding(dir);
+        yield return ShootMenu(dir);
     }
 
     // Рамки видимых элементов поддерева: x,y,ширина,высота, имя, классы, прозрачность
@@ -248,7 +248,7 @@ public static class GameSnapshotTool
         File.WriteAllText(path, text.ToString());
     }
 
-    private static IEnumerator ShootOnboarding(string dir)
+    private static IEnumerator ShootMenu(string dir)
     {
         Scene menuScene = SceneManager.GetSceneByName(SceneNames.MainMenu);
         MainMenuLifetimeScope scope = menuScene.GetRootGameObjects()
@@ -274,11 +274,7 @@ public static class GameSnapshotTool
         }
 
         MenuGate gate = scope.Container.Resolve<MenuGate>();
-        gate.Open(menu, menu.rootVisualElement, forceForm: true);
-        VisualElement gateway = menu.rootVisualElement.Q("GatewayRoot")!;
-        gateway.RemoveFromClassList("gateway--auth");
-        gateway.AddToClassList("gateway--onboarding");
-
+        gate.Open(menu, menu.rootVisualElement, forceOnboarding: true);
         using (var ui = new PanelRedirect(Width, Height))
         {
             yield return Wait(1f);

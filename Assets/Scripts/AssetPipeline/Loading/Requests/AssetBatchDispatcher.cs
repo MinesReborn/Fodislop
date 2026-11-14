@@ -23,31 +23,6 @@ using static ETagCalculator;
 
 public sealed class AssetBatchDispatcher : IDisposable
 {
-    internal static async UniTask ExtendTimeoutWhileAssetsArriveAsync(
-        IAssetTransferProgress progress,
-        CancellationTokenSource timeout,
-        int timeoutSeconds,
-        CancellationToken cancellationToken)
-    {
-        long previous = progress.ReceivedAssetBytes;
-        try
-        {
-            while (true)
-            {
-                await UniTask.Delay(250, ignoreTimeScale: true, cancellationToken: cancellationToken);
-                long current = progress.ReceivedAssetBytes;
-                if (current != previous)
-                {
-                    previous = current;
-                    timeout.CancelAfter(TimeSpan.FromSeconds(timeoutSeconds));
-                }
-            }
-        }
-        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
-        {
-        }
-    }
-
     private readonly ConcurrentDictionary<string, TaskCompletionSource<byte[]>> _pendingRequests = new(StringComparer.Ordinal);
     private readonly ConcurrentQueue<RuntimeAssetEntryPacket> _requestQueue = new();
     private readonly ConcurrentDictionary<string, byte> _missingAssets = new(StringComparer.Ordinal);
@@ -96,6 +71,25 @@ public sealed class AssetBatchDispatcher : IDisposable
                 request.TrySetCanceled();
             }
         }
+    }
+
+    // Активное соединение обязано ответить на запрос ассета: ответ либо
+    // придёт, либо транспорт умрёт и поднимет дисконнект. Разрыв —
+    // единственный честный признак того, что ответа не будет, поэтому по
+    // нему ожидания фейлятся сразу, а не по настенному таймеру, способному
+    // убить запрос с уже летящими по сети байтами.
+    public void FailPendingOnDisconnect()
+    {
+        foreach (KeyValuePair<string, TaskCompletionSource<byte[]>> pending in _pendingRequests)
+        {
+            if (_pendingRequests.TryRemove(pending.Key, out TaskCompletionSource<byte[]>? request))
+            {
+                request.TrySetException(new InvalidOperationException(
+                    $"Connection lost while waiting for asset '{pending.Key}'."));
+            }
+        }
+
+        _requestQueue.Clear();
     }
 
     public void Dispose()

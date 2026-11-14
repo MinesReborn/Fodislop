@@ -1,62 +1,13 @@
 <ui:UXML xmlns:ui="UnityEngine.UIElements">
     <!-- ═══════════════════════════════════════════════════════════
-         ВХОД И ОНБОРДИНГ — слой главного меню (MenuGate), экраны auth и onboarding макета
-         visual/kern-ui/index.html (data-screen="auth", "onboarding"). Сцены своей нет:
-         Bootstrap → MainMenu → MainGame. Состояние — класс на GatewayRoot: вход или онбординг.
-         Вход протоколом не проверяется (ClientHelloPacket несёт только токен устройства):
-         поля пароля и регистрация — вид макета, рабочие действия — «Войти» и «Войти через VK».
+         ОНБОРДИНГ — слой главного меню (MenuGate), экран onboarding макета
+         visual/kern-ui/index.html (data-screen="onboarding"). Сцены своей нет:
+         Bootstrap → MainMenu → MainGame. Авторизация — серверное окно
+         (Theme=Kern) поверх этого слоя, к воротам она не относится.
+         Состояние — класс на GatewayRoot.
          ═══════════════════════════════════════════════════════════ -->
-    <ui:VisualElement name="GatewayRoot" class="gateway-root gateway--auth screen-space">
+    <ui:VisualElement name="GatewayRoot" class="gateway-root gateway--onboarding screen-space">
         <ui:VisualElement class="screen-space__dots" picking-mode="Ignore" />
-
-        <!-- ════ Вход ════ -->
-        <ui:VisualElement name="AuthOverlay" class="gate-layer">
-            <ui:ScrollView name="AuthFormScroll" class="gate-scroll" mode="Vertical" horizontal-scroller-visibility="Hidden" vertical-scroller-visibility="Auto">
-            <ui:VisualElement name="AuthCard" class="panel gate">
-                <ui:VisualElement class="brand brand--stacked">
-                    <ui:VisualElement name="AuthBrandLogo" class="brand__mark brand__mark--56" />
-                    <ui:Label class="wordmark" text="Project Kern" />
-                    <ui:Label class="brand-sub caps" text="mainmenu.brand_sub" />
-                </ui:VisualElement>
-
-                <ui:VisualElement class="seg-tabs seg-tabs--auth">
-                    <ui:Button name="AuthTabLogin" class="seg-tab auth-tab auth-tab--active" text="gateway.auth.login_tab" />
-                    <ui:Button name="AuthTabRegister" class="seg-tab auth-tab" text="gateway.auth.register_tab" />
-                </ui:VisualElement>
-
-                <ui:VisualElement class="auth-stack">
-                    <ui:VisualElement name="AuthLoginForm" class="auth-form">
-                        <ui:TextField name="AuthLogin" class="input fld" placeholder-text="gateway.auth.login_field" />
-                        <ui:TextField name="AuthPassword" class="input fld" password="true" placeholder-text="gateway.auth.password_field" />
-                        <ui:VisualElement class="auth-row">
-                            <ui:Toggle name="AuthAutoLogin" class="check" text="gateway.auth.remember" />
-                            <ui:Button name="AuthRecoverButton" class="link caps" text="gateway.auth.recover" />
-                        </ui:VisualElement>
-                        <ui:Label name="AuthHint" class="auth-note" />
-                        <ui:Button name="AuthSubmitButton" class="btn btn--primary btn--big auth-submit" text="gateway.auth.submit"><ui:VisualElement class="ico ico--arrows btn__arrows" picking-mode="Ignore" /></ui:Button>
-                    </ui:VisualElement>
-
-                    <ui:VisualElement name="AuthRegisterForm" class="auth-form auth-form--hidden">
-                        <ui:TextField name="AuthRegLogin" class="input fld" placeholder-text="gateway.auth.login_field" />
-                        <ui:TextField name="AuthRegPassword" class="input fld" password="true" placeholder-text="gateway.auth.password_field" />
-                        <ui:TextField name="AuthRegConfirm" class="input fld" password="true" placeholder-text="gateway.auth.confirm_password_field" />
-                        <ui:Toggle name="AuthAcceptEula" class="check" text="gateway.auth.eula_accept" />
-                        <ui:Button name="AuthRegisterSubmitButton" class="btn btn--primary btn--big auth-submit" text="gateway.auth.register_submit"><ui:VisualElement class="ico ico--arrows btn__arrows" picking-mode="Ignore" /></ui:Button>
-                    </ui:VisualElement>
-                </ui:VisualElement>
-
-                <ui:VisualElement name="AuthVkSeparator" class="or">
-                    <ui:VisualElement class="or__line" />
-                    <ui:Label class="or__label" text="gateway.auth.vk_or" />
-                    <ui:VisualElement class="or__line" />
-                </ui:VisualElement>
-                <ui:Button name="AuthVkButton" class="btn btn--big btn--vk">
-                    <ui:VisualElement class="btn__icon btn__icon--vk" />
-                    <ui:Label name="AuthVkLabel" class="btn__label" text="gateway.auth.vk" />
-                </ui:Button>
-            </ui:VisualElement>
-            </ui:ScrollView>
-        </ui:VisualElement>
 
         <!-- ════ Онбординг: три шага, один раз после первого входа (GatewayOnboarding) ════ -->
         <ui:VisualElement name="OnboardingOverlay" class="gate-layer onb-layer">
@@ -140,4 +91,7 @@
             </ui:VisualElement>
         </ui:VisualElement>
     </ui:VisualElement>
+    <!-- reimport 1794508396 -->
 </ui:UXML>
+
+

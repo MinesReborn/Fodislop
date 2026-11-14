@@ -122,6 +122,7 @@ namespace Kern.AssetPipeline.Loading
             if (_subscribedConnection != null)
             {
                 _subscribedConnection.OnPacketReceived -= OnPacketReceived;
+                _subscribedConnection.OnTransportDisconnected -= OnTransportDisconnected;
                 _subscribedConnection = null;
             }
 
@@ -135,9 +136,18 @@ namespace Kern.AssetPipeline.Loading
             // instance while this loader and its boolean state survived.
             _connectionService.OnPacketReceived -= OnPacketReceived;
             _connectionService.OnPacketReceived += OnPacketReceived;
+            _connectionService.OnTransportDisconnected -= OnTransportDisconnected;
+            _connectionService.OnTransportDisconnected += OnTransportDisconnected;
             _subscribedConnection = _connectionService;
             _assetSubscriptionEstablished = true;
             _dispatcher.ClearMissing();
+        }
+
+        private void OnTransportDisconnected()
+        {
+            // Ждать ответа больше нечего: соединение умерло, и все
+            // незавершённые запросы фейлятся сразу.
+            _dispatcher.FailPendingOnDisconnect();
         }
 
         private void UnsubscribeFromConnection()
@@ -150,6 +160,7 @@ namespace Kern.AssetPipeline.Loading
             if (_connectionService != null)
             {
                 _connectionService.OnPacketReceived -= OnPacketReceived;
+                _connectionService.OnTransportDisconnected -= OnTransportDisconnected;
             }
 
             if (_subscribedConnection == null)
@@ -159,16 +170,22 @@ namespace Kern.AssetPipeline.Loading
             }
 
             _subscribedConnection.OnPacketReceived -= OnPacketReceived;
+            _subscribedConnection.OnTransportDisconnected -= OnTransportDisconnected;
             _subscribedConnection = null;
             _assetSubscriptionEstablished = false;
         }
 
         public async UniTask<byte[]?> GetAssetBytesAsync(
             string filename,
-            CancellationToken cancellationToken = default,
-            int timeoutSeconds = AssetStreamingLimits.AssetRequestTimeoutSeconds)
+            CancellationToken cancellationToken = default)
         {
             ThrowIfDestroyed(cancellationToken);
+            // Ответы ассетов диспетчатся только подписанному загрузчику:
+            // серверные окна до входа в мир грузят картинки раньше игровой
+            // фазы ассетов, поэтому подписка нужна с первого запроса, а не
+            // с игровой фазы. Идемпотентно; повторная установка игровой
+            // фазой ничего не меняет.
+            EnsureAssetSubscription();
             using CancellationTokenSource linkedCancellation =
                 CancellationTokenSource.CreateLinkedTokenSource(
                     cancellationToken,
@@ -180,15 +197,13 @@ namespace Kern.AssetPipeline.Loading
 
             return await Cache.GetBytesAsync(
                 filename,
-                linkedCancellation.Token,
-                timeoutSeconds);
+                linkedCancellation.Token);
         }
 
         public async UniTask<byte[]?> GetAssetBytesAsync(
             string filename,
             string expectedETag,
-            CancellationToken cancellationToken = default,
-            int timeoutSeconds = AssetStreamingLimits.AssetRequestTimeoutSeconds)
+            CancellationToken cancellationToken = default)
         {
             ThrowIfDestroyed(cancellationToken);
             using CancellationTokenSource linkedCancellation =
@@ -198,14 +213,12 @@ namespace Kern.AssetPipeline.Loading
             return await LoadBytesFromServer(
                 filename,
                 linkedCancellation.Token,
-                timeoutSeconds,
                 expectedETag);
         }
 
         public async UniTask<string> GetAssetPathAsync(
             string filename,
-            CancellationToken cancellationToken = default,
-            int timeoutSeconds = AssetStreamingLimits.AssetRequestTimeoutSeconds)
+            CancellationToken cancellationToken = default)
         {
             if (AssetBatchDispatcher.IsAudioBank(filename) && _dispatcher.IsKnownMissing(filename))
             {
@@ -214,7 +227,7 @@ namespace Kern.AssetPipeline.Loading
                     filename);
             }
 
-            byte[]? bytes = await GetAssetBytesAsync(filename, cancellationToken, timeoutSeconds);
+            byte[]? bytes = await GetAssetBytesAsync(filename, cancellationToken);
             if (bytes == null || bytes.Length == 0 || !_persistentCache.HasAsset(filename))
             {
                 if (AssetBatchDispatcher.IsAudioBank(filename))
@@ -313,15 +326,20 @@ namespace Kern.AssetPipeline.Loading
             _dispatcher.ClearReportedFailures();
         }
 
-        private UniTask<byte[]?> LoadBytesFromServer(string filename, CancellationToken ct, int timeoutSeconds) =>
-            LoadBytesFromServer(filename, ct, timeoutSeconds, expectedETag: null);
+        private UniTask<byte[]?> LoadBytesFromServer(string filename, CancellationToken ct) =>
+            LoadBytesFromServer(filename, ct, expectedETag: null);
 
         private async UniTask<byte[]?> LoadBytesFromServer(
             string filename,
             CancellationToken ct,
-            int timeoutSeconds,
             string? expectedETag)
         {
+            // Ответы ассетов диспетчатся только подписанному загрузчику.
+            // Серверные окна до входа в мир грузят картинки раньше игровой
+            // фазы ассетов, поэтому подписка ставится на каждый запрос сети;
+            // идемпотентно, игровой фазе повтор не мешает.
+            EnsureAssetSubscription();
+
             // 1. Check local RAM/disk cache first when offline
             var connectionService = ConnectionService;
             var isConnected = connectionService.IsConnected;
@@ -362,26 +380,12 @@ namespace Kern.AssetPipeline.Loading
             if (isConnected)
             {
                 string? etag = await _persistentCache.GetETagAsync(filename);
-                using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-                cts.CancelAfter(TimeSpan.FromSeconds(timeoutSeconds));
-                using var progressWatch = CancellationTokenSource.CreateLinkedTokenSource(cts.Token);
-                if (connectionService is IAssetTransferProgress transferProgress)
-                {
-                    CancellationToken watchToken = progressWatch.Token;
-                    _operations.Run("asset_transfer_progress", async supervisorToken =>
-                    {
-                        using var linked = CancellationTokenSource.CreateLinkedTokenSource(watchToken, supervisorToken);
-                        await AssetBatchDispatcher.ExtendTimeoutWhileAssetsArriveAsync(
-                            transferProgress, cts, timeoutSeconds, linked.Token);
-                    });
-                }
-
                 try
                 {
                     var result = await _dispatcher.RequestAssetBytesAsync(
                         filename,
                         etag ?? string.Empty,
-                        cts.Token,
+                        ct,
                         () => ConnectionService,
                         () => TextureStorage);
 
@@ -409,10 +413,6 @@ namespace Kern.AssetPipeline.Loading
                     {
                         Debug.LogWarning($"[ClientAssetLoader] Error fetching asset {filename}: {ex.Message}");
                     }
-                }
-                finally
-                {
-                    progressWatch.Cancel();
                 }
             }
 

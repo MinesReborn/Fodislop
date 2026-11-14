@@ -11,7 +11,7 @@ public static class ClientConfigurationDefaults
     // По умолчанию включена: тестовые сборки (в том числе Android) должны
     // играться без сервера. Реальный транспорт выбирается в окне выбора
     // сервера и сохраняется в конфиге.
-    public const bool DefaultUseDummyConnection = true;
+    public const bool DefaultUseDummyConnection = false;
     public const string DefaultServerHost = "127.0.0.1";
     public const int DefaultServerPort = 8090;
     // HTTP-порт API сервера (эндпоинт /api/status/online для бейджа онлайна

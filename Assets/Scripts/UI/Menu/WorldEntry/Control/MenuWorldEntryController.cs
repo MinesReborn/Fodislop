@@ -16,6 +16,7 @@ using Kern.Networking.Gateways;
 using Kern.Networking.Status;
 using Kern.UI.Localization;
 using Kern.UI.Screens;
+using Kern.UI.ServerWindows;
 
 namespace Kern.UI.Menu;
 
@@ -30,6 +31,8 @@ internal sealed class MenuWorldEntryController
     private readonly WindowCommandStream _windowCommands;
     private readonly MenuLoaderPanel _loaderPanel;
     private readonly MenuModalManager _modalManager;
+    private readonly ILocalPlayerState _localPlayer;
+    private readonly ServerWindowPresenter _presenter;
     private readonly Func<CancellationToken> _destroyToken;
     private VisualElement? _mainMenuContainer;
     private VisualElement? _root;
@@ -41,6 +44,7 @@ internal sealed class MenuWorldEntryController
         IWorldEntryPreparation preparation, IWorldLoadProgress loadProgress,
         IAsyncOperationSupervisor operations, WindowCommandStream windowCommands,
         MenuLoaderPanel loaderPanel, MenuModalManager modalManager,
+        ILocalPlayerState localPlayer, ServerWindowPresenter presenter,
         Func<CancellationToken> destroyToken)
     {
         _loc = localization;
@@ -52,6 +56,8 @@ internal sealed class MenuWorldEntryController
         _windowCommands = windowCommands;
         _loaderPanel = loaderPanel;
         _modalManager = modalManager;
+        _localPlayer = localPlayer;
+        _presenter = presenter;
         _destroyToken = destroyToken;
     }
 
@@ -129,6 +135,14 @@ internal sealed class MenuWorldEntryController
                 return;
             }
 
+            // Окно входа не прячет загрузку: слева остаётся «Отмена» — выход
+            // из ожидания авторизации. Прятать панель нужно окнам мира,
+            // перекрывающим геймплей во время его загрузки.
+            if (visible && !_localPlayer.IsAuthenticated)
+            {
+                return;
+            }
+
             UIState.SetHidden(_tree, visible);
             if (_root != null)
             {
@@ -190,6 +204,18 @@ internal sealed class MenuWorldEntryController
                     $"[MainMenu] World-entry preparation completed in {preparationTimer.Elapsed.TotalSeconds:F2} s; " +
                     "starting MainGame scene transition.");
                 transitionToken.ThrowIfCancellationRequested();
+                // Страховка: сессия обязана быть авторизована ещё в фазе
+                // гейтвея (подключение и окно входа — GatewayWindowProcessor).
+                // Мир, присланный сервером после входа, дожидается игровой
+                // сцены под удержанием.
+                while (!_localPlayer.IsAuthenticated && _connection.IsConnected)
+                {
+                    await UniTask.Yield(PlayerLoopTiming.Update, transitionToken);
+                }
+                if (!_localPlayer.IsAuthenticated)
+                {
+                    throw new ConnectionStartupInterruptedException();
+                }
                 await _sceneNavigator.TransitionAsync(GameSceneName, transitionToken);
             }
             catch (OperationCanceledException) when (transitionToken.IsCancellationRequested)
@@ -253,10 +279,22 @@ internal sealed class MenuWorldEntryController
 
             Debug.Log("[MainMenu] Descent cancelled by user - returning to main menu");
 
-            // Переход сцены отменяется токеном: навигатор сам откатит частично
-            // загруженную сцену и разорвёт соединение. CTS сознательно не
-            // освобождается: операция могла ещё не начать исполняться и
-            // прочитает токен позже; освободит её следующий запуск спуска.
+            // Сессия без авторизации бесполезна: окно входа висело бы над
+            // меню, пока сервер не закрыл его таймаутом. Разрыв гасит окно
+            // (транспорт-событие) и освобождает сессию; следующий «Играть»
+            // начнёт новую. Переход сцены отменяется токеном: навигатор сам
+            // откатит частично загруженную сцену и разорвёт соединение. CTS
+            // сознательно не освобождается: операция могла ещё не начать
+            // исполняться и прочитает токен позже; освободит её следующий
+            // запуск спуска.
+            if (!_localPlayer.IsAuthenticated)
+            {
+                _connection.Disconnect();
+                // Разрыв по инициативе клиента не поднимает событие
+                // транспорта (OnDisconnected выходит по teardown-флагу) —
+                // окно входа гасим явно, иначе оно висит над меню.
+                _presenter.CloseAllWindows();
+            }
             _descentCancellation?.Cancel();
 
             _loadingActive = false;

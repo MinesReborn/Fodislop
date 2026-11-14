@@ -6,11 +6,12 @@ public static class AssetStreamingLimits
 {
     public const int RequestBatchIntervalMilliseconds = 50;
     // Запросы ассетов копятся и уходят одной пачкой раз в RequestBatchIntervalMilliseconds: при четырёх за раз сотни файлов
-    // манифеста шли по кругу «пачка — ответ — пачка». Больше — риск упереться в таймаут запроса на медленной связи
+    // манифеста шли по кругу «пачка — ответ — пачка»
     public const int MaximumConcurrentManifestAssetDownloads = 16;
     public const int MaximumConcurrentCellTextureLoads = 2;
-    public const int AssetRequestTimeoutSeconds = 5;
-    public const int LargeAssetRequestTimeoutSeconds = 10;
+    // Активное соединение таймаутов не имеет: ответ обязан прийти, а его отсутствие детектит разрыв транспорта.
+    // Единственный оставшийся таймаут — HTTP-загрузка из сторонних источников для серверных окон
+    public const int WebRequestTimeoutSeconds = 10;
     public const long AssetCacheCapacityBytes = 256L * 1024 * 1024;
     public const long DecodedAssetCacheCapacityBytes = 256L * 1024 * 1024;
 

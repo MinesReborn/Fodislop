@@ -17,7 +17,7 @@ public sealed class AssetCache
     private readonly ConcurrentQueue<string> _accessOrder = new();
     private readonly ConcurrentDictionary<string, long> _decodedEntrySizes = new(StringComparer.Ordinal);
     private readonly ConcurrentQueue<string> _decodedAccessOrder = new();
-    private readonly Func<string, CancellationToken, int, UniTask<byte[]?>> _bytesLoader;
+    private readonly Func<string, CancellationToken, UniTask<byte[]?>> _bytesLoader;
 
     // Asked for at call time, not stored at construction: the cache is built
     // in the loader's Awake, while the supervisor is injected by Start.
@@ -37,7 +37,7 @@ public sealed class AssetCache
     private double _nextUnusedAssetsCollectionSeconds;
 
     public AssetCache(
-        Func<string, CancellationToken, int, UniTask<byte[]?>> bytesLoader,
+        Func<string, CancellationToken, UniTask<byte[]?>> bytesLoader,
         Func<IAsyncOperationSupervisor?> operations)
     {
         _bytesLoader = bytesLoader ?? throw new ArgumentNullException(nameof(bytesLoader));
@@ -46,47 +46,42 @@ public sealed class AssetCache
 
     public UniTask<byte[]?> GetBytesAsync(
         string filename,
-        CancellationToken ct = default,
-        int timeoutSeconds = AssetStreamingLimits.AssetRequestTimeoutSeconds)
+        CancellationToken ct = default)
     {
         var entry = _entries.GetOrAdd(filename, name => new AssetCacheEntry(name, this));
-        return entry.GetBytesAsync(() => _bytesLoader(filename, ct, timeoutSeconds));
+        return entry.GetBytesAsync(() => _bytesLoader(filename, ct));
     }
 
     public UniTask<Texture2D?> GetTextureAsync(
         string filename,
-        CancellationToken ct = default,
-        int timeoutSeconds = AssetStreamingLimits.AssetRequestTimeoutSeconds)
+        CancellationToken ct = default)
     {
         var entry = _entries.GetOrAdd(filename, name => new AssetCacheEntry(name, this));
-        return entry.GetTextureAsync(() => _bytesLoader(filename, ct, timeoutSeconds));
+        return entry.GetTextureAsync(() => _bytesLoader(filename, ct));
     }
 
     public UniTask<AudioClip?> GetAudioAsync(
         string filename,
-        CancellationToken ct = default,
-        int timeoutSeconds = AssetStreamingLimits.LargeAssetRequestTimeoutSeconds)
+        CancellationToken ct = default)
     {
         var entry = _entries.GetOrAdd(filename, name => new AssetCacheEntry(name, this));
-        return entry.GetAudioAsync(() => _bytesLoader(filename, ct, timeoutSeconds));
+        return entry.GetAudioAsync(() => _bytesLoader(filename, ct));
     }
 
     public UniTask<Sprite[]?> GetSpritesAsync(
         string filename,
-        CancellationToken ct = default,
-        int timeoutSeconds = AssetStreamingLimits.LargeAssetRequestTimeoutSeconds)
+        CancellationToken ct = default)
     {
         var entry = _entries.GetOrAdd(filename, name => new AssetCacheEntry(name, this));
-        return entry.GetSpritesAsync(() => _bytesLoader(filename, ct, timeoutSeconds));
+        return entry.GetSpritesAsync(() => _bytesLoader(filename, ct));
     }
 
     public UniTask<AnimatedSpriteData> GetAnimatedSpritesAsync(
         string filename,
-        CancellationToken ct = default,
-        int timeoutSeconds = AssetStreamingLimits.LargeAssetRequestTimeoutSeconds)
+        CancellationToken ct = default)
     {
         var entry = _entries.GetOrAdd(filename, name => new AssetCacheEntry(name, this));
-        return entry.GetAnimatedSpritesAsync(() => _bytesLoader(filename, ct, timeoutSeconds));
+        return entry.GetAnimatedSpritesAsync(() => _bytesLoader(filename, ct));
     }
     /// <param name="collectUnusedAssets">
     /// Whether to schedule Unity's unused-assets collection after releasing

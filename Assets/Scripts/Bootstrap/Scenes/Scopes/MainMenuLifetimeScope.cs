@@ -60,10 +60,40 @@ namespace Kern.Bootstrap.Scenes
             // зарегистрированы на постоянном Bootstrap-scope: пакеты приходят
             // в фазе гейтвея, до существования этой области. MainMenu наследует
             // IPlayerStats от родителя.
-            // Вход и онбординг — слой поверх меню (MenuGate), отдельной сцены ворот нет.
-            builder.Register<MenuGate>(Lifetime.Singleton);
             // Окно настроек меню меняет разрешение, синхронизацию и HDR; применение настроек дисплея при старте — за игрой и Bootstrap
             builder.Register<Kern.Rendering.Display.DisplayManager>(Lifetime.Singleton);
+            // Серверные окна до входа в мир: подключение живёт в Bootstrap, а
+            // игровой PacketHandler появляется только в MainGame — окно
+            // авторизации сервер присылает раньше. Диспетчер и презентер
+            // умирают вместе со сценой меню, и в игре окна разбирает игровой
+            // PacketHandler без двойной обработки.
+            builder.Register<Kern.UI.Input.UIInputManager>(Lifetime.Singleton);
+            builder.Register<Kern.Networking.Processing.WindowPacketProcessor>(Lifetime.Singleton);
+            // Токен успешного входа приезжает в фазе гейтвея: игровой
+            // AuthTokenProcessor появляется вместе с PacketHandler позже.
+            builder.Register<Kern.Networking.Processing.AuthTokenProcessor>(Lifetime.Singleton);
+            // Статусная процессорка фазы гейтвея: Pong (ответ на пинг сессии),
+            // диалог устаревшего клиента — сервер отвечает ими до входа в мир.
+            builder.Register<Kern.Networking.Status.NetworkStatusModel>(Lifetime.Singleton);
+            builder.Register<Kern.Networking.Processing.StatusProcessor>(Lifetime.Singleton);
+            // Онбординг — слой поверх меню; авторизация теперь серверное окно
+            // (GatewayWindowProcessor), но ворота блокируют меню до её подтверждения.
+            builder.Register<Kern.UI.Gateway.MenuGate>(Lifetime.Singleton);
+            // Презентер меню — без состояния мира: его нет в этой сцене, и
+            // держать окна до стабилизации мира нечему (VContainer default-
+            // значения параметров конструктора не считает необязательными).
+            builder.Register<Kern.UI.ServerWindows.ServerWindowPresenter>(
+                resolver => new Kern.UI.ServerWindows.ServerWindowPresenter(
+                    resolver.Resolve<Kern.Core.Localization.ILocalizationService>(),
+                    resolver.Resolve<Kern.Core.Interfaces.IAssetLoader>(),
+                    resolver.Resolve<Kern.UI.Input.UIInputManager>(),
+                    resolver.Resolve<Kern.Core.Interfaces.INetworkService>(),
+                    resolver.Resolve<UIDocument>(),
+                    resolver.Resolve<Kern.Networking.Gateways.WindowCommandStream>(),
+                    resolver.Resolve<Kern.IAsyncOperationSupervisor>(),
+                    resolver.Resolve<Kern.AssetPipeline.Loading.IWebAssetLoader>()),
+                Lifetime.Singleton);
+            builder.RegisterEntryPoint<Kern.UI.ServerWindows.GatewayWindowProcessor>();
             builder.RegisterEntryPoint<MainMenuBootstrap>();
         }
 

@@ -29,19 +29,16 @@ public interface IAssetLoader
 
     UniTask<byte[]?> GetAssetBytesAsync(
         string filename,
-        CancellationToken cancellationToken = default,
-        int timeoutSeconds = AssetStreamingLimits.AssetRequestTimeoutSeconds);
+        CancellationToken cancellationToken = default);
 
     UniTask<byte[]?> GetAssetBytesAsync(
         string filename,
         string expectedETag,
-        CancellationToken cancellationToken = default,
-        int timeoutSeconds = AssetStreamingLimits.AssetRequestTimeoutSeconds);
+        CancellationToken cancellationToken = default);
 
     UniTask<string> GetAssetPathAsync(
         string filename,
-        CancellationToken cancellationToken = default,
-        int timeoutSeconds = AssetStreamingLimits.AssetRequestTimeoutSeconds);
+        CancellationToken cancellationToken = default);
 
     UniTask<Texture2D?> GetTextureAsync(string filename, CancellationToken cancellationToken = default);
 

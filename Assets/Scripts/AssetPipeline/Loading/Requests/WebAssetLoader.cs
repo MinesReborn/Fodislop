@@ -33,7 +33,7 @@ public sealed class WebAssetLoader : IWebAssetLoader
     }
 
     internal WebAssetLoader(
-        Func<string, CancellationToken, int, UniTask<byte[]?>> bytesLoader,
+        Func<string, CancellationToken, UniTask<byte[]?>> bytesLoader,
         Func<IAsyncOperationSupervisor?> operations)
     {
         _cache = new AssetCache(bytesLoader, operations);
@@ -42,19 +42,16 @@ public sealed class WebAssetLoader : IWebAssetLoader
     public UniTask<Texture2D?> GetTextureAsync(
         string url,
         CancellationToken cancellationToken = default) =>
-        _cache.GetTextureAsync(
-            url,
-            cancellationToken,
-            AssetStreamingLimits.LargeAssetRequestTimeoutSeconds);
+        _cache.GetTextureAsync(url, cancellationToken);
 
     private static async UniTask<byte[]?> LoadBytesFromWeb(
         string url,
-        CancellationToken cancellationToken,
-        int timeoutSeconds)
+        CancellationToken cancellationToken)
     {
         using var timeoutCancellation =
             CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        timeoutCancellation.CancelAfter(TimeSpan.FromSeconds(timeoutSeconds));
+        timeoutCancellation.CancelAfter(
+            TimeSpan.FromSeconds(AssetStreamingLimits.WebRequestTimeoutSeconds));
 
         var download = new BoundedDownloadHandler(
             AssetStreamingLimits.MaximumWebAssetBytes);

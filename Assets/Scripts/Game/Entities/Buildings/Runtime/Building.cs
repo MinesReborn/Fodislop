@@ -205,6 +205,9 @@ namespace Kern.Game.Entities.Buildings
             UpdateClanPosition();
         }
 
+        // Таймаута у активного соединения нет: ответ обязан прийти, а его
+        // отсутствие фейлит запрос разрывом транспорта. Здесь остаётся
+        // только мягкая трактовка провала опциональной текстуры.
         private static async UniTask<Texture2D?> TryLoadOptionalTextureAsync(
             IAssetLoader loader,
             string filename,

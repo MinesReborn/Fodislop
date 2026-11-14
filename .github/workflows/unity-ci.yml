@@ -9,6 +9,9 @@ on:
 permissions:
   contents: read
   checks: write
+  # Кастомный редактор (UNITY_CI_IMAGE) лежит в приватном пакете GHCR этого
+  # репозитория: без packages: read пулл образа джобой отклоняется.
+  packages: read
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}

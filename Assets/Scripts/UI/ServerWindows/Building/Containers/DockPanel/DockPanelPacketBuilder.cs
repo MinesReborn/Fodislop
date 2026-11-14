@@ -34,11 +34,15 @@ public class DockPanelPacketBuilder : PacketUIBuilderBase<DockPanelPacket>
         PacketUIBuilder builder)
     {
         // Одинаковая стыковка сохраняет порядок детей без дополнительных обёрток.
+        // ai-center — вертикальное центрирование ленты, как align-items:center
+        // у флекс-строк макета: иконка и подпись составной кнопки, чекбокс и
+        // его подпись сидят по центру строки, а не у верхней грани.
         if (AllDockedLeft(children))
         {
             var strip = new VisualElement();
             strip.AddToClassList("row");
             strip.AddToClassList("jc-center");
+            strip.AddToClassList("ai-center");
             foreach (IGUIComponentPacket child in children)
             {
                 VisualElement built = builder.Build(child);

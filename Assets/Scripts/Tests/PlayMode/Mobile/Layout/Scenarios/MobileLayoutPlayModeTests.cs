@@ -13,7 +13,6 @@ using UnityEngine.TestTools;
 using UnityEngine.UIElements;
 
 using Kern.Bootstrap.Scenes;
-using Kern.UI.Gateway;
 using Kern.UI.Menu;
 using VContainer;
 using Kern.UI.Screens;
@@ -82,31 +81,6 @@ public sealed class MobileLayoutPlayModeTests
 
         yield return PlayModeHarness.StartAtMainMenu();
         BootstrapLifetimeScope bootstrap = PlayModeHarness.FindBootstrap()!;
-
-        // Вход и онбординг — слой главного меню (MenuGate): открываем его формой,
-        // как кнопка «Сменить аккаунт», и снимаем каждое состояние.
-        UIDocument menu = PlayModeHarness.FindComponentInScene<UIDocument>(
-            PlayModeHarness.Scene(SceneNames.MainMenu))!;
-        MenuGate gate = PlayModeHarness.FindComponentInScene<MainMenuLifetimeScope>(
-            PlayModeHarness.Scene(SceneNames.MainMenu))!.Container.Resolve<MenuGate>();
-        gate.Open(menu, menu.rootVisualElement, forceForm: true);
-        yield return null;
-        yield return CaptureAll("Gateway", SceneNames.MainMenu);
-        yield return CaptureAll(
-            "GatewayRegister",
-            SceneNames.MainMenu,
-            () => TapAndExpect(menu, "AuthTabRegister", "AuthRegisterForm"),
-            () => TapOnly(menu, "AuthTabLogin"));
-
-        // Онбординг показывается один раз после первого входа; его состояние —
-        // класс на GatewayRoot, тот же, что ставит MenuGate.
-        yield return CaptureAll(
-            "Onboarding",
-            SceneNames.MainMenu,
-            () => SetGatewayState(menu, onboarding: true),
-            () => SetGatewayState(menu, onboarding: false));
-        gate.Dispose();
-        yield return null;
 
         yield return CaptureAll("MainMenu", SceneNames.MainMenu);
 
@@ -177,20 +151,6 @@ public sealed class MobileLayoutPlayModeTests
         yield return null;
         button.clicked -= Count;
         AssertShown(document, shown, $"tapped {open} ({clicks} clicks), picked at its centre: {picked}");
-    }
-
-    private static IEnumerator SetGatewayState(UIDocument document, bool onboarding)
-    {
-        VisualElement root = document.rootVisualElement.Q("GatewayRoot") ??
-            throw new AssertionException("GatewayRoot is missing.");
-        root.EnableInClassList("gateway--auth", !onboarding);
-        root.EnableInClassList("gateway--onboarding", onboarding);
-        yield return null;
-        yield return null;
-        if (onboarding)
-        {
-            AssertShown(document, "OnboardingOverlay");
-        }
     }
 
     // Новая программа открывает редактор сетки — так же, как палец: имя в

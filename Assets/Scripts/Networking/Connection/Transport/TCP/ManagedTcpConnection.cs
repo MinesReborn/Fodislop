@@ -24,7 +24,7 @@ namespace Kern.Networking.Connection
     /// События приходят с фонового потока — потребитель обязан маршалить сам
     /// (ConnectionManager уже ставит пакеты в ConcurrentQueue).
     /// </summary>
-    public sealed class ManagedTcpConnection : IServerConnection, Kern.Core.Interfaces.ITransportTraffic, Kern.Core.Interfaces.IAssetTransferProgress
+    public sealed class ManagedTcpConnection : IServerConnection, Kern.Core.Interfaces.ITransportTraffic
     {
         private const int ConnectTimeoutMs = 5000;
         private const int ReadBufferSize = 65536;
@@ -57,12 +57,8 @@ namespace Kern.Networking.Connection
         public int DecodeErrorCount => Volatile.Read(ref _decodeErrorCount);
 
         private long _receivedBytes;
-        private long _receivedAssetBytes;
-        private int _trackedAssetFrameBytes;
 
         public long ReceivedBytes => Interlocked.Read(ref _receivedBytes);
-
-        public long ReceivedAssetBytes => Interlocked.Read(ref _receivedAssetBytes);
 
         public ManagedTcpConnection(IPAddress address, int port)
         {
@@ -213,33 +209,6 @@ namespace Kern.Networking.Connection
 
                     OnReceived?.Invoke(packet);
                 }
-
-                TrackAssetFrame(_buffer.BufferedData);
-            }
-        }
-
-        private void TrackAssetFrame(ReadOnlySpan<byte> frame)
-        {
-            if (frame.Length < sizeof(int) + sizeof(ushort))
-            {
-                return;
-            }
-
-            ushort code = (ushort)(frame[4] | (frame[5] << 8));
-            if (code == RootServerPacketCodeProvider.GetPacketCode<RuntimeAssetPacket>())
-            {
-                int additionalBytes = frame.Length - _trackedAssetFrameBytes;
-                if (additionalBytes > 0)
-                {
-                    Interlocked.Add(ref _receivedAssetBytes, additionalBytes);
-                    _trackedAssetFrameBytes = frame.Length;
-                }
-            }
-
-            int frameLength = System.Buffers.Binary.BinaryPrimitives.ReadInt32LittleEndian(frame);
-            if (frame.Length >= frameLength)
-            {
-                _trackedAssetFrameBytes = 0;
             }
         }
 

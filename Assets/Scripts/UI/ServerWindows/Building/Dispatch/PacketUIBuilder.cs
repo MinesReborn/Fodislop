@@ -2,6 +2,7 @@
 
 using System;
 using Kern.Core.Interfaces;
+using MinesServer.Networking.Server.Packets.GUI;
 using MinesServer.Networking.Server.Packets.GUI.Components;
 using UnityEngine;
 using UnityEngine.UIElements;
@@ -46,6 +47,18 @@ public class PacketUIBuilder
         ApplyCanvasGeometry(element, packet);
         element.userData = packet;
 
+        // Вариант кнопки (AttachedPropertyKeys.ButtonVariant = "primary"):
+        // скин назначает элементу вид главного действия — заливку со срезом
+        // угла и состояния наведения. Класс нейтрален к теме: без правила в
+        // скине он ничего не меняет.
+        if (string.Equals(
+                AttachedProperties.Find(packet, AttachedPropertyKeys.ButtonVariant),
+                "primary",
+                StringComparison.Ordinal))
+        {
+            element.AddToClassList("packet-window-action--primary");
+        }
+
         return element;
     }
 
@@ -67,38 +80,61 @@ public class PacketUIBuilder
         IStyle style = element.style;
         bool absolute = false;
 
-        if (TryCanvasValue(packet, "Canvas.X", out float left))
+        if (TryGeometryValue(packet, AttachedPropertyKeys.CanvasX, out float left))
         {
             style.left = left;
             absolute = true;
         }
 
-        if (TryCanvasValue(packet, "Canvas.Y", out float top))
+        if (TryGeometryValue(packet, AttachedPropertyKeys.CanvasY, out float top))
         {
             style.top = top;
             absolute = true;
         }
 
-        if (TryCanvasValue(packet, "Canvas.Width", out float width))
+        if (TryGeometryValue(packet, AttachedPropertyKeys.CanvasWidth, out float width))
         {
             if (width <= 0f)
             {
-                throw new InvalidOperationException("Canvas.Width must be positive.");
+                throw new InvalidOperationException($"{AttachedPropertyKeys.CanvasWidth} must be positive.");
             }
 
             style.width = width;
             absolute = true;
         }
 
-        if (TryCanvasValue(packet, "Canvas.Height", out float height))
+        if (TryGeometryValue(packet, AttachedPropertyKeys.CanvasHeight, out float height))
         {
             if (height <= 0f)
             {
-                throw new InvalidOperationException("Canvas.Height must be positive.");
+                throw new InvalidOperationException($"{AttachedPropertyKeys.CanvasHeight} must be positive.");
             }
 
             style.height = height;
             absolute = true;
+        }
+
+        // Размер без позиции: работает в любом контейнере, абсолютным элемент
+        // не делает — в отличие от Canvas.*, у которого ширина/высота неотделимы
+        // от позиционирования.
+        if (TryGeometryValue(packet, AttachedPropertyKeys.ElementWidth, out float elementWidth))
+        {
+            if (elementWidth <= 0f)
+            {
+                throw new InvalidOperationException($"{AttachedPropertyKeys.ElementWidth} must be positive.");
+            }
+
+            style.width = elementWidth;
+        }
+
+        if (TryGeometryValue(packet, AttachedPropertyKeys.ElementHeight, out float elementHeight))
+        {
+            if (elementHeight <= 0f)
+            {
+                throw new InvalidOperationException($"{AttachedPropertyKeys.ElementHeight} must be positive.");
+            }
+
+            style.height = elementHeight;
         }
 
         if (absolute)
@@ -107,7 +143,7 @@ public class PacketUIBuilder
         }
     }
 
-    private static bool TryCanvasValue(IGUIComponentPacket packet, string key, out float value)
+    private static bool TryGeometryValue(IGUIComponentPacket packet, string key, out float value)
     {
         if (!AttachedProperties.Has(packet, key))
         {

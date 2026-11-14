@@ -179,6 +179,9 @@ public sealed class RobotAssetLoader
         string filename,
         CancellationToken cancellationToken)
     {
+        // Таймаута у активного соединения нет: ответ обязан прийти, а его
+        // отсутствие фейлит запрос разрывом транспорта. Здесь остаётся
+        // только мягкая трактовка провала опциональной текстуры.
         try
         {
             return await loader.GetTextureAsync(filename, cancellationToken);

@@ -1,11 +1,11 @@
 #nullable enable
 
 using System;
+using System.Linq;
 using Kern.Core;
 using Kern.Core.Interfaces;
 using Kern.Core.Localization;
 using Kern.Core.UserInterface;
-using Kern.Networking.Authentication;
 using Kern.UI.Localization;
 using Kern.UI.Screens;
 using UnityEngine;
@@ -14,34 +14,37 @@ using UnityEngine.UIElements;
 namespace Kern.UI.Gateway
 {
     // Ворота входа и онбординг — слой поверх главного меню, а не отдельная сцена.
-    // Сцен три: Bootstrap → MainMenu → MainGame; вход, онбординг и меню — экраны
-    // одного документа, как в макете (visual/kern-ui: boot | auth · onboarding · menu | game).
-    // Меню строится под слоем; пока ворота открыты, слой перехватывает ввод целиком.
+    // Авторизация — серверное окно поверх этого слоя (Theme=Kern, присылается
+    // после подключения, GatewayWindowProcessor): слой блокирует ввод меню,
+    // пока сессия не подтверждена. После подтверждения — онбординг (первый
+    // запуск), затем слой закрывается и меню становится интерактивным.
     public sealed class MenuGate : ILocalizableUI, IDisposable
     {
-        // Состояние ворот. Ровно один класс на корне за раз: иначе ничто не мешало
-        // бы показать вход и онбординг одновременно.
+        // Состояние ворот. Ровно один класс на корне за раз: онбординг скрыт,
+        // пока идёт авторизация; локальная форма входа удалена — вход теперь
+        // серверное окно.
         private const string StateAuthClass = "gateway--auth";
         private const string StateOnboardingClass = "gateway--onboarding";
         private const string LayerClass = "menu-gate";
+        private const long AuthPollMs = 200;
+
 
         private readonly IClientConfigManager _clientConfig;
         private readonly ILocalizationService _loc;
-        private readonly IGameTokenStore _tokens;
+        private readonly ILocalPlayerState _localPlayer;
         private readonly Kern.Rendering.Display.DisplayManager _display;
         private readonly IPlayerStats _stats;
 
         private UIDocument? _document;
         private VisualElement? _layer;
         private VisualElement? _gatewayRoot;
-        private AuthGate? _authGate;
         private GatewayOnboarding? _onboarding;
         private bool _registered;
 
         public MenuGate(
             IClientConfigManager clientConfig,
             ILocalizationService loc,
-            IGameTokenStore tokens,
+            ILocalPlayerState localPlayer,
             Kern.Rendering.Display.DisplayManager display,
             IPlayerStats stats)
         {
@@ -49,7 +52,7 @@ namespace Kern.UI.Gateway
             _stats = stats;
             _clientConfig = clientConfig;
             _loc = loc;
-            _tokens = tokens;
+            _localPlayer = localPlayer;
         }
 
         // Ворота пройдены в этой сцене: перестройка меню не открывает их снова.
@@ -57,12 +60,20 @@ namespace Kern.UI.Gateway
 
         public bool IsOpen => _layer?.parent != null;
 
-        // forceForm — смена аккаунта: форма входа показывается даже с сохранённым токеном.
-        public void Open(UIDocument document, VisualElement host, bool forceForm)
+        public void Open(UIDocument document, VisualElement host, bool forceOnboarding = false)
         {
             Close();
             Passed = false;
             _document = document;
+
+            bool alreadyDone = !GatewayDevFlags.ForceGates && _clientConfig.Config.Interface.OnboardingDone;
+            if (alreadyDone && !forceOnboarding)
+            {
+                // Онбординг пройден: ворота не строятся. Авторизация — серверное
+                // окно, к воротам она больше не относится.
+                Passed = true;
+                return;
+            }
 
             var asset = Resources.Load<VisualTreeAsset>(ResourcePaths.GatewayUxml)
                 ?? throw new InvalidOperationException($"Required UI asset '{ResourcePaths.GatewayUxml}' was not found.");
@@ -74,6 +85,18 @@ namespace Kern.UI.Gateway
             host.Add(layer);
             _layer = layer;
 
+            if (layer.Q<VisualElement>("OnboardingOverlay") == null)
+            {
+                // Диагностика импорта: в дереве клона нет онбординга — печатаем,
+                // что реально приехало из ассета, чтобы отличить stale-импорт
+                // и битый UXML от ошибки в запросе.
+                var dumped = string.Join(" | ", layer.Query<VisualElement>().Build()
+                    .Take(10).Select(e => string.IsNullOrEmpty(e.name) ? $"«{e.GetType().Name}»" : e.name));
+                throw new InvalidOperationException(
+                    $"[MenuGate] Gateway.uxml не содержит OnboardingOverlay (children: {layer.childCount}: {dumped}). " +
+                    "Проверьте ошибки импорта UXML в Console.");
+            }
+
             // Векторная микрографика слоя — сразу, а не на следующем пересмотре дерева
             KernVector.Attach(layer);
 
@@ -81,10 +104,8 @@ namespace Kern.UI.Gateway
             UILocalizer.Apply(layer, _loc);
             _gatewayRoot = layer.Q<VisualElement>("GatewayRoot") ?? layer;
 
-            _authGate = AuthGate.TryCreate(layer, _clientConfig, _tokens, _loc)
-                ?? throw new InvalidOperationException("[MenuGate] Разметка ворот входа неполна: Gateway.uxml не содержит формы входа.");
-            _authGate.Passed += OnAuthPassed;
-            _onboarding = GatewayOnboarding.TryCreate(layer, _clientConfig, _loc, OnOnboardingFinished, ApplyUIScale, document, _display, _stats);
+            _onboarding = GatewayOnboarding.TryCreate(layer, _clientConfig, _loc, OnOnboardingFinished, ApplyUIScale, document, _display, _stats)
+                ?? throw new InvalidOperationException("[MenuGate] Разметка онбординга неполна: Gateway.uxml не содержит шагов онбординга.");
 
             if (!_registered)
             {
@@ -93,8 +114,39 @@ namespace Kern.UI.Gateway
                 _registered = true;
             }
 
+            // Онбординг — после авторизации: пока сессия не подтверждена,
+            // слой в состоянии входа (онбординг скрыт), а форму входа рисует
+            // сервер поверх ворот. Как только токен подтверждён — онбординг.
             SetState(StateAuthClass);
-            _authGate.Show(forceForm);
+
+            if (GatewayDevFlags.ForceGates || _localPlayer.IsAuthenticated)
+            {
+                ShowOnboarding();
+                return;
+            }
+
+            _layer.schedule.Execute(WaitForAuthentication).Every(AuthPollMs);
+        }
+
+        private void WaitForAuthentication()
+        {
+            if (_layer == null || _onboarding == null || Passed)
+            {
+                return;
+            }
+
+            if (!_localPlayer.IsAuthenticated)
+            {
+                return;
+            }
+
+            ShowOnboarding();
+        }
+
+        private void ShowOnboarding()
+        {
+            SetState(StateOnboardingClass);
+            _onboarding?.Show();
         }
 
         public void ApplyLocalizedText()
@@ -120,19 +172,6 @@ namespace Kern.UI.Gateway
             }
         }
 
-        private void OnAuthPassed()
-        {
-            bool alreadyDone = !GatewayDevFlags.ForceGates && _clientConfig.Config.Interface.OnboardingDone;
-            if (alreadyDone || _onboarding == null)
-            {
-                Finish();
-                return;
-            }
-
-            SetState(StateOnboardingClass);
-            _onboarding.Show();
-        }
-
         private void OnOnboardingFinished()
         {
             _clientConfig.UpdateSection(config => config.Interface, settings => settings.OnboardingDone = true);
@@ -147,12 +186,6 @@ namespace Kern.UI.Gateway
 
         private void Close()
         {
-            if (_authGate != null)
-            {
-                _authGate.Passed -= OnAuthPassed;
-                _authGate = null;
-            }
-
             _onboarding = null;
             _gatewayRoot = null;
             _layer?.RemoveFromHierarchy();
