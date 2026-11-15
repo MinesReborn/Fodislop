@@ -132,3 +132,20 @@ jobs:
           name: build-StandaloneWindows64
           path: Build/Windows
           if-no-files-found: ignore
+
+  # Единственная обязательная проверка ветки. GitHub считает пропущенный job
+  # успешным, поэтому гейт запускается всегда и падает, если test или build
+  # пропущены либо завершились неуспешно.
+  required:
+    name: CI required
+    if: always()
+    needs: [test, build]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Verify test and build succeeded
+        env:
+          NEEDS: ${{ toJSON(needs) }}
+        run: |
+          echo "$NEEDS"
+          echo "$NEEDS" | jq -e 'to_entries | all(.value.result == "success")'
