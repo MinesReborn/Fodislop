@@ -181,7 +181,6 @@ namespace Kern.Networking.Connection
                 _buffer.Put(chunk, read);
                 while (_buffer.TryTake(out var frame))
                 {
-                    TrackAssetFrame(frame);
                     ServerPacket packet;
                     try
                     {
