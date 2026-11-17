@@ -276,10 +276,17 @@ internal static class TerrainQuadBuilder
             Math.Min(cornerCount, 2);
         byte transforms = (byte)(descriptor & 0xE0);
 
-        if ((cornerCount == 1 && hasRight) ||
-            (cornerCount == 1 && hasBottom))
+        if (cornerCount == 1)
         {
-            transforms ^= 0x40;
+            // Ориентация панели — по стороне примыкающего угла, флип задаётся явно.
+            // LUT для зеркальных клеток (стены по бокам дороги пака) уже даёт
+            // противоположные флипы (0x24/0x64), и XOR-переключение снимало флип
+            // правой/нижней стены — пара рендерилась одинаково вместо зеркальной.
+            transforms &= 0xBF;
+            if (hasRight || hasBottom)
+            {
+                transforms |= 0x40;
+            }
         }
 
         if (cornerCount >= 2 && !hasLeft && !hasRight)
