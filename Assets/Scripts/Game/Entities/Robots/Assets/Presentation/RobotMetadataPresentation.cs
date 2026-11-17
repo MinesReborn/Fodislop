@@ -40,11 +40,15 @@ internal static class RobotMetadataPresentation
         RobotNameplate nameplate,
         Transform transform,
         Action<Texture2D?> applyTailTexture,
-        Action skinCompleted)
+        Action skinCompleted,
+        Action<bool>? skinResult = null)
     {
         loader.LoadMetadataAssets(skinPath, tailPath, clanId, isLocalPlayer,
             onSkinLoaded: skinSprite =>
             {
+                // Результат нужен до skinCompleted: владелец по нему решает,
+                // перезапускать ли загрузку при повторном RobotInfoPacket.
+                skinResult?.Invoke(skinSprite != null);
                 if (skinSprite != null)
                 {
                     visuals.SetSkinSprite(skinSprite);

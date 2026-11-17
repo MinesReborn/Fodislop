@@ -9,6 +9,11 @@ public static class AssetStreamingLimits
     // манифеста шли по кругу «пачка — ответ — пачка»
     public const int MaximumConcurrentManifestAssetDownloads = 16;
     public const int MaximumConcurrentCellTextureLoads = 2;
+    // Сервер обслуживает только первые 32 записи RuntimeAssetRequestPacket
+    // (RuntimeAssetSender.MaxAssetsPerRequest), хвост отбрасывает молча, а у
+    // запросов таймаута нет: пачка ограничивается на клиенте, иначе зависшие
+    // запросы из хвоста не получают ответа никогда.
+    public const int MaxEntriesPerAssetRequestPacket = 32;
     // Активное соединение таймаутов не имеет: ответ обязан прийти, а его отсутствие детектит разрыв транспорта.
     // Единственный оставшийся таймаут — HTTP-загрузка из сторонних источников для серверных окон
     public const int WebRequestTimeoutSeconds = 10;
