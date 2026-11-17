@@ -53,6 +53,15 @@ namespace Kern.Game.Entities.Robots
 
         private bool _isMetadataLoaded;
         private bool _visualsLoadCompleted;
+        // Догрузились ли скин/хвост последней попытки. Провал не делает ранний
+        // выход в SetMetadata финальным: сервер повторяет RobotInfoPacket, и
+        // каждый повтор обязан перезапускать загрузку, пока облик не получен.
+        private bool _metadataAssetsLoaded;
+        // Загрузка облика сейчас летит. Повторный RobotInfoPacket при летящем
+        // запросе не перезапускает его: новая попытка отменяет предыдущую
+        // (Cancel() в LoadMetadataAssets), и при частых повторах попытки убивают
+        // друг друга — облик не доезжает на глазах случайным образом.
+        private bool _metadataLoadInFlight;
         private RobotAssetLoader? _assetLoaderHelper;
         private bool _watchingAssets;
         private RobotAssetLoader AssetLoader => _assetLoaderHelper ??= new RobotAssetLoader(_assetLoader, _operations, this.GetCancellationTokenOnDestroy());
@@ -310,6 +319,8 @@ namespace Kern.Game.Entities.Robots
 
             _isMetadataLoaded = false;
             _visualsLoadCompleted = false;
+            _metadataAssetsLoaded = false;
+            _metadataLoadInFlight = false;
             RobotMetadataPresentation.ResetColor(_spriteRenderer, _visuals);
             _nameplate.SetText(string.Empty, IsLocalPlayer);
             _visuals.SetClanSprite(null);
@@ -318,6 +329,7 @@ namespace Kern.Game.Entities.Robots
         public void SetMetadata(int playerId, byte clanId, string nickname, string skinPath, string tailPath)
         {
             if (_isMetadataLoaded &&
+                (_metadataAssetsLoaded || _metadataLoadInFlight) &&
                 _playerId == playerId &&
                 _clanId == clanId &&
                 string.Equals(_nickname, nickname, global::System.StringComparison.Ordinal) &&
@@ -333,6 +345,7 @@ namespace Kern.Game.Entities.Robots
             _skinPath = skinPath;
             _tailPath = tailPath;
             _isMetadataLoaded = true;
+            _metadataAssetsLoaded = false;
             _visualsLoadCompleted = string.IsNullOrEmpty(_skinPath);
 
             RobotMetadataPresentation.ResetColor(_spriteRenderer, _visuals);
@@ -385,6 +398,9 @@ namespace Kern.Game.Entities.Robots
                     _watchingAssets = true;
                 }
 
+                // Флаг сбрасывается фактическим завершением загрузки, а не
+                // повтором пакета: повтор при летящем запросе — пустой.
+                _metadataLoadInFlight = true;
                 RobotMetadataPresentation.Load(AssetLoader, _skinPath, _tailPath, _clanId,
                     IsLocalPlayer,
                     _visuals,
@@ -396,7 +412,12 @@ namespace Kern.Game.Entities.Robots
                         _robotManager,
                         _botId,
                         IsLocalPlayer),
-                    () => _visualsLoadCompleted = true);
+                    () =>
+                    {
+                        _visualsLoadCompleted = true;
+                        _metadataLoadInFlight = false;
+                    },
+                    loaded => _metadataAssetsLoaded = loaded);
             }
         }
 
@@ -420,7 +441,9 @@ namespace Kern.Game.Entities.Robots
         }
 #endif
 
-        // Сервер заменил файлы посреди игры: перезагружаем облик, только если среди них скин, хвост или значок клана
+        // Сервер заменил файлы посреди игры: перезагружаем облик, только если среди них скин, хвост или значок клана.
+        // Пути облика приходят без префикса ("Skin/bee.png"), а манифест мировых ассетов кладёт те же файлы под
+        // "Visual/Skin/...": сравниваем без префикса, иначе замена файла из манифеста не перезапускала бы загрузку.
         private void OnAssetsChanged(IReadOnlyCollection<string> changed)
         {
             if (!_isMetadataLoaded)
@@ -431,15 +454,23 @@ namespace Kern.Game.Entities.Robots
             string? clanPath = _clanId != 0 && !IsLocalPlayer ? RobotAssetLoader.ClanPath(_clanId) : null;
             foreach (string filename in changed)
             {
-                if (string.Equals(filename, _skinPath, StringComparison.Ordinal) ||
-                    string.Equals(filename, _tailPath, StringComparison.Ordinal) ||
-                    string.Equals(filename, clanPath, StringComparison.Ordinal))
+                if (IsSameAssetPath(filename, _skinPath) ||
+                    IsSameAssetPath(filename, _tailPath) ||
+                    (clanPath != null && IsSameAssetPath(filename, clanPath)))
                 {
                     LoadMetadataAssets();
                     return;
                 }
             }
         }
+
+        private static bool IsSameAssetPath(string first, string second) =>
+            string.Equals(NormalizeVisualPath(first), NormalizeVisualPath(second), StringComparison.Ordinal);
+
+        private static string NormalizeVisualPath(string path) =>
+            path.StartsWith("Visual/", StringComparison.OrdinalIgnoreCase)
+                ? path["Visual/".Length..]
+                : path;
 
         protected void OnDestroy()
         {

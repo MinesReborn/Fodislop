@@ -163,6 +163,7 @@ namespace Kern.Game.Entities.Buildings
                 new Rect(0, 0, buildingTexture.width, buildingTexture.height),
                 new Vector2(0.5f, 0.5f),
                 RenderingConstants.CELL_SIZE);
+            UpdateVisualPosition();
             EnsureBatchHandles();
             _entityBatchRenderer.SetSprite(_buildingBatchHandle!, _buildingSprite);
             _buildingBatchHandle!.SetEnabled(true);
@@ -255,6 +256,32 @@ namespace Kern.Game.Entities.Buildings
             _clanTransform.localPosition = new Vector3(xOffset, -0.5f, 0);
             _clanBatchHandle?.MarkTransformDirty();
         }
+
+        private void UpdateVisualPosition()
+        {
+            if (_visualTransform == null)
+            {
+                return;
+            }
+
+            _visualTransform.localPosition = new Vector3(
+                0f,
+                _buildingType is BuildingType buildingType ? VisualAnchorCellOffset(buildingType) : 0f,
+                0f);
+            _buildingBatchHandle?.MarkTransformDirty();
+        }
+
+        // Спрайт центрируется на ячейке-якорь из пакета, но арт пака выровнен по центру
+        // «лица» здания (Placement в items.json сервера). У зданий с чётной высотой лица
+        // центр лица попадает на границу клеток, и без компенсации картинка уезжает на
+        // полклетки. Смещение в клетках по Unity-Y: Resp и Clans (лицо dy −1..+2) — вниз,
+        // Up (dy −2..+1) и Storage (dy −1..0) — вверх; у остальных лицо нечётное.
+        private static float VisualAnchorCellOffset(BuildingType type) => type switch
+        {
+            BuildingType.Resp or BuildingType.Clans => -0.5f,
+            BuildingType.Up or BuildingType.Storage => 0.5f,
+            _ => 0f,
+        };
 
         private void EnsureBatchHandles()
         {

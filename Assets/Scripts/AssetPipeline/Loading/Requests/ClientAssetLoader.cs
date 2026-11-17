@@ -444,6 +444,14 @@ namespace Kern.AssetPipeline.Loading
             {
                 _dispatcher.MarkMissing(filename);
             }
+            else if (_dispatcher.TryReportFailure(filename))
+            {
+                // Сюда приходят и тихие пути: запрос отменён/потерян без
+                // исключения, а локальных копий нет. Один лог на файл за сессию.
+                Debug.LogWarning(
+                    $"[ClientAssetLoader] Asset '{filename}' unavailable: " +
+                    "no server response and no local copy.");
+            }
 
             return null;
         }
