@@ -1,3 +1,11 @@
+/* Канвас-контейнеры носят ОБА класса — rel вешает CanvasPacketBuilder, abs
+   добавляет ApplyCanvasGeometry; в машинном TokenClasses.uss .rel объявлен
+   позже .abs и при равной специфичности побеждает, из-за чего канвас стекуется
+   в поток. Повышенная специфичность возвращает абсолют для обоих скинов. */
+.packet-window .abs {
+    position: absolute;
+}
+
 .packet-window-overlay {
     position: absolute;
     left: 0;
