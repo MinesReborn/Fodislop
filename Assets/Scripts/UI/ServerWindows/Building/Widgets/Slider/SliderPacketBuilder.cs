@@ -68,6 +68,15 @@ public class SliderPacketBuilder : PacketUIBuilderBase<SliderPacket>
         VisualElement knob = builder.Build(packet.Knob);
         dragger.style.width = packet.Knob.Width;
         dragger.style.height = packet.Knob.Height;
+        // Вертикальное центрирование ручки — только инлайн: top:50% и
+        // отрицательный отступ в полвысоты. Слайдер сам ведёт ручку инлайновым
+        // translate — SliderUtilities.UpdateDragElementPosition пишет (x, 0)
+        // при первом же изменении значения и затирает USS-кроссфейс translate
+        // (репорт: до первого сдвига ручка стоит выше дорожки). top/margin
+        // движок не трогает — ручка отцентрирована и до, и после сдвига.
+        dragger.style.position = Position.Absolute;
+        dragger.style.top = Length.Percent(50);
+        dragger.style.marginTop = -packet.Knob.Height / 2f;
         dragger.Add(knob);
         return slider;
     }

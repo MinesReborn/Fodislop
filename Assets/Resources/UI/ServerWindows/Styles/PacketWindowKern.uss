@@ -201,10 +201,12 @@
 
 /* ── Ползунок макета (таблица кристаллов маркета): дорожка 6 px по центру
    ячейки с костяной заливкой пройденной части, ручка — костяной прямоугольник
-   8×14 без скруглений (visual/kern-ui micro.css .range). Размер ручки приходит
-   из пакета (SliderPacket.Knob.Width/Height), USS только красит и центрирует.
-   Правила перебивают скиновые .packet-slider из SciFi.uss за счёт
-   специфичности .packet-window--kern. */
+   8×14 без скруглений (visual/kern-ui micro.css .range). Размер и вертикальное
+   центрирование ручки приходят из пакета (SliderPacket.Knob, инлайн в
+   SliderPacketBuilder: слайдер ведёт ручку инлайновым translate и затирает
+   любой USS-translate на ручке), USS только красит. Правила перебивают
+   скиновые .packet-slider из SciFi.uss за счёт специфичности
+   .packet-window--kern. */
 .packet-window--kern .packet-slider {
     margin: 0;
 }
@@ -227,8 +229,6 @@
     background-image: none;
     border-width: 0;
     border-radius: 0;
-    top: 50%;
-    translate: 0 -50%;
     align-items: center;
     justify-content: center;
 }
