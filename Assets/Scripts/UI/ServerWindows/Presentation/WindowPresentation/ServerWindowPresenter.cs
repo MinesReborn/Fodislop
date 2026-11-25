@@ -19,6 +19,7 @@ using UnityEngine.UIElements;
 using VContainer.Unity;
 
 using Kern.AssetPipeline.Loading;
+using Fodinae.UI.Binding;
 using Kern.Networking.Gateways;
 using Kern.UI.Input;
 using Kern.UI.Windows;
@@ -189,16 +190,23 @@ public sealed class ServerWindowPresenter : IDisposable
 
         frame.style.height = packet.Height;
 
-        // Тема окна выбирается сервером: Kern — скин главной темы поверх меню
-        // (окно авторизации), SciFi — текущий скин игровых окон. KernVector
-        // привязывается к оверлею сразу: векторный корпус панели (срез угла,
-        // засечки, зерно) рисуется при первом стайле, а не на ближайшем
-        // пересмотре дерева корня документа.
+        // Тема окна выбирается сервером: Kern — скин главной темы, SciFi —
+        // скин игровых окон. Подложка с точками и векторным зоном — фон
+        // экрана авторизации: она уместна только в сцене меню (презентер без
+        // состояния мира). В игре красится только корпус панели на рамке —
+        // иначе оверлей весь сеанс затемнял бы мир и накрывал его точками.
         if (packet.Theme == WindowTheme.Kern)
         {
-            element.AddToClassList("packet-window-overlay--kern");
             frame.AddToClassList("packet-window--kern");
-            Screens.KernVector.Attach(element);
+            if (_presentationState is null)
+            {
+                element.AddToClassList("packet-window-overlay--kern");
+                Screens.KernVector.Attach(element);
+            }
+            else
+            {
+                Screens.KernVector.Attach(frame);
+            }
         }
 
         element.Add(frame);
@@ -252,6 +260,7 @@ public sealed class ServerWindowPresenter : IDisposable
         // (репорт: маркет сильно лагает при заходе).
         foreach (ServerWindowState old in _openWindows)
         {
+            old.Binding?.Dispose();
             _uiInputManager.PopModal(old.Overlay);
             old.Overlay.RemoveFromHierarchy();
         }
@@ -273,10 +282,17 @@ public sealed class ServerWindowPresenter : IDisposable
     /// </summary>
     private void BuildWindowContent(ServerWindowState state)
     {
+        state.Binding?.Dispose();
+        state.Binding = null;
         state.Frame.Clear();
         VisualElement packetRoot = new PacketUIBuilder(_assetLoader, _operations, _webAssetLoader).Build(state.Tree);
         packetRoot.AddToClassList("packet-window-content");
         state.Frame.Add(packetRoot);
+        // Живые числа окна: именованные инпуты (слайдеры, поля) — источники,
+        // лейблы с {плейсхолдерами}/{:calc(...)} — потребители. Без биндинга
+        // шаблоны остаются в тексте буквально.
+        state.Binding = new WindowBinding();
+        state.Binding.Bind(packetRoot);
         state.ClickableOrder = ClickableElementOrder.Collect(state.Tree);
         RegisterClickableElements(packetRoot, packetRoot, state);
         AddExitCloseButton(state);
@@ -296,6 +312,7 @@ public sealed class ServerWindowPresenter : IDisposable
         }
 
         ServerWindowState state = _openWindows[^1];
+        state.Binding?.Dispose();
         _uiInputManager.PopModal(state.Overlay);
         state.Overlay.RemoveFromHierarchy();
         _openWindows.RemoveAt(_openWindows.Count - 1);
@@ -486,6 +503,7 @@ public sealed class ServerWindowPresenter : IDisposable
 
         foreach (ServerWindowState state in _openWindows)
         {
+            state.Binding?.Dispose();
             _uiInputManager.PopModal(state.Overlay);
             state.Overlay.RemoveFromHierarchy();
         }

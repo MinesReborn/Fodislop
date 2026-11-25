@@ -3,6 +3,16 @@
    и --kern на затемнение). Базовые классы PacketWindow.uss/SciFi.uss остаются:
    этот файл перекрывает их при каскаде (импортируется позже). */
 
+/* Канвас-контейнеры носят ОБА класса — rel вешает CanvasPacketBuilder, abs
+   добавляет ApplyCanvasGeometry. В машинном TokenClasses.uss .rel объявлен
+   позже .abs, при равной специфичности побеждает relative, и канвас стекуется
+   в поток: вкладки уползали под таблицу, строки раздувались, футер уходил за
+   окно, разросшийся контент включал оба скроллбара. Повышенная специфичность
+   возвращает абсолют — переживёт регенерацию TokenClasses. */
+.packet-window--kern .abs {
+    position: absolute;
+}
+
 /* Окно авторизации живёт поверх главного меню — фон вокруг карточки такой
    же, как у экранов вне игры (Kern.uss .screen-space): виньетка и точечная
    сетка. Точки рисует KernVector по --dots-* прямо на оверлее; меню под
@@ -109,8 +119,20 @@
     background-color: var(--well);
 }
 
+/* Канвас-действия (вкладки, ячейки цен, «Продать всё») — по макету это
+   голый текст, не клавиша: коробка остаётся только у primary (ее рисует
+   форма --shape-*). Наведение — осветление текста, без плашки. */
 .packet-window--kern .packet-window-action--canvas {
-    padding: 0 var(--sp-2);
+    padding: 0;
+    border-width: 0;
+    background-color: rgba(0, 0, 0, 0);
+}
+
+.packet-window--kern .packet-window-action--canvas:hover {
+    padding: 0;
+    border-width: 0;
+    background-color: rgba(0, 0, 0, 0);
+    color: var(--bone);
 }
 
 /* ── Некликабельный текст ── */
@@ -175,4 +197,43 @@
 
 .packet-window--kern .packet-window-action--primary:active {
     --shape-color: rgb(209, 74, 25);
+}
+
+/* ── Ползунок макета (таблица кристаллов маркета): дорожка 6 px по центру
+   ячейки с костяной заливкой пройденной части, ручка — костяной прямоугольник
+   8×14 без скруглений (visual/kern-ui micro.css .range). Размер ручки приходит
+   из пакета (SliderPacket.Knob.Width/Height), USS только красит и центрирует.
+   Правила перебивают скиновые .packet-slider из SciFi.uss за счёт
+   специфичности .packet-window--kern. */
+.packet-window--kern .packet-slider {
+    margin: 0;
+}
+
+.packet-window--kern .packet-slider__track {
+    top: 50%;
+    translate: 0 -50%;
+    height: 6px;
+    background-color: var(--well);
+    border-color: var(--seam-strong);
+    border-radius: 0;
+}
+
+.packet-window--kern .packet-slider:hover .packet-slider__track {
+    border-color: var(--bone);
+}
+
+.packet-window--kern .packet-slider .unity-base-slider__dragger {
+    background-color: var(--bone);
+    background-image: none;
+    border-width: 0;
+    border-radius: 0;
+    top: 50%;
+    translate: 0 -50%;
+    align-items: center;
+    justify-content: center;
+}
+
+.packet-window--kern .packet-slider:disabled .unity-base-slider__dragger,
+.packet-window--kern .packet-slider:disabled .packet-slider__track {
+    opacity: 0.4;
 }
