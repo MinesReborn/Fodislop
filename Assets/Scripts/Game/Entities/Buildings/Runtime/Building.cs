@@ -264,24 +264,12 @@ namespace Kern.Game.Entities.Buildings
                 return;
             }
 
-            _visualTransform.localPosition = new Vector3(
-                0f,
-                _buildingType is BuildingType buildingType ? VisualAnchorCellOffset(buildingType) : 0f,
-                0f);
+            // Выравнивание арта по центру «лица» здания — паддингом в самом
+            // спрайте: 32 px прозрачности сверху/снизу = полклетки сдвига при
+            // центр-пивоте. Никакого смещения кодом здесь не применяется.
+            _visualTransform.localPosition = Vector3.zero;
             _buildingBatchHandle?.MarkTransformDirty();
         }
-
-        // Спрайт центрируется на ячейке-якорь из пакета, но арт пака выровнен по центру
-        // «лица» здания (Placement в items.json сервера). У зданий с чётной высотой лица
-        // центр лица попадает на границу клеток, и без компенсации картинка уезжает на
-        // полклетки. Смещение в клетках по Unity-Y: Resp и Clans (лицо dy −1..+2) — вниз,
-        // Up (dy −2..+1) и Storage (dy −1..0) — вверх; у остальных лицо нечётное.
-        private static float VisualAnchorCellOffset(BuildingType type) => type switch
-        {
-            BuildingType.Resp or BuildingType.Clans => -0.5f,
-            BuildingType.Up or BuildingType.Storage => 0.5f,
-            _ => 0f,
-        };
 
         private void EnsureBatchHandles()
         {

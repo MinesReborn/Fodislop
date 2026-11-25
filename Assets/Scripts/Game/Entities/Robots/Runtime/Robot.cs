@@ -442,8 +442,8 @@ namespace Kern.Game.Entities.Robots
 #endif
 
         // Сервер заменил файлы посреди игры: перезагружаем облик, только если среди них скин, хвост или значок клана.
-        // Пути облика приходят без префикса ("Skin/bee.png"), а манифест мировых ассетов кладёт те же файлы под
-        // "Visual/Skin/...": сравниваем без префикса, иначе замена файла из манифеста не перезапускала бы загрузку.
+        // Пути облика каноничны: сервер шлёт их в общем с манифестом пространстве Visual/
+        // (RobotVisualPaths), поэтому сравнение строгое, без нормализации префиксов.
         private void OnAssetsChanged(IReadOnlyCollection<string> changed)
         {
             if (!_isMetadataLoaded)
@@ -454,23 +454,15 @@ namespace Kern.Game.Entities.Robots
             string? clanPath = _clanId != 0 && !IsLocalPlayer ? RobotAssetLoader.ClanPath(_clanId) : null;
             foreach (string filename in changed)
             {
-                if (IsSameAssetPath(filename, _skinPath) ||
-                    IsSameAssetPath(filename, _tailPath) ||
-                    (clanPath != null && IsSameAssetPath(filename, clanPath)))
+                if (string.Equals(filename, _skinPath, StringComparison.Ordinal) ||
+                    string.Equals(filename, _tailPath, StringComparison.Ordinal) ||
+                    (clanPath != null && string.Equals(filename, clanPath, StringComparison.Ordinal)))
                 {
                     LoadMetadataAssets();
                     return;
                 }
             }
         }
-
-        private static bool IsSameAssetPath(string first, string second) =>
-            string.Equals(NormalizeVisualPath(first), NormalizeVisualPath(second), StringComparison.Ordinal);
-
-        private static string NormalizeVisualPath(string path) =>
-            path.StartsWith("Visual/", StringComparison.OrdinalIgnoreCase)
-                ? path["Visual/".Length..]
-                : path;
 
         protected void OnDestroy()
         {
