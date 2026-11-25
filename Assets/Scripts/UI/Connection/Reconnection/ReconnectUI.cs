@@ -33,9 +33,15 @@ namespace Kern.UI.Connection
         [Inject]
         private GameManager _gameManager = null!;
         [Inject]
-        private ISceneNavigator _sceneNavigator = null!;
-        [Inject]
-        private IAsyncOperationSupervisor _operations = null!;
+        private IMainMenuNavigation _mainMenuNavigation = null!;
+
+        // Ровно один живой экземпляр на общую панель: сцены грузятся аддитивно и
+        // при сбое очистки перехода могут сосуществовать; без этого стража каждый
+        // экземпляр подписан на одни и те же события ConnectionManager и рисует
+        // своё окно «Связь потеряна» — окна наслаиваются (репорт: 10 → 100 → 1000).
+        private static ReconnectUI? Active;
+        private bool _passive;
+        private const string OverlayClassName = "kern-reconnect-overlay";
 
         private VisualElement? _reconnectOverlay;
         private VisualElement? _disconnectOverlay;
@@ -52,6 +58,11 @@ namespace Kern.UI.Connection
 
         private void OnDestroy()
         {
+            if (Active == this)
+            {
+                Active = null;
+            }
+
             if (_loc != null)
             {
                 _loc.UnregisterLocalizable(this);
@@ -80,9 +91,63 @@ namespace Kern.UI.Connection
         private void Construct(IConnectionService connection)
         {
             _connection = connection;
+            TakeOverActiveInstance();
+            if (_passive)
+            {
+                return;
+            }
+
             _connection.OnReconnectStatusChanged += ShowReconnecting;
             _connection.OnDisconnectReason += ShowDisconnectReason;
             _connection.OnReconnectHidden += Hide;
+        }
+
+        // Новый экземпляр (пересобранная сцена) перехватывает роль единственного
+        // окна: старый гаснет и отписывается — иначе оба отвечали бы на одни и те
+        // же события ConnectionManager, переживающего сцены.
+        private void TakeOverActiveInstance()
+        {
+            if (Active != null && Active != this)
+            {
+                Active.Passivate();
+            }
+
+            Active = this;
+        }
+
+        private void Passivate()
+        {
+            if (_connection != null)
+            {
+                _connection.OnReconnectStatusChanged -= ShowReconnecting;
+                _connection.OnDisconnectReason -= ShowDisconnectReason;
+                _connection.OnReconnectHidden -= Hide;
+            }
+
+            Hide();
+            _passive = true;
+        }
+
+        // Осиротевшие экземпляры прошлых сцен (сбой отката/очистки перехода)
+        // могут держать свои оверлеи на общей панели. Перед показом убираем
+        // чужие оверлеи того же класса — окна не должны наслаиваться.
+        private void SweepForeignOverlays()
+        {
+            VisualElement? root = _doc.rootVisualElement;
+            if (root == null)
+            {
+                return;
+            }
+
+            root.Query<VisualElement>(className: OverlayClassName)
+                .ForEach(element =>
+                {
+                    if (!ReferenceEquals(element, _reconnectOverlay) &&
+                        !ReferenceEquals(element, _disconnectOverlay))
+                    {
+                        element.RemoveFromHierarchy();
+                    }
+                });
         }
 
         private void TryInitialize()
@@ -182,7 +247,7 @@ namespace Kern.UI.Connection
 
         public void ShowReconnecting(string status)
         {
-            if (!_gameManager.IsUIAuthorized)
+            if (_passive || !_gameManager.IsUIAuthorized)
             {
                 return;
             }
@@ -191,6 +256,8 @@ namespace Kern.UI.Connection
             {
                 return;
             }
+
+            SweepForeignOverlays();
 
             if (_doc.rootVisualElement != null && !_doc.rootVisualElement.Contains(_reconnectOverlay))
             {
@@ -210,7 +277,7 @@ namespace Kern.UI.Connection
 
         public void ShowDisconnectReason(string reason)
         {
-            if (!_gameManager.IsUIAuthorized)
+            if (_passive || !_gameManager.IsUIAuthorized)
             {
                 return;
             }
@@ -219,6 +286,8 @@ namespace Kern.UI.Connection
             {
                 return;
             }
+
+            SweepForeignOverlays();
 
             if (_doc.rootVisualElement != null && !_doc.rootVisualElement.Contains(_disconnectOverlay))
             {
@@ -237,7 +306,7 @@ namespace Kern.UI.Connection
 
         public void SetStatus(string status)
         {
-            if (!_gameManager.IsUIAuthorized)
+            if (_passive || !_gameManager.IsUIAuthorized)
             {
                 return;
             }
@@ -292,9 +361,10 @@ namespace Kern.UI.Connection
         private void ExitToMainMenu()
         {
             Hide();
-            _operations.Run(
-                "reconnect_exit_to_main_menu",
-                cancellationToken => _sceneNavigator.TransitionAsync(SceneNames.MainMenu, cancellationToken));
+            // Общий путь с PauseMenu: Disconnect до перехода, handoff соединения
+            // меню и корректная работа с гейтом переходов — прямой TransitionAsync
+            // оставлял авто-реконнект жить, и тот утаскивал клиента обратно в игру.
+            _mainMenuNavigation.ReturnToMainMenu();
         }
 
         public void Hide()

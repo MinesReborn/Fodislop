@@ -213,6 +213,13 @@ namespace Kern.Networking.Connection
 
         public void Disconnect()
         {
+            // Клиентский разрыв транспорт не озвучивает (хендлеры detached до
+            // закрытия сокета). Но незавершённый вход в мир и незавершённая
+            // попытка подключения обязаны узнать об отключении: иначе переход
+            // в MainGame ждёт презентацию мира уже убитой сессии и вечно
+            // держит гейт переходов (репорт: «выход в меню — бесконечная
+            // загрузка»). Тихий Disconnect устоявшейся сессии остаётся тихим.
+            bool worldEntryInFlight = _isWorldStartupPending || _isConnectionAttemptPending;
             _inboundHeld = false;
             _isConnectionAttemptPending = false;
             _isWorldStartupPending = false;
@@ -221,6 +228,11 @@ namespace Kern.Networking.Connection
             _clientHelloSent = false;
             if (Connection == null)
             {
+                if (worldEntryInFlight)
+                {
+                    OnTransportDisconnected?.Invoke();
+                }
+
                 return;
             }
 
@@ -239,6 +251,10 @@ namespace Kern.Networking.Connection
             finally
             {
                 _inboundPackets.EndTeardown();
+                if (worldEntryInFlight)
+                {
+                    OnTransportDisconnected?.Invoke();
+                }
             }
         }
 
@@ -357,6 +373,16 @@ namespace Kern.Networking.Connection
                     {
                         return;
                     }
+                    catch (InvalidOperationException exception)
+                    {
+                        // Duplicate-guard перехода: сцена MainGame уже в памяти
+                        // (осиротевший экземпляр после неудачного отката или
+                        // очистки). Её пайплайн ждёт пакеты нового соединения —
+                        // hello ниже обязателен в любом случае, поэтому не роняем
+                        // оп, а продолжаем как при «сцена уже текущая».
+                        Debug.LogWarning(
+                            $"[Connection] World re-entry skipped: {exception.Message}");
+                    }
                 }
                 else
                 {
@@ -444,7 +470,14 @@ namespace Kern.Networking.Connection
             {
                 _isConnectionAttemptPending = false;
                 _shouldAutoReconnect = true;
-                _restartWorldOnConnect = true;
+                // Мир перезапускает только незавершённый вход в мир (обрыв во
+                // время спуска). Провал попытки из меню — собственный Connect
+                // GatewayWindowProcessor при лежащем сервере — не имеет права
+                // планировать переход в MainGame: иначе успешный ретрай
+                // утаскивал клиента из меню обратно в игру. Флаг world-startup
+                // сознательно не сбрасывается: вход в мир продолжается после
+                // ретрая, и следующий обрыв классифицируется по нему же.
+                _restartWorldOnConnect = _isWorldStartupPending;
             }
 
             if (_shouldAutoReconnect)
@@ -452,7 +485,6 @@ namespace Kern.Networking.Connection
                 // Сокетный транспорт может оборваться в любой момент. Забываем
                 // мёртвое соединение, чтобы UpdateReconnect создал новое.
                 Connection = null;
-                _restartWorldOnConnect = true;
                 _reconnectBackoff.RecordFailure();
                 _reconnectCountdown = _reconnectBackoff.CurrentDelay;
                 _reconnectStatus = _loc.Get("network.reconnect.retry", Mathf.CeilToInt(_reconnectCountdown));
