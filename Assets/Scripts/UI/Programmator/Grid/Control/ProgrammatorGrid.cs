@@ -308,6 +308,17 @@ public sealed class ProgrammatorGrid : IDisposable
 
             _isOpen = true;
             _uiInput.IsProgrammatorOpen = true;
+
+            // Открытие всегда начинает со списка программ (контракт PlayMode:
+            // тап ProgrammatorButton → виден ProgramListPanel). Панели
+            // сбрасываем явно: Hide() оставляет обе в None, а в UXML редактор
+            // видим по умолчанию — иначе первое открытие показывает пустую
+            // сетку, а повторное — только подложку попапа. В редактор ведёт
+            // выбор программы (OpenProgram) или сервер (UpdateProgramPacket).
+            _view.Panel.style.display = DisplayStyle.None;
+            _view.ProgramListPanel.style.display = DisplayStyle.Flex;
+            _programs!.RefreshProgramList();
+
             _view.Popup.style.display = DisplayStyle.Flex;
 
             // Окно — поверх HUD: дерево HUD добавлено в документ позже, и без
