@@ -10,7 +10,10 @@ public static class GatewayDevFlags
         get
         {
 #if UNITY_EDITOR
-            return UnityEditor.EditorPrefs.GetBool(ForceGatesPrefsKey, true);
+            // Дефолт false: гейт/онбординг — первый запуск (Interface.OnboardingDone),
+            // а не каждый вход в меню (репорт: «выход в меню — снова прелоадер»).
+            // Для повторного показа онбординга в редакторе — выставить ключ вручную.
+            return UnityEditor.EditorPrefs.GetBool(ForceGatesPrefsKey, false);
 #else
             return false;
 #endif

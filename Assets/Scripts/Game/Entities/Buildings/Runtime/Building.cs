@@ -163,6 +163,7 @@ namespace Kern.Game.Entities.Buildings
                 new Rect(0, 0, buildingTexture.width, buildingTexture.height),
                 new Vector2(0.5f, 0.5f),
                 RenderingConstants.CELL_SIZE);
+            UpdateVisualPosition();
             EnsureBatchHandles();
             _entityBatchRenderer.SetSprite(_buildingBatchHandle!, _buildingSprite);
             _buildingBatchHandle!.SetEnabled(true);
@@ -254,6 +255,20 @@ namespace Kern.Game.Entities.Buildings
             float xOffset = (packWidth / (RenderingConstants.CELL_SIZE * 2f)) + 0.1f;
             _clanTransform.localPosition = new Vector3(xOffset, -0.5f, 0);
             _clanBatchHandle?.MarkTransformDirty();
+        }
+
+        private void UpdateVisualPosition()
+        {
+            if (_visualTransform == null)
+            {
+                return;
+            }
+
+            // Выравнивание арта по центру «лица» здания — паддингом в самом
+            // спрайте: 32 px прозрачности сверху/снизу = полклетки сдвига при
+            // центр-пивоте. Никакого смещения кодом здесь не применяется.
+            _visualTransform.localPosition = Vector3.zero;
+            _buildingBatchHandle?.MarkTransformDirty();
         }
 
         private void EnsureBatchHandles()

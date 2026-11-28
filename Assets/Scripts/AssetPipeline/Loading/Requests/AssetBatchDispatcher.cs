@@ -124,8 +124,12 @@ public sealed class AssetBatchDispatcher : IDisposable
                 continue;
             }
 
+            // Хвост пачки остаётся в очереди и уходит следующим тиком: сервер
+            // обслуживает не больше MaxEntriesPerAssetRequestPacket записей за
+            // пакет, и выброшенные за лимит запросы не получили бы ответа.
             List<RuntimeAssetEntryPacket> batch = new();
-            while (_requestQueue.TryDequeue(out var entry))
+            while (batch.Count < AssetStreamingLimits.MaxEntriesPerAssetRequestPacket &&
+                   _requestQueue.TryDequeue(out var entry))
             {
                 if (_pendingRequests.TryGetValue(entry.Filename, out var tcs) && !tcs.Task.IsCompleted)
                 {

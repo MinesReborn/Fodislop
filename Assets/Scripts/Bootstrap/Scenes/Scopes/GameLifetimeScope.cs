@@ -366,7 +366,7 @@ namespace Kern.Bootstrap.Scenes
             }
         }
 
-        public async UniTask PrepareForUnloadAsync()
+        public async UniTask PrepareForUnloadAsync(bool returningToMainMenu = false)
         {
             if (_uiDocument != null)
             {
@@ -388,9 +388,15 @@ namespace Kern.Bootstrap.Scenes
             // ReturnToMainMenu: любой уход из MainGame (прямой переход, сбой,
             // выход) иначе оставлял циклы офлайн-сервера слать пакеты в меню.
             // Первым — пока контейнер сцены жив. Повторный Disconnect безвреден.
+            // suppressConnectionDisconnect → returningToMainMenu: выход в меню
+            // уже разорвал соединение и оставил владение сцене меню — она
+            // подключилась сама во время загрузки; разрыв здесь убивал её
+            // свежее соединение молча, без событий и ретраев (репорт: после
+            // выхода в меню сессия мертва).
             if (Container.TryResolve(out IConnectionService? connection) &&
                 connection != null &&
-                !connection.IsAutoReconnecting)
+                !connection.IsAutoReconnecting &&
+                !returningToMainMenu)
             {
                 connection.Disconnect();
             }
@@ -435,7 +441,15 @@ namespace Kern.Bootstrap.Scenes
 
                 // Session-only flag on a persistent object: stale "authenticated"
                 // from a previous MainGame must not leak into the next session.
-                localPlayer.SetAuthenticated(false);
+                // Возврат в меню — исключение: cleanup выполняется уже после
+                // презентации меню, и его свежая сессия успела переподключиться
+                // и получить AuthTokenPacket; сброс затирал авторизацию живой
+                // сессии — гейт ждал флаг вечно, «Играть» не работал
+                // (репорт: «выход в меню — снова прелоадер»).
+                if (!returningToMainMenu)
+                {
+                    localPlayer.SetAuthenticated(false);
+                }
             }
         }
 

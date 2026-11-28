@@ -202,9 +202,23 @@ namespace Kern.Bootstrap.Scenes
                 Scene existing = SceneTransitionSceneLookup.FindFirstLoaded(sceneName);
                 if (existing.IsValid() && existing.isLoaded)
                 {
-                    throw new InvalidOperationException(
-                        $"[Bootstrap] Transition target '{sceneName}' was already loaded outside the current transition. " +
-                        "Content scenes must be loaded only through BootstrapLifetimeScope.");
+                    if (string.Equals(_currentSceneName, sceneName, StringComparison.Ordinal))
+                    {
+                        throw new InvalidOperationException(
+                            $"[Bootstrap] Transition target '{sceneName}' was already loaded outside the current transition. " +
+                            "Content scenes must be loaded only through BootstrapLifetimeScope.");
+                    }
+
+                    // Осиротевший экземпляр цели: остался в памяти после
+                    // неудачного отката/очистки прошлого перехода, и
+                    // _currentSceneName на него не указывает. Выгружаем и грузим
+                    // свежую — иначе guard бросал здесь всегда, вход лочился
+                    // навсегда, а осиротевшая сцена продолжала жить со своим UI
+                    // (репорт: наслоение окон «Связь потеряна»).
+                    Debug.LogWarning(
+                        $"[Bootstrap] Stranded '{sceneName}' scene (current is " +
+                        $"'{_currentSceneName ?? "none"}') will be unloaded before a fresh load.");
+                    await SceneManager.UnloadSceneAsync(existing).ToUniTask();
                 }
 
                 if (!Application.CanStreamedLevelBeLoaded(sceneName))
@@ -393,7 +407,13 @@ namespace Kern.Bootstrap.Scenes
             return result;
         }
 
-        private static async UniTask PrepareSceneForUnloadAsync(Scene scene)
+        // Выход в меню уже разорвал игровое соединение и оставил владение
+        // подключения сцене меню (GatewayWindowProcessor подключается сам во
+        // время загрузки). Cleanup игровой сцены не должен разорвать её
+        // соединение — читается в PrepareSceneForUnloadAsync.
+        private bool _returningToMainMenu;
+
+        private async UniTask PrepareSceneForUnloadAsync(Scene scene)
         {
             GameLifetimeScope? scope = FindGameScope(scene);
             if (scope == null || scope.Container == null)
@@ -404,7 +424,7 @@ namespace Kern.Bootstrap.Scenes
             // Which subsystems are still alive is the game scope's own business:
             // it owns that container and knows what an aborted previous unload
             // may have left half-disposed.
-            await scope.PrepareForUnloadAsync();
+            await scope.PrepareForUnloadAsync(returningToMainMenu: _returningToMainMenu);
         }
 
         public void ReturnToMainMenu()
@@ -433,8 +453,16 @@ namespace Kern.Bootstrap.Scenes
             // unloads the scene, those references point at destroyed objects.
             // Repointing first means late resolves hit the Bootstrap container, where
             // Game-scoped types are not registered, and TryResolve returns null.
-            await TransitionAsync(MainMenuSceneName, cancellationToken);
-            await Resources.UnloadUnusedAssets().ToUniTask();
+            _returningToMainMenu = true;
+            try
+            {
+                await TransitionAsync(MainMenuSceneName, cancellationToken);
+                await Resources.UnloadUnusedAssets().ToUniTask();
+            }
+            finally
+            {
+                _returningToMainMenu = false;
+            }
         }
 
         protected override void Configure(IContainerBuilder builder)

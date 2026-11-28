@@ -2,7 +2,7 @@
     <!-- Связь — макет visual/kern-ui (#netDialog, css/events.css .net): значок, заголовок, текст, кнопка «Выйти в меню».
          Переподключение — «Связь потеряна» и обратный отсчёт; отключение сервером — причина отдельной плашкой.
          Окно блокирует игру, выход в меню остаётся. Видимость — рантайм-состояние (класс is-hidden). -->
-    <ui:VisualElement name="ReconnectOverlay" class="dialog-layer net-layer is-hidden" picking-mode="Ignore">
+    <ui:VisualElement name="ReconnectOverlay" class="dialog-layer net-layer kern-reconnect-overlay is-hidden" picking-mode="Ignore">
         <ui:VisualElement class="panel dialog net">
             <ui:VisualElement class="ico ico--offline net-ico" />
             <ui:Label class="dialog__title caps" text="network.lost_title" />
@@ -12,7 +12,7 @@
             </ui:VisualElement>
         </ui:VisualElement>
     </ui:VisualElement>
-    <ui:VisualElement name="DisconnectOverlay" class="dialog-layer net-layer is-hidden" picking-mode="Ignore">
+    <ui:VisualElement name="DisconnectOverlay" class="dialog-layer net-layer kern-reconnect-overlay is-hidden" picking-mode="Ignore">
         <ui:VisualElement class="panel dialog net">
             <ui:VisualElement class="ico ico--offline net-ico" />
             <ui:Label name="DisconnectTitle" class="dialog__title caps" text="network.lost_title" />

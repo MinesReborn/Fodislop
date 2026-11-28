@@ -2,6 +2,7 @@
 
 using Kern.Core.Interfaces.Diagnostics;
 using System;
+using System.Collections.Generic;
 using System.Threading;
 using Cysharp.Threading.Tasks;
 using Kern.Networking.Diagnostics;
@@ -74,6 +75,12 @@ namespace Kern.Networking.Connection
         private bool _isConnectionAttemptPending;
         private bool _isWorldStartupPending;
         private bool _clientHelloSent;
+        // Пакеты, собранные до ClientHello: UI игровой сцены шлёт запросы
+        // (например, чат) уже при инициализации, а hello уходит из OnConnected,
+        // который попадает в главный поток отдельной прокачкой цикла. Без
+        // очереди такой пакет обгонял hello на проводе, и PreAuth-фильтр
+        // сервера рвал соединение за «non-hello packet».
+        private readonly Queue<ClientPacket> _preHelloPackets = new();
         private float _reconnectCountdown;
         private string _reconnectStatus = string.Empty;
         private bool _restartWorldOnConnect;
@@ -206,6 +213,13 @@ namespace Kern.Networking.Connection
 
         public void Disconnect()
         {
+            // Клиентский разрыв транспорт не озвучивает (хендлеры detached до
+            // закрытия сокета). Но незавершённый вход в мир и незавершённая
+            // попытка подключения обязаны узнать об отключении: иначе переход
+            // в MainGame ждёт презентацию мира уже убитой сессии и вечно
+            // держит гейт переходов (репорт: «выход в меню — бесконечная
+            // загрузка»). Тихий Disconnect устоявшейся сессии остаётся тихим.
+            bool worldEntryInFlight = _isWorldStartupPending || _isConnectionAttemptPending;
             _inboundHeld = false;
             _isConnectionAttemptPending = false;
             _isWorldStartupPending = false;
@@ -214,6 +228,11 @@ namespace Kern.Networking.Connection
             _clientHelloSent = false;
             if (Connection == null)
             {
+                if (worldEntryInFlight)
+                {
+                    OnTransportDisconnected?.Invoke();
+                }
+
                 return;
             }
 
@@ -232,6 +251,10 @@ namespace Kern.Networking.Connection
             finally
             {
                 _inboundPackets.EndTeardown();
+                if (worldEntryInFlight)
+                {
+                    OnTransportDisconnected?.Invoke();
+                }
             }
         }
 
@@ -259,6 +282,14 @@ namespace Kern.Networking.Connection
 
         public void Send(ClientPacket packet)
         {
+            // До ClientHello ни один байт не должен попасть на провод:
+            // очередь дренируется сразу после hello (SendClientHelloIfNeeded).
+            if (!_clientHelloSent)
+            {
+                _preHelloPackets.Enqueue(packet);
+                return;
+            }
+
             Connection?.SendAsync(packet);
         }
 
@@ -342,6 +373,16 @@ namespace Kern.Networking.Connection
                     {
                         return;
                     }
+                    catch (InvalidOperationException exception)
+                    {
+                        // Duplicate-guard перехода: сцена MainGame уже в памяти
+                        // (осиротевший экземпляр после неудачного отката или
+                        // очистки). Её пайплайн ждёт пакеты нового соединения —
+                        // hello ниже обязателен в любом случае, поэтому не роняем
+                        // оп, а продолжаем как при «сцена уже текущая».
+                        Debug.LogWarning(
+                            $"[Connection] World re-entry skipped: {exception.Message}");
+                    }
                 }
                 else
                 {
@@ -387,6 +428,13 @@ namespace Kern.Networking.Connection
                     Environment.OSVersion.Version.Major,
                     SystemInfo.deviceUniqueIdentifier,
                     token)));
+
+            // hello ушёл первым — выпускаем всё, что UI успел насобирать до
+            // него, в исходном порядке.
+            while (_preHelloPackets.Count > 0)
+            {
+                Connection?.SendAsync(_preHelloPackets.Dequeue());
+            }
         }
 
         private static string GetClientOperatingSystem() =>
@@ -422,7 +470,14 @@ namespace Kern.Networking.Connection
             {
                 _isConnectionAttemptPending = false;
                 _shouldAutoReconnect = true;
-                _restartWorldOnConnect = true;
+                // Мир перезапускает только незавершённый вход в мир (обрыв во
+                // время спуска). Провал попытки из меню — собственный Connect
+                // GatewayWindowProcessor при лежащем сервере — не имеет права
+                // планировать переход в MainGame: иначе успешный ретрай
+                // утаскивал клиента из меню обратно в игру. Флаг world-startup
+                // сознательно не сбрасывается: вход в мир продолжается после
+                // ретрая, и следующий обрыв классифицируется по нему же.
+                _restartWorldOnConnect = _isWorldStartupPending;
             }
 
             if (_shouldAutoReconnect)
@@ -430,7 +485,6 @@ namespace Kern.Networking.Connection
                 // Сокетный транспорт может оборваться в любой момент. Забываем
                 // мёртвое соединение, чтобы UpdateReconnect создал новое.
                 Connection = null;
-                _restartWorldOnConnect = true;
                 _reconnectBackoff.RecordFailure();
                 _reconnectCountdown = _reconnectBackoff.CurrentDelay;
                 _reconnectStatus = _loc.Get("network.reconnect.retry", Mathf.CeilToInt(_reconnectCountdown));
@@ -449,6 +503,13 @@ namespace Kern.Networking.Connection
         {
             int discardedCount = _inboundPackets.Clear();
             while (_heldSessionPackets.TryDequeue(out _))
+            {
+                discardedCount++;
+            }
+
+            // Неотправленные до hello пакеты умершей сессии тоже стейл:
+            // UI пересоберётся и запросит нужное заново уже после hello.
+            while (_preHelloPackets.TryDequeue(out _))
             {
                 discardedCount++;
             }

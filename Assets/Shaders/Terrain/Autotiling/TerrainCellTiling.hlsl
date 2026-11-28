@@ -41,9 +41,17 @@ uint TerrainBuildingWallVariant(uint descriptor, uint cornerSideMask)
     uint cornerCount = (hasLeft ? 1u : 0u) + (hasRight ? 1u : 0u) + (hasTop ? 1u : 0u) + (hasBottom ? 1u : 0u);
     uint column = KERN_TERRAIN_WALL_BASE_COLUMN + (cornerCount < 2u ? cornerCount : 2u);
     uint transforms = descriptor & KERN_TERRAIN_TILE_TRANSFORM_MASK;
-    if (cornerCount == 1u && (hasRight || hasBottom))
+    if (cornerCount == 1u)
     {
-        transforms ^= 1u << KERN_TERRAIN_TILE_FLIP_U_SHIFT;
+        // Ориентация панели — по стороне примыкающего угла, флип задаётся явно.
+        // LUT для зеркальных клеток (стены по бокам дороги пака) уже даёт
+        // противоположные флипы (0x24/0x64), и XOR-переключение снимало флип
+        // правой/нижней стены — пара рендерилась одинаково вместо зеркальной.
+        transforms &= ~(1u << KERN_TERRAIN_TILE_FLIP_U_SHIFT);
+        if (hasRight || hasBottom)
+        {
+            transforms |= 1u << KERN_TERRAIN_TILE_FLIP_U_SHIFT;
+        }
     }
 
     if (cornerCount >= 2u && !hasLeft && !hasRight)

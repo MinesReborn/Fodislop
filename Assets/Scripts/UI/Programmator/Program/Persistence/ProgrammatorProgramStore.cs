@@ -410,11 +410,17 @@ internal sealed class ProgrammatorProgramStore
 
     private void OnStateChanged(ProgramStatePacket packet)
     {
-        _isRunning = packet.State == ProgramState.Running;
+        // Paused = программа активна (дебаг-пауза/шаг), как трактует и HUD:
+        // иначе R при паузе считает программу остановленной и перезапускает
+        // её с начала вместо остановки.
+        _isRunning = packet.State is ProgramState.Running or ProgramState.Paused;
         _view.RunBtn.SetEnabled(packet.State != ProgramState.Running);
         _view.StopBtn.SetEnabled(packet.State == ProgramState.Running || packet.State == ProgramState.Paused);
         Debug.Log($"[Programmator] Server state: {packet.State}");
-        RunStateChanged?.Invoke(_isRunning);
+        // Событие — только про фактическое исполнение: авто-скрытие окна
+        // (ProgrammatorGrid) должно срабатывать на Running, а не на
+        // дебаг-паузе, иначе окно закрывалось бы на каждом шаге отладки.
+        RunStateChanged?.Invoke(packet.State == ProgramState.Running);
     }
 
     private static void OnBreakpointHit(BreakpointHitPacket packet)

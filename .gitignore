@@ -179,3 +179,7 @@ ref/
 .Trashes
 ehthumbs.db
 Thumbs.db
+
+# Состояние прогрева шейдеров: генерируется рантаймом, меняется каждый запуск
+Assets/Resources/Rendering/Warmup/States/GraphicsStates.graphicsstate
+Assets/Resources/Rendering/Warmup/States/GraphicsStates.graphicsstate.meta
