@@ -2,6 +2,8 @@
 
 using System;
 using System.Collections.Generic;
+using System.Threading;
+using Cysharp.Threading.Tasks;
 using Kern.Core;
 using Kern.Core.Interfaces;
 using Kern.Core.Localization;
@@ -32,6 +34,7 @@ namespace Kern.UI.Chat
         [Inject] private ILocalizationService _loc = null!;
         [Inject] private IAsyncOperationSupervisor _operations = null!;
         [Inject] private IClientConfigManager _clientConfig = null!;
+        [Inject] private ILocalPlayerState _localPlayer = null!;
 
         private ChatEventGateway _chatEvents = null!;
         private ChatViewElements? _view;
@@ -63,9 +66,11 @@ namespace Kern.UI.Chat
 
         [Inject]
         private void Construct(
+            ILocalPlayerState localPlayer,
             ChatEventGateway chatEvents,
             TouchCommands touchCommands)
         {
+            _localPlayer = localPlayer;
             // Кнопка «Чат» HUD — тач-аналог TAB.
             _touchCommands = touchCommands;
             _touchCommands.GlobalChatRequested += OnTouchChatRequested;
@@ -127,7 +132,8 @@ namespace Kern.UI.Chat
             // моменту вызова; null здесь — дефект проводки, а не гонка.
             // Молчаливый пропуск оставил бы чат вечно нерабочим без ошибки.
             if (_doc == null || _doc.rootVisualElement == null || _networkService == null ||
-                _inputBlocker == null || _operations == null || _clientConfig == null)
+                _inputBlocker == null || _operations == null || _clientConfig == null ||
+                _localPlayer == null)
             {
                 throw new InvalidOperationException(
                     "[GlobalChatUI] Required injection missing: " +
@@ -136,6 +142,7 @@ namespace Kern.UI.Chat
                         : _networkService == null ? "INetworkService"
                         : _inputBlocker == null ? "IInputBlocker"
                         : _clientConfig == null ? "IClientConfigManager"
+                        : _localPlayer == null ? "ILocalPlayerState"
                         : "IAsyncOperationSupervisor")}. " +
                     "GlobalChatUI must be registered in the Game scope before Start.");
             }
@@ -155,20 +162,55 @@ namespace Kern.UI.Chat
 
             if (Application.isPlaying)
             {
-                try
-                {
-                    _networkService.Send(new QueryChatHistoryPacket(_channels.ActiveTag, 0));
+                RequestInitialChatDataOnce();
+            }
+        }
 
-                    // Имя канала в шапке — из списка каналов сервера; список ещё не приходил — запросить
-                    if (_chatEvents.LastChatList == null)
-                    {
-                        _networkService.Send(new OpenChatListPacket());
-                    }
-                }
-                catch (Exception ex)
+        // Авто-запросы истории и списка каналов осмысленны только в
+        // авторизованной сессии: до hello сервер рвёт соединение за pre-auth
+        // пакет (PreAuth-гейт). Чат собирается при загрузке сцены — в одном
+        // кадре с завершением соединения (и при реконнекте внутрь игры), поэтому
+        // запросы ждут AuthTokenPacket, а не уходят немедленно. Один раз на
+        // жизнь UI: повторный запрос делает переключение канала.
+        private void RequestInitialChatDataOnce()
+        {
+            if (_localPlayer.IsAuthenticated)
+            {
+                SendInitialChatDataRequests();
+                return;
+            }
+
+            _operations.Run(
+                "chat_initial_requests",
+                async token =>
                 {
-                    Debug.LogWarning($"[GlobalChatUI] Не удалось запросить историю чата: {ex}");
+                    using var linkedCancellation = CancellationTokenSource.CreateLinkedTokenSource(
+                        token,
+                        destroyCancellationToken);
+                    while (!_localPlayer.IsAuthenticated)
+                    {
+                        await UniTask.Yield(PlayerLoopTiming.Update, linkedCancellation.Token);
+                    }
+
+                    SendInitialChatDataRequests();
+                });
+        }
+
+        private void SendInitialChatDataRequests()
+        {
+            try
+            {
+                _networkService.Send(new QueryChatHistoryPacket(_channels.ActiveTag, 0));
+
+                // Имя канала в шапке — из списка каналов сервера; список ещё не приходил — запросить
+                if (_chatEvents.LastChatList == null)
+                {
+                    _networkService.Send(new OpenChatListPacket());
                 }
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning($"[GlobalChatUI] Не удалось запросить историю чата: {ex}");
             }
         }
 
